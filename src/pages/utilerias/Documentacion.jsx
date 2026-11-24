@@ -11,6 +11,9 @@ import EmptyState from '../../components/ui/EmptyState'
 import { errMsg, EstadoConsulta } from './comun'
 import MarkdownVista from './MarkdownVista'
 
+// Un documento que empieza con <!doctype html> o <html> (p. ej. un flujo animado) se muestra en un marco aislado: sus scripts corren, pero sin acceso a la sesión.
+const esHtml = (t) => /^\s*<(!doctype html|html)/i.test(t ?? '')
+
 export default function Documentacion() {
   const q = useQuery({
     queryKey: ['documentacion'],
@@ -45,7 +48,9 @@ export default function Documentacion() {
             <div className="card">
               {actual && (<>
                 <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 4 }}>Actualizado {fechaHora(actual.updated_at)}</div>
-                <MarkdownVista texto={actual.contenido} onDocumento={setClave} />
+                {esHtml(actual.contenido)
+                  ? <iframe title={actual.titulo} srcDoc={actual.contenido} sandbox="allow-scripts" style={{ width: '100%', height: 'calc(100vh - 230px)', minHeight: 560, border: '1px solid var(--border)', borderRadius: 8 }} />
+                  : <MarkdownVista texto={actual.contenido} onDocumento={setClave} />}
               </>)}
             </div>
           </div>

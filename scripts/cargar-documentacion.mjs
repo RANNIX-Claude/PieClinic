@@ -11,12 +11,15 @@ import path from "path";
 import { ambiente } from "./lib/env.mjs";
 
 const args = process.argv.slice(2);
+const iEsq = args.indexOf("--esquema");
+const esquema = iEsq >= 0 ? args[iEsq + 1] : "piefirme";
+if (!/^[a-z][a-z0-9_]{2,30}$/.test(esquema)) { console.error("esquema inválido"); process.exit(2); }
 const iSql = args.indexOf("--solo-sql");
 const salidaSql = iSql >= 0 ? args[iSql + 1] : null;
-const pos = args.filter((a, i) => !a.startsWith("--") && !(iSql >= 0 && i === iSql + 1));
+const pos = args.filter((a, i) => !a.startsWith("--") && !(iSql >= 0 && i === iSql + 1) && !(iEsq >= 0 && i === iEsq + 1));
 const [amb, org, ...archivos] = pos;
 if (!amb || amb === "prod" || !/^[0-9a-f-]{36}$/i.test(org || "") || !archivos.length) {
-  console.error("uso: node scripts/cargar-documentacion.mjs qa <organizacion_id> <archivo.md> [...] [--solo-sql salida.sql]  (nunca producción)");
+  console.error("uso: node scripts/cargar-documentacion.mjs qa <organizacion_id> <archivo.md> [...] [--esquema pieclinic] [--solo-sql salida.sql]  (nunca producción)");
   process.exit(2);
 }
 
@@ -24,8 +27,9 @@ const comillas = (texto) => { let n = 0, tag; do { tag = "$doc" + n++ + "$"; } w
 const sentencias = archivos.map((a, orden) => {
   const md = fs.readFileSync(a, "utf8");
   const clave = path.basename(a, path.extname(a)).toLowerCase().replace(/[^a-z0-9_-]/g, "_");
-  const titulo = (md.match(/^#\s+(.*)$/m)?.[1] ?? clave).trim();
-  return `insert into piefirme.documentacion (organizacion_id, clave, titulo, contenido, orden)
+  const esHtml = /^\s*<(!doctype html|html)/i.test(md);   // un .html se guarda tal cual y la pantalla lo muestra aislado
+  const titulo = (esHtml ? (md.match(/<title>([^<]*)<\/title>/i)?.[1] ?? clave) : (md.match(/^#\s+(.*)$/m)?.[1] ?? clave)).trim();
+  return `insert into ${esquema}.documentacion (organizacion_id, clave, titulo, contenido, orden)
 values ('${org}', '${clave}', ${comillas(titulo)}, ${comillas(md)}, ${(orden + 1) * 10})
 on conflict (organizacion_id, clave) do update set titulo = excluded.titulo, contenido = excluded.contenido, orden = excluded.orden;`;
 });
