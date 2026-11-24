@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 
+// Etiqueta de la versión liberada, V_AAMMDD_HHMM (la fija vite.config.js al compilar)
+const VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'
+
 export function MarcoAcceso({ children, pie }) {
   const { sinConexion, mensajeSinConexion } = useApp()
   return (
@@ -12,6 +15,7 @@ export function MarcoAcceso({ children, pie }) {
           <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Pie Firme" style={{ height: 84, display: 'block', margin: '0 auto 10px' }} />
           {children}
           <div style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 11.5, marginTop: 18 }}>{pie ?? 'Podólogo · Recepción · Administrador · piefirme.rannix.com/app'}</div>
+          <div title="Versión liberada" style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 11, marginTop: 6, letterSpacing: '.03em' }}>{VERSION}</div>
         </div>
       </div>
     </div>

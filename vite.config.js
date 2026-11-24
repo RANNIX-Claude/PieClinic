@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react'
 
 const d = new Date()
 const p2 = (n) => String(n).padStart(2, '0')
-const APP_VERSION = `V_${String(d.getFullYear()).slice(2)}${p2(d.getMonth() + 1)}${p2(d.getDate())}_${p2(d.getHours())}_${p2(d.getMinutes())}`
+// Etiqueta de la versión liberada: V_AAMMDD_HHMM (hora de México: netlify.toml fija TZ=America/Mexico_City en la compilación)
+const APP_VERSION = `V_${String(d.getFullYear()).slice(2)}${p2(d.getMonth() + 1)}${p2(d.getDate())}_${p2(d.getHours())}${p2(d.getMinutes())}`
 
 // La app vive en /app/ ; el portal público en la raíz (portal/index.html)
 export default defineConfig({
