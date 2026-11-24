@@ -38,6 +38,19 @@ Base: lo que dijeron Vanesa Leyva y Alejandro Hernández en la junta, más tus a
 
 **Los tres roles de Pie Firme se quedan** (administrador = dueños, recepción = caja y recepción de mercancía, podólogo) y **el supervisor es un cuarto rol**, el único nuevo. Tiene alcance sobre varias sucursales y **autoriza descuentos, devoluciones y permisos de personal**, pero no toca precios ni configuración. Una persona puede tener funciones de varios perfiles (por ejemplo, podólogo con función de caja), y al cobrar se firma con su **PIN personal**.
 
+### 1.5 Cambio de sucursal
+
+El sistema ya tiene un **selector de sucursal** en el encabezado, y se alimenta de las sucursales que cada usuario tiene asignadas:
+
+| Quién | Qué sucursales puede elegir |
+|---|---|
+| **Dueños** | Todas, y la vista de todas a la vez |
+| **Supervisor** | Las que tenga asignadas, y la vista de todas ellas |
+| **Podólogo que atiende en dos sucursales** | Solo esas dos. Al cambiar de una a otra conserva **solo lo que su rol le permite** en cada una |
+| **Caja y recepción** | La suya. Si tiene dos, debe **elegir una antes de cobrar** |
+
+El ticket, el turno de caja y el corte **se hacen siempre con los datos de la sucursal elegida**.
+
 ## 2. Flujo 1 — Venta en mostrador con dos personas
 
 1. Llega el cliente y compra, por ejemplo, una plantilla.
@@ -125,6 +138,9 @@ También hay solicitudes que hace la **sucursal directa** al proveedor (flujo 2)
 4. Cada gasto lleva categoría, sucursal y quién lo hizo.
 5. El control de gastos se ve por sucursal y consolidado.
 6. **El responsable de cada sucursal debe llevar el registro de sus gastos**: no hay gasto sin captura y sin comprobante, y los pagos a proveedor hechos desde la caja también quedan ahí.
+7. **Se registra todo, desde la primera etapa**: nómina, gastos de operación, insumos de limpieza, insumos de trabajo, luz, agua, renta y cualquier otro gasto, además de las **compras**.
+8. **Cada gasto lleva su grupo**, y cada grupo alimenta un renglón del **estado de resultados**. Así el estado de resultados mensual por sucursal muestra **ingresos, egresos y utilidad**.
+9. **Quién lo ve**: el **supervisor** (sus sucursales) y los **dueños** (todas y el consolidado). Hoy el supervisor no tiene acceso al estado de resultados; hay que dárselo (pieza F15 del plan).
 
 ## 8. Flujo 7 — Control de caja
 
@@ -152,6 +168,24 @@ La supervisora **recorre las sucursales** y monitorea:
 - caja y cortes;
 - inventario y traspasos pendientes.
 
+## 9 bis. Flujo 9 — Nota de venta y solicitud de factura
+
+Agregado el 24-nov-2026 a petición de los dueños.
+
+1. **A todo paciente se le hace una nota.** Se captura al cobrar y se imprime un **ticket de compra completo, normal**, con letra de ticket:
+   - **logo de la empresa**, tomado de la configuración de la clínica;
+   - **datos completos de la sucursal que lo emite** (nombre, dirección, teléfono y horario), porque se imprime desde la sucursal elegida;
+   - folio, fecha y hora, quien cobró y quien atendió;
+   - por cada renglón: **descripción, cantidad, precio e importe**;
+   - **el descuento, si lo hubo**, por renglón y en total;
+   - subtotal, IVA, **total**, forma de pago y cambio;
+   - la leyenda de cómo pedir la factura.
+2. **Catálogo único de códigos.** Cada servicio y cada producto tiene un **folio, un ID, un código QR y un código de barras**, para cobrar escaneando en lugar de teclear o escribir a mano (ver pieza F13 del plan).
+3. **Si el paciente necesita factura**, la sucursal **no la emite**: con la nota se **solicita a la oficina central**. La facturación sigue centralizada (decidido antes).
+4. **Antes de solicitarla, la sucursal pide al cliente la documentación** necesaria. Lista propuesta, por confirmar con Alejandro: constancia de situación fiscal vigente, RFC, razón social, régimen fiscal, código postal fiscal, uso del CFDI, correo para enviarla y la nota o ticket.
+5. **La solicitud queda en el sistema** con estados: solicitada, documentos incompletos, lista para emitir, emitida y enviada. La oficina central la ve, la emite y la marca (ver pieza F14).
+6. **Control**: cada solicitud queda ligada a la nota, a la sucursal y a quien la pidió. Una nota facturada no se puede cancelar sin autorización.
+
 ## 10. Preguntas abiertas
 
 1. **Supervisor**: cuarto rol; **autoriza descuentos, devoluciones y permisos de personal**. El **tope de descuento y el monto máximo de devoluciones los definen los dueños** (parámetros configurables). **Los ajustes de inventario los autorizan solo los dueños** (resuelto).
@@ -162,6 +196,18 @@ La supervisora **recorre las sucursales** y monitorea:
 6. **Comisiones**: se acreditan **a quien vende**, no a quien cobra (resuelto). **El cajero elige de una lista quién vendió** al armar la nota (resuelto); queda en bitácora y la supervisora puede revisar las ventas atribuidas.
 7. **Notas foliadas**: **los dueños entregan y controlan los blocs** (resuelto). Cada entrega queda registrada en el sistema con sucursal, folio inicial y final, y fecha.
 8. **Tarjeta**: hoy solo piden el **voucher** de la terminal (resuelto). El sistema guarda la foto del voucher, el folio de autorización y la forma de pago, y **no guarda números de tarjeta**.
+10. **Documentación para facturar**: ¿cuál es la lista exacta que debe entregar el cliente? La de arriba es una propuesta.
+11. **Plazo para solicitar factura**: ¿cuántos días desde la nota? ¿Solo dentro del mismo mes?
+12. **Descuentos y factura**: en la junta mencionaron que quien recibe un descuento (por ejemplo el de la tercera edad) o paga en efectivo no pide factura. ¿Se bloquea la solicitud cuando hubo descuento, o solo se avisa?
+13. **QR del ticket**: hoy el ticket imprime un QR para facturar. ¿Se conserva solo como referencia interna de la solicitud, o se quita?
+14. **Ticket**: resuelto. Es un ticket de compra completo, con logo, datos de la sucursal, descripción, cantidad, importe, descuento si lo hay y total (ver el flujo 9).
+15. **Grupos de gasto**: ¿cuál es la lista de Pie Clinic? Propuesta: nómina, renta, luz, agua, teléfono e internet, insumos de limpieza, insumos de trabajo, papelería, mantenimiento, publicidad, impuestos y otros.
+16. **Gastos compartidos o centrales**: renta, nómina de la oficina o compras de Centenario que sirven a varias sucursales, ¿se prorratean entre ellas o se muestran aparte en el consolidado?
+17. **Personal que rota**: su nómina, ¿se reparte por días trabajados en cada sucursal?
+18. **Compras de mercancía**: ¿entran al estado de resultados como costo de venta cuando se venden, o como gasto cuando se compran?
+19. **Datos de cada sucursal para el ticket**: ¿dirección completa (calle, colonia, código postal, municipio), teléfono, horario, correo o WhatsApp y alguna leyenda?
+20. **Logo**: **uno solo para toda la empresa** (resuelto). Es el que ya guarda la configuración de la clínica; no hace falta un logo por sucursal.
+21. **Personal que atiende en dos sucursales**: **cambia libremente entre las dos** (resuelto), siempre dentro del alcance de su rol en cada una. No se ata a una asignación diaria.
 9. **Gastos locales**: **los dueños definen el tope** de gasto por sucursal sin autorización; arriba del tope necesita su autorización (resuelto, parámetro configurable).
 
 ## 11. Qué sigue
