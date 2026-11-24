@@ -29,7 +29,7 @@ export const estiloInput = { display: 'block', width: '100%', marginBottom: 16, 
 const ACCESOS_PRUEBA = import.meta.env.VITE_ENTORNO !== 'prod'
 const CUENTAS = [
   { correo: 'a@g.com', rol: 'Superadmin' }, { correo: 'm@g.com', rol: 'Administrador' },
-  { correo: 'p@g.com', rol: 'Podólogo' }, { correo: 'r@g.com', rol: 'Recepción' },
+  { correo: 'p@g.com', rol: 'Podólogo' }, { correo: 'r@g.com', rol: 'Recepción' }, { correo: 's@g.com', rol: 'Supervisor' },
 ]
 
 function IconoGoogle() {

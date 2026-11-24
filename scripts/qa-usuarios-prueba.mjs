@@ -24,6 +24,7 @@ export const USUARIOS = [
   { email: "m@g.com", nombre: "Administrador", apellidos: "Prueba", rol: "administrador", sedes: [] },
   { email: "p@g.com", nombre: "Podólogo", apellidos: "Prueba", rol: "podologo", cedula: "CED-PRUEBA-0001", sedes: [SEDE_CHALCO] },
   { email: "r@g.com", nombre: "Recepción", apellidos: "Prueba", rol: "recepcion", sedes: [] },
+  { email: "s@g.com", nombre: "Supervisora", apellidos: "Prueba", rol: "supervisor", sedes: [] },   // cuarto rol (migración 073)
 ];
 
 const h = { apikey: cfg.service, Authorization: `Bearer ${cfg.service}`, "Content-Type": "application/json" };
