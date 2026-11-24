@@ -10,7 +10,7 @@ import { Aviso, useAccion, mensajeError, num } from './comunes'
 export default function ConsultaProductos({ consulta, editable }) {
   const { ejecutar, ocupado } = useAccion()
   const consumos = useQuery({ queryKey: ['clinico', 'consumos', consulta.id], queryFn: async () => { const r = await leer('consumos_consulta', { sedeCol: false, filtros: { consulta_id: consulta.id }, orden: { columna: 'created_at' } }); if (r.error) throw r.error; return r.data } })
-  const prods = useQuery({ queryKey: ['clinico', 'productos'], queryFn: async () => { const r = await leer('prp_productos', { sedeCol: false, columnas: 'id,nombre', orden: { columna: 'nombre' }, limite: 500 }); return r.error ? [] : r.data } })
+  const prods = useQuery({ queryKey: ['clinico', 'productos'], queryFn: async () => { const r = await leer('prp_productos', { sedeCol: false, columnas: 'id,nombre', orden: { columna: 'nombre' }, limite: 5000 }); return r.error ? [] : r.data } })
   const usos = useQuery({ queryKey: ['clinico', 'usos-kit', consulta.id], queryFn: async () => { const r = await leer('uso_kit_consulta', { sedeCol: false, filtros: { consulta_id: consulta.id } }); if (r.error) throw r.error; return r.data } })
   const kits = useQuery({
     queryKey: ['clinico', 'kits-disponibles', consulta.sede_id], enabled: editable,

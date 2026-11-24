@@ -35,7 +35,7 @@ export default function Catalogo() {
   const refrescar = () => qc.invalidateQueries({ queryKey: ['comercial'] })
 
   const serv = useLeer('cat-serv', 'prp_servicios', { sedeCol: false, orden: { columna: 'codigo' }, limite: 1000 })
-  const prod = useLeer('cat-prod', 'prp_productos', { sedeCol: false, orden: { columna: 'sku' }, limite: 2000 })
+  const prod = useLeer('cat-prod', 'prp_productos', { sedeCol: false, orden: { columna: 'sku' }, limite: 5000 })
   const inv = useLeer('cat-inv', 'prp_inventario', { sedeCol: false, columnas: 'producto_id,existencia,sede_id', limite: 5000 })
   const hp = useLeer('cat-hist', 'prp_precios_historial', { sedeCol: false, orden: [{ columna: 'item_nombre' }, { columna: 'vigente_desde', asc: false }], limite: 3000 })
   const existencia = useMemo(() => { const m = {}; for (const i of inv.filas) m[i.producto_id] = (m[i.producto_id] ?? 0) + Number(i.existencia); return m }, [inv.filas])

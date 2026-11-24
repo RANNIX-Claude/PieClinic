@@ -51,7 +51,7 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
   const podQ = usePodologos()
   const porCobrar = useLeer('citas-sin-cobro', 'prp_citas_sin_cobro', { orden: { columna: 'inicio', asc: false }, limite: 100 })
   const servQ = useLeer('cat-servicios', 'prp_servicios', { sedeCol: false, filtros: { estado: 'activo' }, orden: { columna: 'nombre' }, limite: 500 })
-  const prodQ = useLeer('cat-productos', 'prp_productos', { sedeCol: false, filtros: { estado: ['activo', 'sin_existencia'], tipo: ['venta', 'por_encargo'] }, orden: { columna: 'nombre' }, limite: 800 })
+  const prodQ = useLeer('cat-productos', 'prp_productos', { sedeCol: false, filtros: { estado: ['activo', 'sin_existencia'], tipo: ['venta', 'por_encargo'] }, orden: { columna: 'nombre' }, limite: 5000 })
   const ofQ = useLeer('cat-ofertas', 'prp_ofertas', { sedeCol: false, filtros: { estado_efectivo: 'activa' }, orden: { columna: 'nombre' }, limite: 300 })
   const antQ = useLeer('anticipos-paciente', 'prp_anticipos', { sedeCol: false, filtros: { paciente_id: paciente?.id, estado: 'pagado' }, limite: 20 }, !!paciente?.id)
   const planQ = useLeer('planes-paciente', 'prp_planes_adquiridos', { sedeCol: false, filtros: { paciente_id: paciente?.id, estado: 'vigente' }, limite: 20 }, !!paciente?.id)

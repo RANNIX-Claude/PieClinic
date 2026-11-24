@@ -106,7 +106,7 @@ function EditorOferta({ oferta, onClose, onListo }) {
   const nuevo = !oferta.id
   const tipo = oferta.tipo
   const serv = useLeer('of-serv', 'prp_servicios', { sedeCol: false, filtros: { estado: 'activo' }, orden: { columna: 'nombre' }, limite: 500 })
-  const prod = useLeer('of-prod', 'prp_productos', { sedeCol: false, filtros: { estado: ['activo', 'sin_existencia'] }, orden: { columna: 'nombre' }, limite: 800 })
+  const prod = useLeer('of-prod', 'prp_productos', { sedeCol: false, filtros: { estado: ['activo', 'sin_existencia'] }, orden: { columna: 'nombre' }, limite: 5000 })
   const comps = useLeer('of-comps', 'oferta_componentes', { sedeCol: false, filtros: { oferta_id: oferta.id }, orden: { columna: 'orden' } }, !!oferta.id)
   const preciosQ = useLeer('of-precios', 'precios', { sedeCol: false, filtros: { oferta_id: oferta.id }, orden: { columna: 'vigente_desde', asc: false } }, !!oferta.id)
   const [f, setF] = useState({
