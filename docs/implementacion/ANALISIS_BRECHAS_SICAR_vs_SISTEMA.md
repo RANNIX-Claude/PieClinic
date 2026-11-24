@@ -13,6 +13,23 @@
 | **Unidades con factor** | Se necesitan **desde el arranque** (compra por caja, venta o consumo por pieza) |
 | **Etapa 1** | Antes de cargar el catálogo entran también el **inventario inicial, la hoja de conteo con códigos de barras y el ajuste por Excel** |
 
+## 0 bis. Corrección: lo que PODIX ya tenía (24-nov-2026)
+
+La primera versión de este análisis comparó SICAR **solo contra Pie Firme** y marcó como faltantes cosas que **PODIX ya tiene construidas y probadas**. Verificado en `podix/`:
+
+| Función | Lo que ya existe en PODIX | Falta |
+|---|---|---|
+| **Carga de artículos desde el Excel de SICAR** | `scripts/sicar_articulos.py`, `src/store/articulos_sicar.js` y el reporte `CARGA_ARTICULOS_SICAR.md`. Reglas decididas con el usuario el 23-nov: «PRECIO 1» que solo trae el IVA se ignora (se toma como precio si es al menos 1.2 veces el costo); si no, se sugiere el precio con el margen típico del proveedor y se marca; si falta el costo se estima; el mínimo de SICAR se guarda aparte y se activa con la primera entrada; sin precio ni costo no se carga; repetidos entre hojas se descartan; claves únicas. Se cargaron 2,880 artículos | Portarlo a Pie Firme con base de datos |
+| **Clave alterna y departamento** | `claveSicar` y `linea` (Podología, Ortopedia) en cada artículo | Columnas en la base de Pie Firme |
+| **Corte con arqueo ciego** | `pantallas/cajero/caja.jsx`: cambio de turno con arqueo ciego y corte firmado | Portarlo |
+| **Conteo con escáner** | `componentes/almacen/Escaner.jsx` en conteo y ajustes (cada lectura suma 1) | Portarlo |
+| **Inventario inicial** | Importación del tipo «existencias»: entra como capa de costeo en el almacén elegido, con lote deshacible | Portarlo |
+| **Reparto sugerido** | `reparto-central.jsx` | Portarlo (ya estaba anotado) |
+
+**Sigue sin existir en ninguna de las dos versiones:** unidades con factor, precios por tipo de cliente, series, cotización de venta, etiquetas con código de barras, QR de servicios y hoja de conteo imprimible.
+
+**Efecto en la matriz de la sección 3:** las funciones 2, 4, 20, 25, 28 y 59 pasan de «no existe» a **«existe en PODIX, por portar»** (se leen como 🟡). La lista de prioridades no cambia, pero el trabajo en esas funciones es **portar y adaptar**, no construir.
+
 ## 1. Fuentes y sus límites
 
 | Fuente | Qué aporta | Límite |
@@ -198,7 +215,7 @@ Expediente clínico, agenda con recordatorios, plantillas ortopédicas a medida,
 
 ## 5. Resumen
 
-De las 80 funciones comparadas: **✅ 33 existen · 🟡 28 parciales · ❌ 18 no existen · ➖ 1 no aplica**. Hay 20 de prioridad alta.
+De las 80 funciones comparadas: **✅ 33 existen · 🟡 32 parciales (incluye las que existen en PODIX y faltan por portar) · ❌ 14 no existen · ➖ 1 no aplica**. Hay 20 de prioridad alta. Cifras corregidas el 24-nov-2026 (sección 0 bis).
 
 **Lo que más se nota si no está** (porque SICAR lo trae y el cliente lo conoce o lo pidió en la junta):
 
