@@ -15,7 +15,14 @@ No se copiaron `.env.local`, `.netlify`, `node_modules` ni `dist`.
 
 ## Despliegue de la base (Supabase)
 
-Las 58 migraciones están aplicadas en el proyecto `esximvxedczymlueyzfb` (comparte base con otro sistema; todo vive en los esquemas `piefirme` y `piefirme_app`, buckets `pf-*`). El esquema `piefirme` está expuesto en la API de datos. El registro de lo aplicado está en `piefirme._rannix_migraciones`.
+Las **59 migraciones** (001 a 076) están aplicadas en el proyecto `esximvxedczymlueyzfb`, que comparte base con otro sistema (GuestList, en `public`). Hay **dos instancias idénticas**, cada una en sus propios esquemas y buckets, ambas expuestas en la API de datos:
+
+| Instancia | Esquemas | Buckets | Registro de migraciones |
+|---|---|---|---|
+| Producto Pie Firme | `piefirme`, `piefirme_app` | `pf-*` | `piefirme._rannix_migraciones` |
+| **Pie Clinic** (cliente) | **`pieclinic`**, `pieclinic_app` | **`pc-*`** | `pieclinic._rannix_migraciones` |
+
+La instancia de Pie Clinic se generó con `node scripts/clonar-esquema.mjs pieclinic <carpeta>` (mismo contenido, nombres cambiados) y se aplicó con `scripts/aplicar-por-api.mjs`. **Cada migración nueva se aplica a las dos instancias.** La aplicación apunta a la de Pie Clinic con `VITE_DB_SCHEMA=pieclinic` y `VITE_BUCKET_PREFIX=pc`. El superadministrador de RANNIX se da de alta en `rannix_staff` de cada esquema.
 
 Para aplicar migraciones nuevas: `node scripts/apply-migration.mjs qa --pendientes` (requiere `QA_SUPABASE_REF` y `QA_SUPABASE_DB_PASSWORD` en `.env.local`; ver `.env.example`).
 

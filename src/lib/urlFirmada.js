@@ -1,13 +1,15 @@
 import { supabase } from './supabase'
 
 // Buckets privados de Pie Firme en la base compartida: prefijo pf- para no chocar con otros sistemas (convención 9): la ruta siempre empieza con <organizacion_id>/
+// El prefijo se puede cambiar con VITE_BUCKET_PREFIX: la instancia del esquema «pieclinic» usa «pc» (ver scripts/clonar-esquema.mjs).
+const P = import.meta.env?.VITE_BUCKET_PREFIX || 'pf'
 export const BUCKETS = {
-  expedientes: 'pf-expedientes',
-  fotos: 'pf-fotos-clinicas',
-  documentos: 'pf-documentos',
-  comprobantes: 'pf-comprobantes',
-  importaciones: 'pf-importaciones',
-  logos: 'pf-logos',
+  expedientes: `${P}-expedientes`,
+  fotos: `${P}-fotos-clinicas`,
+  documentos: `${P}-documentos`,
+  comprobantes: `${P}-comprobantes`,
+  importaciones: `${P}-importaciones`,
+  logos: `${P}-logos`,
 }
 
 /**
