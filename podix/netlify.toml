@@ -1,0 +1,33 @@
+# Estructura de publicación RANNIX:
+#   /      → PORTAL (portal/index.html)
+#   /app/  → APLICACIÓN (Vite, base "/app/", build en dist/app). Una puerta HTML por rol:
+#            /app/recepcion.html, /app/podologo.html, ... (enrutador con hash, sin reglas de SPA)
+# Ramas: master → producción · develop → QA. Variables sensibles solo en la UI de Netlify.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+  TZ = "America/Mexico_City"
+
+[[redirects]]
+  from = "/app"
+  to = "/app/"
+  status = 301
+
+[[headers]]
+  for = "/app/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+# WhatsApp Cloud API (demo Pie Clinic): una sola funcion con rutas /enviar, /webhook y /eventos. Ver docs/WHATSAPP_REAL.md
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/whatsapp/*"
+  to = "/.netlify/functions/whatsapp/:splat"
+  status = 200

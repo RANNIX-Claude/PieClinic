@@ -1,0 +1,111 @@
+/* Dominio «expediente»: expediente clínico, historia, fotos y formatos. Solo variables de tema (var(--p), var(--ok)…). */
+.exp .exp-busca{display:flex;gap:8px;align-items:center;margin:8px 0}
+.exp .exp-busca>.buscador{flex:1}
+.exp-aviso{border-radius:10px;padding:8px 12px;margin:8px 0;font-size:14px;border-left:4px solid var(--info);background:var(--infol)}
+.exp-aviso-warn{border-left-color:var(--al);background:var(--all)}
+.exp-aviso-bad{border-left-color:var(--er);background:var(--erl)}
+.exp-aviso-ok{border-left-color:var(--ok);background:var(--okl)}
+.exp-sec{margin:14px 0}
+.exp-sec-t{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.exp-sec-t h3{font-size:15px;margin:0}
+.exp-h4{font-size:14px;margin:14px 0 6px}
+.exp-cab{margin-bottom:10px}
+.exp-cab-f{display:flex;gap:12px;align-items:flex-start}
+.exp-cab-n{font-weight:700;font-size:17px;line-height:1.2}
+.exp-cab-b{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.exp-check{display:flex;gap:8px;align-items:center;min-height:44px;font-size:14px}
+.exp-check input{width:20px;height:20px}
+.exp-texto-legal{white-space:pre-wrap;font-size:14px;line-height:1.5;background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:10px;max-height:260px;overflow:auto;margin:8px 0}
+.exp-det{margin:8px 0}.exp-det summary{cursor:pointer;font-weight:600;min-height:32px}
+.exp-motivos{margin:8px 0 0 18px;color:var(--er);font-size:13px}
+.exp-al-b{display:flex;align-items:flex-end}
+
+/* Notas */
+.exp-nota-cab{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.exp-nota-sellada{border:1px solid var(--bd);border-left:4px solid var(--ok);border-radius:10px;padding:10px 12px;background:var(--bg)}
+.exp-nota-sellada p{margin:6px 0}
+.exp-candado{font-size:13px;color:var(--ok);font-weight:600}
+.exp-adenda{border-left:3px solid var(--p);padding:6px 10px;margin:6px 0;background:var(--pl);border-radius:6px}
+.exp-firma-img{max-height:80px;max-width:100%;background:#fff;border:1px solid var(--bd);border-radius:8px;margin-top:8px;display:block}
+.exp-firma-mini{max-height:34px;background:#fff;border-radius:4px;margin-top:4px}
+
+/* Antecedentes */
+.exp-tri{display:grid;grid-template-columns:minmax(120px,1fr) auto;gap:6px 10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--bd)}
+.exp-tri-l{font-size:14px}
+.exp-tri-o{display:flex;gap:4px;flex-wrap:wrap}
+.exp-tri-o .chip{min-height:36px;padding:0 10px}
+.exp-tri .inp{grid-column:1/-1}
+@media (max-width:420px){.exp-tri{grid-template-columns:1fr}}
+.exp-restr-v{background:repeating-linear-gradient(45deg,var(--erl),var(--erl) 6px,transparent 6px,transparent 12px);border:1px solid var(--er);border-radius:10px;padding:10px;margin:8px 0}
+
+/* Miembro inferior y mapa */
+.exp-piernas{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.exp-pierna{border:1px solid var(--bd);border-radius:12px;padding:10px;background:var(--pl)}
+.exp-siluetas{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.exp-sil{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:64px;min-height:64px;padding:4px;border:1px solid var(--bd);border-radius:10px;background:var(--sup);color:var(--mu);font-size:11px;cursor:pointer}
+.exp-sil.on{border-color:var(--p);color:var(--p);box-shadow:inset 0 0 0 1px var(--p)}
+.exp-mapa{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:8px 0}
+.exp-pie{margin:0;text-align:center}
+.exp-pie figcaption{font-size:11px;font-weight:700;margin-bottom:2px}
+.exp-pie-zona{font-size:11px;color:var(--mu);min-height:14px}
+.exp-mapa-ctl{display:grid;gap:6px;margin:8px 0}
+
+/* Fotos */
+.exp-fotos-est{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0}
+.exp-galeria{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin:8px 0}
+.exp-foto{position:relative;display:flex;flex-direction:column;gap:4px;border:1px solid var(--bd);border-radius:10px;padding:4px;background:var(--sup);color:var(--tx);font-size:11px;cursor:pointer;text-align:left}
+.exp-foto.retirada{opacity:.5}
+.exp-foto-img{width:100%;object-fit:cover;border-radius:8px;display:block;background:#2d2a33}
+.exp-foto-tag{position:absolute;top:8px;left:8px;font-style:normal;font-size:10px;background:var(--p);color:#fff;border-radius:6px;padding:1px 6px}
+.exp-foto-tag.bad{background:var(--er);left:auto;right:8px}
+.exp-comparar{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:8px 0}
+.exp-comp-col{display:flex;flex-direction:column;gap:6px}
+.exp-comp-vacio{height:150px;border:2px dashed var(--bd);border-radius:10px;display:grid;place-items:center;color:var(--mu);font-size:13px}
+.exp-superpone{position:relative;height:220px;max-width:420px;margin:0 auto}
+.exp-sup-capa{position:absolute;inset:0}
+
+/* Documentos y plantillas */
+.exp-plantillas{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.exp-pl{cursor:pointer;display:flex;flex-direction:column;gap:6px}
+.exp-pl-b{display:flex;gap:6px;flex-wrap:wrap}
+.exp-version{border-bottom:1px solid var(--bd);padding:6px 0}
+.exp-version-t{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:none;border:0;color:var(--tx);width:100%;text-align:left;min-height:44px;cursor:pointer}
+.exp-doc-t{padding:10px;display:flex;flex-direction:column;gap:3px}
+.exp-doc-h{display:flex;justify-content:space-between;gap:6px;align-items:flex-start}
+.exp-dups{margin-top:8px}
+
+/* Impresos (fieles al papel de Pie Clinic / Pie Firme) */
+.exp-print-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.exp-preview{overflow-x:auto;background:var(--bg);border:1px solid var(--bd);border-radius:12px;padding:10px;max-height:70vh;overflow-y:auto}
+.exp-preview .papel{transform-origin:top left}
+@media (max-width:820px){.exp-preview .papel{zoom:.46}}
+.papel{width:210mm;min-height:297mm;box-sizing:border-box;padding:12mm 14mm;background:#fff;color:#111;border:1px solid #ccc;margin:0 auto 16px;font:12px/1.5 Georgia,'Times New Roman',serif;position:relative;display:flex;flex-direction:column}
+.papel h2{font-size:15px;text-align:center;margin:6px 0 10px;letter-spacing:.02em;color:#111}
+.papel h4{font-size:11.5px;margin:12px 0 5px;text-transform:uppercase}
+.papel .enc{display:flex;align-items:center;gap:12px;border-bottom:2px solid #5A4080;padding-bottom:6px;margin-bottom:8px}
+.papel .enc b{font-size:14px}
+.papel .sub{font-size:10.5px;color:#444}
+.papel .lin{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0;align-items:baseline}
+.papel u{display:inline-block;min-width:60px;border-bottom:1px solid #000;padding:0 4px;text-decoration:none;font-family:'Segoe UI',sans-serif;font-size:11.5px}
+.papel .cas{display:inline-block;width:13px;height:13px;border:1.2px solid #000;text-align:center;line-height:12px;font-size:11px;font-family:sans-serif;vertical-align:-2px;margin:0 3px}
+.papel .opc{display:inline-flex;align-items:center;margin-right:10px;white-space:nowrap}
+.papel table{width:100%;border-collapse:collapse}
+.papel th,.papel td{border:1px solid #000;padding:4px 6px;font-size:11px;height:23px;text-align:left;vertical-align:top;font-family:'Segoe UI',sans-serif;color:#111;background:#fff}
+.papel th{background:#eee!important;text-transform:uppercase;font-size:10.5px}
+.papel .pie{margin-top:auto;border-top:1px solid #999;padding-top:4px;font-size:10px;color:#444;display:flex;justify-content:space-between}
+.papel .firma{display:flex;gap:30px;margin-top:26px}.papel .firma>div{flex:1;text-align:center;font-size:11px}
+.papel .firma img{height:60px;display:block;margin:0 auto}.papel .firma hr{border:0;border-top:1px solid #000;margin:4px 0}
+.papel ul{margin:4px 0 4px 18px;padding:0}.papel li{margin:3px 0}
+.papel .marca-agua{position:absolute;top:44%;left:0;right:0;text-align:center;font-size:72px;color:rgba(0,0,0,.07);transform:rotate(-24deg);font-weight:800;pointer-events:none}
+.papel .figs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0}
+.papel .restr{background:repeating-linear-gradient(45deg,#eee,#eee 4px,#fff 4px,#fff 8px);padding:0 6px;font-size:10px;color:#555}
+@media screen{.exp-print{display:none}}
+@media print{
+  @page{size:A4;margin:14mm}
+  body.exp-imprimiendo>*:not(.exp-print){display:none!important}
+  body.exp-imprimiendo .exp-print{display:block!important}
+  body.exp-imprimiendo{background:#fff!important}
+  .exp-print .papel{border:0;margin:0;padding:0;width:auto;min-height:calc(297mm - 28mm);page-break-after:always;break-after:page;zoom:1}
+  .exp-print .papel:last-child{page-break-after:auto;break-after:auto}
+  .papel th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}

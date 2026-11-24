@@ -1,0 +1,31 @@
+# Estructura de publicación RANNIX:
+#   /        → PORTAL  (portal/index.html, hoja inicial pública)
+#   /app/    → APLICACIÓN (Vite con base "/app/", build en dist/app)
+#
+# La aplicación (E5) debe configurarse así en vite.config.js:
+#   export default defineConfig({ base: "/app/", build: { outDir: "dist/app", emptyOutDir: true } })
+#   y en React Router:  <BrowserRouter basename="/app">
+#
+# Ramas: master → producción · develop → QA (sitios Netlify separados).
+# Variables sensibles SOLO en la UI de Netlify, nunca aquí.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
+  TZ = "America/Mexico_City"
+
+# SPA de la aplicación: cualquier ruta bajo /app cae en su index.html
+[[redirects]]
+  from = "/app/*"
+  to = "/app/index.html"
+  status = 200
+
+# Quien escribe /app (sin barra) llega a /app/
+[[redirects]]
+  from = "/app"
+  to = "/app/"
+  status = 301

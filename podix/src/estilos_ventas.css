@@ -1,0 +1,61 @@
+/* Dominio «ventas»: facturación (CFDI simulado), paquetes, expedientes de producto y proveedor, mantenimiento y comisiones. */
+.v-col{display:grid;gap:14px;min-width:0}
+.v-col>*{min-width:0}
+.v-filtros{display:grid;gap:8px}
+@media (min-width:1024px){.v-filtros{grid-template-columns:1fr 220px;align-items:center}}
+@media (min-width:1024px){.v-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.v-sim{display:flex;gap:10px;align-items:flex-start;background:var(--all);color:#92400e;border:1px dashed var(--al);border-radius:12px;padding:10px 12px;font-size:13px}
+.v-sim b{display:block}
+.v-sim span{display:block}
+.v-tar{display:grid;gap:4px;min-width:0}
+.v-tar b{overflow-wrap:anywhere}
+.v-mosaico{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.v-oferta{display:grid;gap:6px}
+.v-precio{font-size:22px;font-weight:700;color:var(--pd)}
+.v-acciones{display:flex;flex-wrap:wrap;gap:8px}
+.v-acciones .btn{flex:1 1 140px}
+.v-check{display:flex;gap:8px;align-items:center;font-size:14px;min-height:44px}
+.v-check input{width:20px;height:20px}
+.v-barra{height:8px;border-radius:6px;background:var(--bd);overflow:hidden}
+.v-barra i{display:block;height:100%;background:var(--p);border-radius:6px}
+.v-barra.warn i{background:var(--al)}.v-barra.bad i{background:var(--er)}
+.v-lista-b{margin:6px 0;padding-left:18px;font-size:14px}
+.v-ico{display:flex;align-items:center}
+.v-desglose{display:grid;gap:6px}
+.v-desglose>div:not(.resumen){display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;font-size:14px}
+.v-estrellas{display:flex;gap:2px}
+.v-estrellas button{background:none;border:0;padding:6px;color:var(--bd);cursor:pointer;min-width:36px;min-height:36px}
+.v-estrellas button.on{color:var(--al)}
+.v-estrellas button.on svg{fill:currentColor}
+.v-ficha{display:grid;gap:12px}
+@media (min-width:1024px){.v-ficha{grid-template-columns:200px 1fr}}
+.v-foto{width:100%;max-width:200px;aspect-ratio:1;object-fit:cover;border-radius:12px;border:1px solid var(--bd);background:var(--pl);display:flex;align-items:center;justify-content:center;color:var(--mu)}
+.v-capas{display:grid;gap:4px;font-size:13px}
+.v-capas>div{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--bd);padding-top:4px}
+.v-rejilla{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+
+/* ── Hoja CFDI (vista y papel) ── */
+.v-hoja-w{overflow-x:auto;max-width:100%}
+.v-hoja{position:relative;background:#fff;color:#111;border:1px solid var(--bd);border-radius:10px;padding:16px;font-size:12px;display:grid;gap:10px;min-width:0;overflow:hidden}
+.v-marca{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;color:rgba(220,38,38,.13);transform:rotate(-24deg);pointer-events:none;text-align:center;white-space:nowrap}
+.v-hoja-cab{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px}
+.v-hoja-razon{font-size:14px}
+.v-sello-sim{border:2px solid #dc2626;color:#dc2626;font-weight:700;text-align:center;padding:6px;border-radius:6px}
+.v-hoja-rec{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.v-hoja-rec small{display:block;color:#6b7280;text-transform:uppercase;font-size:10px;letter-spacing:.4px}
+.v-hoja-nota{margin:0;font-style:italic}
+.v-hoja-tabla{width:100%;border-collapse:collapse}
+.v-hoja-tabla th,.v-hoja-tabla td{border-bottom:1px solid #e5e7eb;padding:5px 6px;text-align:left;vertical-align:top}
+.v-hoja-tabla th{background:#f3f4f6;font-size:10px;text-transform:uppercase}
+.v-hoja-tabla .der{text-align:right}
+.v-hoja-tot{justify-self:end;display:grid;gap:3px;min-width:220px}
+.v-hoja-tot>div{display:flex;justify-content:space-between;gap:16px}
+.v-hoja-tot .fuerte{font-size:14px;border-top:1px solid #111;padding-top:4px}
+.v-hoja-pie{border-top:1px dashed #9ca3af;padding-top:8px;display:grid;gap:2px;font-size:10.5px;overflow-wrap:anywhere}
+.v-print-root{display:none}
+@media print{
+  body.v-imprimiendo>*:not(.v-print-root){display:none!important}
+  body.v-imprimiendo .v-print-root{display:block!important}
+  body.v-imprimiendo{background:#fff!important}
+  .v-print-root .v-hoja{border:0;font-size:11px}
+}

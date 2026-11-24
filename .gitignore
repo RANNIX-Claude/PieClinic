@@ -1,0 +1,22 @@
+.env
+.env.local
+.env.*.local
+.env.prod*
+.prod_version
+.netlify/
+node_modules/
+dist/
+*_PRODUCCION.html
+*.local
+*.log
+.DS_Store
+supabase/.temp/
+supabase/backups/*.json
+.claude/settings.local.json
+.claude/worktrees/
+tests/corridas/*/evidencias/
+
+# Pie Clinic: material sensible o ajeno que NO se sube (formatos reales de la clínica, fotos del cliente, página web descargada)
+docs/formatos_reales/
+Doc/
+podix/docs/portalweb/

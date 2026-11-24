@@ -1,0 +1,31 @@
+{
+  "_comentario": "Lo que aparezca aquí es una EXCEPCIÓN DELIBERADA a las reglas estrictas de scripts/test-rls.mjs. Cada entrada debe poder justificarse ante el cliente. Borrar las llaves que empiezan con _.",
+  "esquemas": [
+    "piefirme",
+    "piefirme_app"
+  ],
+  "sin_rls_permitidas": [],
+  "politicas_abiertas_permitidas": [],
+  "anon_permitido": [],
+  "funciones_anon_permitidas": [
+    "portal_accion_cita",
+    "portal_catalogo",
+    "portal_disponibilidad",
+    "portal_estado_reserva",
+    "portal_lista_espera",
+    "portal_responder_encuesta",
+    "portal_retener_horario",
+    "portal_sala_entrar",
+    "portal_sala_estado",
+    "portal_ver_cita"
+  ],
+  "buckets_publicos_permitidos": [],
+  "aserciones": [],
+  "_ejemplo_asercion": {
+    "rol": "locatario",
+    "usuario_sql": "select id from auth.users where email = 'locatario.qa@ejemplo.com'",
+    "tabla": "public.contratos",
+    "esperado": 1
+  },
+  "_comentario_funciones_anon": "Funciones RPC del portal público (paciente sin cuenta): security definer, search_path fijo, límite de tasa por IP/celular, ventana de 14 días, ligas de un solo uso. Ver docs/esquema/B_resumen.md y A_resumen.md."
+}

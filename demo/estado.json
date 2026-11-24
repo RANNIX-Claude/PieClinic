@@ -1,0 +1,31 @@
+{
+  "diaDemo": "2026-11-23",
+  "lunes": "2026-11-23",
+  "clave": "Demo2026!",
+  "cuentas": {
+    "dueno": {
+      "email": "ricardo.villarreal@piefirme-demo.mx",
+      "nombre": "Ricardo Villarreal Garza"
+    },
+    "recepcion": {
+      "email": "ana.torres@piefirme-demo.mx",
+      "nombre": "Ana Karen Torres Beltrán"
+    },
+    "pod1": {
+      "email": "mariana.ortega@piefirme-demo.mx",
+      "nombre": "Mariana Ortega Villaseñor"
+    },
+    "pod2": {
+      "email": "alejandro.ramirez@piefirme-demo.mx",
+      "nombre": "Alejandro Ramírez Cuevas"
+    },
+    "pod3": {
+      "email": "paulina.soto@piefirme-demo.mx",
+      "nombre": "Paulina Soto Escamilla"
+    },
+    "pod4": {
+      "email": "luis.mendoza@piefirme-demo.mx",
+      "nombre": "Luis Fernando Mendoza Rojas"
+    }
+  }
+}

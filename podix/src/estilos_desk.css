@@ -1,0 +1,66 @@
+/* Escritorio (≥ 1024 px): menú lateral por secciones (estilo IRP), vistas mosaico/renglones, diálogos centrados. */
+.side{display:none}
+.main{display:contents}
+.chip-suc{max-width:240px}
+.foto{border-radius:50%;object-fit:cover;flex:none;background:var(--pl)}
+
+/* ── Vista dual ── */
+.vista-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.vista-alt{display:inline-flex;border:1px solid var(--bd);border-radius:10px;overflow:hidden;background:var(--sup)}
+.vista-b{border:0;background:none;display:inline-flex;align-items:center;gap:6px;padding:0 12px;min-height:38px;font-size:13px;font-weight:600;color:var(--mu)}
+.vista-b.on{background:var(--pl);color:var(--pd)}
+.vista-mosaico{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,var(--min,230px)),1fr));gap:12px}
+.vista-tarjeta{background:var(--sup);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;box-shadow:0 1px 2px rgba(16,24,40,.04);min-width:0}
+.vista-tarjeta.tap{cursor:pointer}.vista-tarjeta.tap:hover{border-color:var(--p)}.vista-tarjeta.tap:active{background:var(--pl)}
+.vista-tabla-w{overflow-x:auto;border:1px solid var(--bd);border-radius:var(--r);background:var(--sup)}
+.vista-tabla{width:100%;border-collapse:collapse;font-size:14px}
+.vista-tabla th{background:var(--pl);color:var(--pd);text-align:left;font-size:11px;letter-spacing:.5px;text-transform:uppercase;padding:10px 12px;white-space:nowrap;cursor:pointer;user-select:none}
+.vista-tabla td{padding:10px 12px;border-top:1px solid var(--bd);vertical-align:middle}
+.vista-tabla .der{text-align:right}.vista-tabla tr.tap{cursor:pointer}.vista-tabla tr.tap:hover td{background:var(--pl)}
+@media (max-width:640px){
+  .vista-tabla thead{display:none}
+  .vista-tabla,.vista-tabla tbody,.vista-tabla tr,.vista-tabla td{display:block;width:100%}
+  .vista-tabla tr{border-top:1px solid var(--bd);padding:8px 12px}
+  .vista-tabla td{border:0;padding:3px 0;display:flex;justify-content:space-between;gap:12px;text-align:right}
+  .vista-tabla td::before{content:attr(data-l);color:var(--mu);font-size:12px;text-align:left}
+}
+
+/* Tarjeta de persona (mosaico de RRHH y equipos) */
+.persona{text-align:center}
+.persona-top{height:44px;background:var(--p)}
+.persona .foto,.persona .avatar{display:block;margin:-30px auto 6px;border:4px solid var(--sup)}
+.persona-n{font-weight:700;padding:0 8px}.persona-s{color:var(--p);font-size:13px}
+.persona-b{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:8px 0}
+.persona-d{display:flex;justify-content:space-around;border-top:1px solid var(--bd);padding:8px 4px;font-size:11px;color:var(--mu)}
+.persona-d b{display:block;font-size:15px;color:var(--tx)}
+
+@media (min-width:1024px){
+  body{background:var(--bg)}
+  .app.desk{max-width:none;margin:0;flex-direction:row;box-shadow:none}
+  .app.desk .main{display:flex;flex-direction:column;flex:1;min-width:0;height:100dvh}
+  .app.desk .side{display:flex;flex-direction:column;width:268px;flex:none;background:#4b3575;color:#fff;height:100dvh}
+  .side-marca{display:flex;gap:10px;align-items:center;padding:16px 18px;border-bottom:1px solid rgba(255,255,255,.14)}
+  .side-marca b{display:block;font-size:15px}.side-marca small{opacity:.8;font-size:12px}
+  .side-logo{width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.2);display:grid;place-items:center;flex:none}
+  .side-nav{flex:1;overflow-y:auto;padding:6px 10px 14px}
+  .side-sec-t{font-size:11px;letter-spacing:1.4px;font-weight:700;opacity:.65;margin:16px 10px 4px}
+  .side-it{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;color:#fff;text-decoration:none;font-size:14px;opacity:.9}
+  .side-it:hover{background:rgba(255,255,255,.12);opacity:1}
+  .side-it.on{background:rgba(255,255,255,.22);font-weight:700;opacity:1}
+  .side-it span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .side-bd{font-style:normal;background:var(--er);border-radius:999px;font-size:11px;font-weight:700;min-width:20px;height:20px;display:grid;place-items:center;padding:0 5px}
+  .side-usr{display:flex;align-items:center;gap:10px;border:0;border-top:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.14);color:#fff;padding:12px 16px;text-align:left}
+  .side-usr span{flex:1;min-width:0}.side-usr b{display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.side-usr small{opacity:.75;font-size:12px}
+  .app.desk .cab{padding:12px 28px}
+  .app.desk .cab h1{font-size:20px}
+  .app.desk .cuerpo{padding:22px 28px 48px}
+  .app.desk .cuerpo>*{max-width:1400px}
+  .app.desk .kpis{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+  .app.desk .lista{grid-template-columns:repeat(auto-fill,minmax(360px,1fr))}
+  .app.desk .form2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .app.desk .sheet-fondo{align-items:center}
+  .app.desk .sheet{max-width:640px;border-radius:20px;max-height:86dvh}
+  .app.desk .barra-accion{position:static;margin:12px 0 0;background:none;padding:0;max-width:420px}
+  .app.desk .avisos{bottom:24px;left:auto;right:24px;max-width:380px}
+  .app.desk .fab{bottom:24px;right:28px}
+}

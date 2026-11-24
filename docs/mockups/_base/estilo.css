@@ -1,0 +1,35 @@
+/* Mockups Pie Firme — esqueleto y tokens de IRP (theme.css), acento morado de marca */
+:root{--bg:#F5F5F7;--white:#fff;--border:#D2D2D7;--accent:#7B5EA7;--accent-dark:#5A4080;--accent-light:#F2EEFA;--accent2:#0A66C2;--green:#0D9457;--red:#D93025;--gold:#F5A623;--text:#1D1D1F;--muted:#6E6E73;--sh:0 2px 12px rgba(0,0,0,.08)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px;width:1440px;min-height:900px}
+.hdr{height:52px;background:var(--accent);color:#fff;display:flex;align-items:center;padding:0 16px;gap:12px;position:relative;z-index:2}
+.hdr img{height:36px;background:#fff;border-radius:8px;padding:2px}.hdr b{font-size:15px}.hdr .sp{margin-left:auto;display:flex;gap:14px;align-items:center;font-size:12px}
+.hdr .sede{background:rgba(255,255,255,.18);border-radius:6px;padding:4px 10px}
+.app{display:flex;min-height:848px}
+.side{width:230px;background:#fff;border-right:1px solid var(--border);padding:10px 0;flex-shrink:0}
+.side .g{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.08em;padding:12px 16px 4px}
+.side a{display:flex;gap:9px;align-items:center;padding:7px 16px;color:var(--text);font-size:12.5px;text-decoration:none}
+.side a i{width:15px;height:15px;border-radius:4px;background:var(--border);display:inline-block}
+.side a.on{background:var(--accent-light);color:var(--accent-dark);font-weight:700;border-left:3px solid var(--accent);padding-left:13px}.side a.on i{background:var(--accent)}
+.main{flex:1;padding:20px 24px}
+h1{font-size:20px;font-weight:800}.sub{color:var(--muted);margin:2px 0 14px}
+.bar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.btn{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:7px 14px;font-weight:600;font-size:12.5px}
+.btn.o{background:#fff;color:var(--accent-dark);border:1px solid var(--border)}.btn.g{background:var(--green)}.btn.r{background:var(--red)}
+.in{border:1px solid var(--border);border-radius:8px;padding:7px 10px;background:#fff;color:var(--muted);min-width:140px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.kpi{background:#fff;border-radius:10px;box-shadow:var(--sh);padding:12px 14px;border-top:3px solid var(--accent)}
+.kpi small{color:var(--muted);font-size:11px}.kpi b{display:block;font-size:22px;margin-top:2px}.kpi em{font-style:normal;font-size:11px;color:var(--green)}
+.card{background:#fff;border-radius:10px;box-shadow:var(--sh);padding:14px;margin-bottom:14px}.card h3{font-size:13px;margin-bottom:10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:var(--sh)}
+th{background:#FAFAFC;text-align:left;font-size:11px;color:var(--muted);padding:9px 10px;border-bottom:1px solid var(--border)}
+td{padding:9px 10px;border-bottom:1px solid #EEE}tr:last-child td{border:0}.num{text-align:right;font-variant-numeric:tabular-nums}
+.bd{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700}
+.bd.v{background:#E3F5EC;color:var(--green)}.bd.a{background:#FEF3DC;color:#B97700}.bd.r{background:#FCE8E6;color:var(--red)}.bd.m{background:var(--accent-light);color:var(--accent-dark)}.bd.n{background:#ECECEF;color:var(--muted)}.bd.b{background:#E4EFFB;color:var(--accent2)}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:12px}.tabs span{padding:8px 14px;color:var(--muted)}.tabs .on{color:var(--accent-dark);font-weight:700;border-bottom:3px solid var(--accent)}
+.f{display:grid;gap:10px}.f2{grid-template-columns:1fr 1fr}.f3{grid-template-columns:repeat(3,1fr)}.f4{grid-template-columns:repeat(4,1fr)}
+.fl label{display:block;font-size:11px;color:var(--muted);margin-bottom:3px}.fl .in{display:block;color:var(--text)}.req::after{content:" *";color:var(--red)}
+.note{position:absolute;background:#FFF8D6;border:1px solid #E6C84A;border-radius:6px;padding:4px 8px;font-size:11px;color:#6B5600;max-width:260px}
+.foot{height:30px;background:var(--accent-dark);color:#fff;font-size:11px;display:flex;align-items:center;padding:0 16px}
+.bar2{height:8px;border-radius:4px;background:#ECECEF;overflow:hidden}.bar2 i{display:block;height:100%;background:var(--accent)}

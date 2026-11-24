@@ -1,0 +1,244 @@
+<!doctype html>
+<!--
+  PORTAL PÚBLICO «Pie Clinic Ortopédicos» — versión de DEMOSTRACIÓN para cliente potencial.
+
+  DATOS REALES (tomados del sitio actual, copia en docs/portalweb/):
+    - Nombre: Pie Clinic Ortopédicos
+    - Sucursal «Suc Patio Valle de Chalco»: Blvd Juan Pablo II 370, Valle de Chalco Solidaridad, Edo. de México, CP 56615
+    - Teléfono / WhatsApp: +52 55 7421 2848
+    - Horario de esa sucursal: 8:00 a 21:00, todos los días (el sitio actual lista de domingo a sábado)
+    - Áreas cubiertas: Valle de Chalco, Ixtapaluca, Los Reyes La Paz y Chalco Díaz Covarrubias
+    - Categorías de producto: muletas, sillas de ruedas, rodilleras, bastones
+    NO se publica el correo del sitio actual (parece personal): el cliente decide cuál usar.
+
+  DEMOSTRACIÓN / POR CONFIRMAR (no son datos del cliente):
+    - Las 7 sucursales del sistema (Centro, Norte, Sur, Oriente, Poniente, Polanco, Coyoacán): nombres de la demo
+      -> «dirección por confirmar». Sin teléfonos inventados.
+    - Los 3 testimonios son ejemplos de demostración con iniciales; NO son opiniones de personas reales.
+    - El formulario de cita es SIMULADO: valida y muestra confirmación, pero no envía nada.
+    - Logo: wordmark propio con símbolo neutro de huella; identidad definitiva (Pie Clinic vs Pie Firme) sin confirmar.
+    - Aviso de privacidad: marcador, por redactar con el cliente. Sin certificaciones ni cifras inventadas.
+    - Ilustraciones de producto: SVG propios, genéricos.
+  Sin dependencias externas ni peticiones remotas. Estilos: assets/portal.css · Lógica: assets/portal.js
+-->
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pie Clinic Ortopédicos | Podología y ayudas a la movilidad en Valle de Chalco</title>
+<meta name="description" content="Clínica de podología y tienda de ayudas a la movilidad: quiropodia, uña encarnada, hongos, pie diabético, plantillas a la medida, bastones, andaderas y calzado. Valle de Chalco y cobertura en el oriente del Estado de México.">
+<meta name="theme-color" content="#7b5ea7">
+<link rel="canonical" href="/">
+<link rel="icon" type="image/svg+xml" href="/assets/logo.svg">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_MX">
+<meta property="og:site_name" content="Pie Clinic Ortopédicos">
+<meta property="og:title" content="Pie Clinic Ortopédicos | Podología y ayudas a la movilidad">
+<meta property="og:description" content="Cuidado profesional de tus pies y tienda en línea de bastones, andaderas, plantillas y calzado.">
+<meta property="og:image" content="/assets/logo.svg">
+<meta name="twitter:card" content="summary">
+<link rel="stylesheet" href="/assets/portal.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":["MedicalBusiness","LocalBusiness"],"name":"Pie Clinic Ortopédicos","description":"Podología y tienda de ayudas a la movilidad.","telephone":"+52 55 7421 2848","address":{"@type":"PostalAddress","streetAddress":"Blvd Juan Pablo II 370","addressLocality":"Valle de Chalco Solidaridad","addressRegion":"Estado de México","postalCode":"56615","addressCountry":"MX"},"areaServed":["Valle de Chalco","Ixtapaluca","Los Reyes La Paz","Chalco Díaz Covarrubias"],"openingHoursSpecification":[{"@type":"OpeningHoursSpecification","dayOfWeek":["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],"opens":"08:00","closes":"21:00"}],"medicalSpecialty":"Podiatric"}
+</script>
+</head>
+<body>
+<a class="skip" href="#contenido">Saltar al contenido</a>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="huella" viewBox="0 0 48 48"><path fill="currentColor" d="M18 6c6 0 10 5 10 14 0 6-2 10-3 15-1 4 0 7-5 7s-8-3-8-8c0-5 1-9 1-15 0-8 1-13 5-13z"/><circle fill="currentColor" cx="33" cy="12" r="3"/><circle fill="currentColor" cx="39" cy="19" r="2.5"/><circle fill="currentColor" cx="42" cy="27" r="2.2"/><circle fill="currentColor" cx="42" cy="35" r="2"/></symbol>
+    <symbol id="i-tijera" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 7.5L20 18M8.5 16.5L20 6"/></g></symbol>
+    <symbol id="i-una" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V9a7 7 0 0114 0v11z"/><path d="M5 14h14M9 20v-6M15 20v-6"/></g></symbol>
+    <symbol id="i-hongo" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/><circle cx="12" cy="12" r="2"/></g></symbol>
+    <symbol id="i-gota" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 11a6 6 0 01-12 0c0-4.5 6-11 6-11z"/><path d="M12 14v4M10 16h4"/></g></symbol>
+    <symbol id="i-plantilla" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2c3 0 5 3 5 7 0 3-1 5-1.5 7.5S13 22 10.5 22 6 20 6 17.5c0-3 1-5 1-8C7 5 7 2 9 2z"/><path d="M8 14c2 0 3 .8 4 2"/></g></symbol>
+    <symbol id="i-lupa" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M8 10.5h5M10.5 8v5"/></g></symbol>
+    <symbol id="i-orto" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16c0-5 4-8 8-8s8 3 8 8"/><path d="M3 16h18M8 20h8"/></g></symbol>
+    <symbol id="i-onda" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12h3l2-6 3 12 3-9 2 3h5"/></g></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></g></symbol>
+  </defs>
+</svg>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#inicio" aria-label="Pie Clinic Ortopédicos, inicio"><svg aria-hidden="true" viewBox="0 0 48 48"><use href="#huella"/></svg><span>Pie <em>Clinic</em></span></a>
+    <button class="burger" id="burger" type="button" aria-expanded="false" aria-controls="menu" aria-label="Abrir menú">&#9776;</button>
+    <nav class="menu" id="menu" aria-label="Principal">
+      <a href="#servicios">Servicios</a>
+      <a href="#productos">Productos</a>
+      <a href="#nosotros">Por qué elegirnos</a>
+      <a href="#sucursales">Sucursales</a>
+      <a href="#cita">Agendar cita</a>
+      <a href="#faq">Preguntas</a>
+      <span class="nbtns">
+        <a class="btn pri sm" href="/app/#/tienda">Tienda en línea</a>
+        <a class="btn sec sm" href="/app/">Iniciar</a>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<main id="contenido">
+<section class="hero" id="inicio">
+  <div class="wrap">
+    <div>
+      <span class="kick">Podología · Ortopedia · Tienda en línea</span>
+      <h1>Cuidamos tus pies y te ayudamos a moverte con confianza.</h1>
+      <p>Podólogos que te atienden en cualquier sucursal con un solo expediente, laboratorio de plantillas a la medida y una tienda de bastones, andaderas, rodilleras y calzado que puedes comprar desde tu casa.</p>
+      <div class="cta">
+        <a class="btn wh" href="/app/#/tienda">Comprar en línea</a>
+        <a class="btn ol" href="#cita">Agendar cita</a>
+      </div>
+      <ul><li>Un expediente en todas las sucursales</li><li>Atención a pie diabético</li><li>Plantillas a la medida</li></ul>
+    </div>
+    <div class="hero-art" aria-hidden="true">
+      <svg viewBox="0 0 48 48" style="color:#fff"><use href="#huella"/></svg>
+    </div>
+  </div>
+</section>
+
+<section id="servicios">
+  <div class="wrap">
+    <h2>Servicios y tratamientos de podología</h2>
+    <p class="sub">Atención clínica para el cuidado diario del pie y para problemas que requieren un especialista.</p>
+    <div class="grid">
+      <article class="card"><div class="ico"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-tijera"/></svg></div><h3>Quiropodia</h3><p>Corte y limpieza profesional de uñas, tratamiento de callos y durezas, para pies cómodos y sanos.</p></article>
+      <article class="card"><div class="ico"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-una"/></svg></div><h3>Uña encarnada (onicocriptosis)</h3><p>Alivio del dolor y corrección de la uña que se clava en la piel, con técnica segura.</p></article>
+      <article class="card"><div class="ico"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-hongo"/></svg></div><h3>Hongos y láser</h3><p>Valoración y tratamiento de hongos en las uñas, incluyendo terapia con láser cuando esté indicada.</p></article>
+      <article class="card"><div class="ico"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-gota"/></svg></div><h3>Pie diabético</h3><p>Revisión y cuidado preventivo con atención especial a heridas, sensibilidad y circulación.</p></article>
+      <article class="card"><div class="ico"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-plantilla"/></svg></div><h3>Plantillas a la medida</h3><p>Plantillas ortopédicas elaboradas en nuestro laboratorio a partir del estudio de tu pisada.</p></article>
+      <article class="card"><div class="ico"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-lupa"/></svg></div><h3>Estudio biomecánico</h3><p>Análisis de cómo caminas y pisas para detectar la causa de molestias en pies, rodillas o espalda.</p></article>
+      <article class="card"><div class="ico"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-orto"/></svg></div><h3>Ortonixia</h3><p>Corrección de uñas encarnadas con aparatos que se colocan sobre la uña, sin cirugía.</p></article>
+      <article class="card"><div class="ico"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-onda"/></svg></div><h3>Ondas de choque</h3><p>Terapia no invasiva para dolor del talón y otras molestias, según valoración del podólogo.</p></article>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="productos">
+  <div class="wrap">
+    <h2>Productos destacados</h2>
+    <p class="sub">Ayudas a la movilidad, ortopedia y calzado. Compra en nuestra tienda en línea.</p>
+    <div class="grid">
+      <article class="card prod"><div class="art"><svg viewBox="0 0 120 96" role="img" aria-label="Ilustración de un bastón"><path fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" d="M44 88V30a18 18 0 0136 0"/></svg></div><h3>Bastones</h3><p>Ligeros, regulables y de apoyo firme.</p><a class="l" href="/app/#/tienda">Ver en la tienda</a></article>
+      <article class="card prod"><div class="art"><svg viewBox="0 0 120 96" role="img" aria-label="Ilustración de una andadera"><path fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M28 90V30h64v60M28 48h64"/></svg></div><h3>Andaderas</h3><p>Estabilidad para caminar con seguridad.</p><a class="l" href="/app/#/tienda">Ver en la tienda</a></article>
+      <article class="card prod"><div class="art"><svg viewBox="0 0 120 96" role="img" aria-label="Ilustración de una muleta"><path fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M40 8l30 6M44 12L62 90M60 44h16"/></svg></div><h3>Muletas</h3><p>Axilares y de antebrazo, para tu recuperación.</p><a class="l" href="/app/#/tienda">Ver en la tienda</a></article>
+      <article class="card prod"><div class="art"><svg viewBox="0 0 120 96" role="img" aria-label="Ilustración de una silla de ruedas"><g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><circle cx="46" cy="64" r="22"/><circle cx="96" cy="84" r="6"/><path d="M34 14v40h44l14 24M34 36h26"/></g></svg></div><h3>Sillas de ruedas</h3><p>Plegables y cómodas para el día a día.</p><a class="l" href="/app/#/tienda">Ver en la tienda</a></article>
+      <article class="card prod"><div class="art"><svg viewBox="0 0 120 96" role="img" aria-label="Ilustración de una rodillera"><g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M38 10h44l-6 76H44z"/><path d="M42 34h36M44 62h32"/><circle cx="60" cy="48" r="8"/></g></svg></div><h3>Rodilleras</h3><p>Soporte y compresión para la articulación.</p><a class="l" href="/app/#/tienda">Ver en la tienda</a></article>
+      <article class="card prod"><div class="art"><svg viewBox="0 0 120 96" role="img" aria-label="Ilustración de una plantilla ortopédica"><g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M54 8c14 0 22 12 22 28 0 14-6 22-6 36 0 10-6 16-15 16S40 82 40 70c0-14 4-22 4-36 0-14 2-26 10-26z"/><path d="M48 58c8 0 14 3 18 8"/></g></svg></div><h3>Plantillas</h3><p>De línea y a la medida, hechas en laboratorio.</p><a class="l" href="/app/#/tienda">Ver en la tienda</a></article>
+      <article class="card prod"><div class="art"><svg viewBox="0 0 120 96" role="img" aria-label="Ilustración de un zapato cómodo"><g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 30h26c2 14 10 20 24 22l34 8c8 2 10 8 10 14H14z"/><path d="M14 74h90"/></g></svg></div><h3>Calzado</h3><p>Calzado cómodo y terapéutico.</p><a class="l" href="/app/#/tienda">Ver en la tienda</a></article>
+    </div>
+    <p style="margin-top:28px"><a class="btn pri" href="/app/#/tienda">Entrar a la tienda en línea</a></p>
+  </div>
+</section>
+
+<section id="nosotros">
+  <div class="wrap">
+    <h2>Por qué elegirnos</h2>
+    <p class="sub">Una cadena que trata tu historial como uno solo, vayas a la sucursal que vayas.</p>
+    <div class="why">
+      <article class="card"><h3>Expediente único</h3><p>Tu historial, alertas y fotos de avance están disponibles en cualquier sucursal. No repites tu historia ni pierdes tu seguimiento.</p></article>
+      <article class="card"><h3>Podólogos que rotan</h3><p>Nuestros podólogos atienden en distintas sucursales, así la atención no depende de un solo lugar.</p></article>
+      <article class="card"><h3>Laboratorio de plantillas</h3><p>Fabricamos plantillas a la medida con base en tu estudio, para que se ajusten a tu pie y no al revés.</p></article>
+      <article class="card"><h3>Atención a pie diabético</h3><p>Cuidado preventivo y seguimiento para quien vive con diabetes, con revisión cuidadosa del pie.</p></article>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="sucursales">
+  <div class="wrap">
+    <h2>Sucursales y horarios</h2>
+    <p class="sub">Nuestra red de sucursales. Los datos marcados «por confirmar» se completarán con el cliente.</p>
+    <div class="loc">
+      <article class="card" style="border-color:var(--t)"><span class="tag ok">Dato del sitio actual</span><h3>Valle de Chalco (Suc Patio)</h3>
+        <dl><dt>Dirección</dt><dd>Blvd Juan Pablo II 370, Valle de Chalco Solidaridad, Estado de México, CP 56615</dd>
+        <dt>Teléfono</dt><dd><a href="tel:+525574212848">55 7421 2848</a></dd>
+        <dt>Horario</dt><dd>Todos los días, 8:00 a 21:00 (por confirmar)</dd></dl></article>
+      <article class="card"><span class="tag">Demostración</span><h3>Sucursal Centro</h3><dl><dt>Dirección</dt><dd>Dirección por confirmar</dd><dt>Teléfono</dt><dd>Por confirmar</dd></dl></article>
+      <article class="card"><span class="tag">Demostración</span><h3>Sucursal Norte</h3><dl><dt>Dirección</dt><dd>Dirección por confirmar</dd><dt>Teléfono</dt><dd>Por confirmar</dd></dl></article>
+      <article class="card"><span class="tag">Demostración</span><h3>Sucursal Sur</h3><dl><dt>Dirección</dt><dd>Dirección por confirmar</dd><dt>Teléfono</dt><dd>Por confirmar</dd></dl></article>
+      <article class="card"><span class="tag">Demostración</span><h3>Sucursal Oriente</h3><dl><dt>Dirección</dt><dd>Dirección por confirmar</dd><dt>Teléfono</dt><dd>Por confirmar</dd></dl></article>
+      <article class="card"><span class="tag">Demostración</span><h3>Sucursal Poniente</h3><dl><dt>Dirección</dt><dd>Dirección por confirmar</dd><dt>Teléfono</dt><dd>Por confirmar</dd></dl></article>
+      <article class="card"><span class="tag">Demostración</span><h3>Sucursal Polanco</h3><dl><dt>Dirección</dt><dd>Dirección por confirmar</dd><dt>Teléfono</dt><dd>Por confirmar</dd></dl></article>
+      <article class="card"><span class="tag">Demostración</span><h3>Sucursal Coyoacán</h3><dl><dt>Dirección</dt><dd>Dirección por confirmar</dd><dt>Teléfono</dt><dd>Por confirmar</dd></dl></article>
+    </div>
+    <h3 style="margin-top:32px">Horario de la sucursal Valle de Chalco</h3>
+    <table>
+      <thead><tr><th scope="col">Día</th><th scope="col">Horario</th></tr></thead>
+      <tbody>
+        <tr><td>Lunes a viernes</td><td>8:00 a 21:00</td></tr>
+        <tr><td>Sábado</td><td>8:00 a 21:00</td></tr>
+        <tr><td>Domingo</td><td>8:00 a 21:00</td></tr>
+      </tbody></table>
+    <p class="sub" style="margin-top:10px">Horarios de las demás sucursales: por confirmar.</p>
+    <h3>Áreas cubiertas</h3>
+    <p>Valle de Chalco, Ixtapaluca, Los Reyes La Paz y Chalco Díaz Covarrubias (Estado de México).</p>
+  </div>
+</section>
+
+<section id="opiniones">
+  <div class="wrap">
+    <h2>Lo que dicen los pacientes</h2>
+    <span class="demo">Ejemplos de demostración: no son opiniones de personas reales</span>
+    <div class="grid">
+      <figure class="card q" style="margin:0"><blockquote><p>«Me explicaron cada paso del tratamiento y salí caminando sin dolor.»</p></blockquote><cite>M. G. · ejemplo de demostración</cite></figure>
+      <figure class="card q" style="margin:0"><blockquote><p>«Me atendieron en una sucursal y en la siguiente ya tenían mi historial.»</p></blockquote><cite>R. L. · ejemplo de demostración</cite></figure>
+      <figure class="card q" style="margin:0"><blockquote><p>«Compré el bastón en línea para mi mamá y fue muy fácil.»</p></blockquote><cite>A. P. · ejemplo de demostración</cite></figure>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="cita">
+  <div class="wrap two">
+    <div>
+      <h2>Agenda tu cita</h2>
+      <p class="sub">Déjanos tus datos y elige el servicio. Recepción te confirma la fecha y la hora.</p>
+      <p><span class="demo">Demostración: aquí se conecta el envío real</span></p>
+      <p>También puedes escribirnos por <a href="https://wa.me/525574212848?text=Hola%2C%20quiero%20agendar%20una%20cita%20en%20Pie%20Clinic.">WhatsApp</a> o llamar al <a href="tel:+525574212848">55 7421 2848</a>.</p>
+    </div>
+    <div>
+      <div id="resultado" class="ok-msg" role="status" tabindex="-1" hidden></div>
+      <form id="cita-form" novalidate>
+        <div><label for="nombre">Nombre completo</label><input id="nombre" name="nombre" autocomplete="name" required aria-describedby="nombre-e"><p class="err" id="nombre-e"></p></div>
+        <div><label for="tel">Teléfono (10 dígitos)</label><input id="tel" name="tel" type="tel" inputmode="tel" autocomplete="tel" required aria-describedby="tel-e"><p class="err" id="tel-e"></p></div>
+        <div><label for="correo">Correo (opcional)</label><input id="correo" name="correo" type="email" autocomplete="email" aria-describedby="correo-e"><p class="err" id="correo-e"></p></div>
+        <div><label for="servicio">Servicio</label><select id="servicio" name="servicio" required aria-describedby="servicio-e"><option value="">Elige un servicio</option><option>Quiropodia</option><option>Uña encarnada</option><option>Hongos y láser</option><option>Pie diabético</option><option>Plantillas a la medida</option><option>Estudio biomecánico</option><option>Ortonixia</option><option>Ondas de choque</option></select><p class="err" id="servicio-e"></p></div>
+        <div><label for="suc">Sucursal</label><select id="suc" name="suc" required aria-describedby="suc-e"><option value="">Elige una sucursal</option><option>Valle de Chalco</option><option>Centro</option><option>Norte</option><option>Sur</option><option>Oriente</option><option>Poniente</option><option>Polanco</option><option>Coyoacán</option></select><p class="err" id="suc-e"></p></div>
+        <div><label for="msg">Comentarios (opcional)</label><textarea id="msg" name="msg"></textarea></div>
+        <button class="btn pri" type="submit">Solicitar cita</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>Preguntas frecuentes</h2>
+    <p class="sub">Respuestas generales. Los detalles finales se confirman con la clínica.</p>
+    <details><summary>¿Necesito cita para ir a la clínica?</summary><p>Te recomendamos agendar para reducir tu espera. Puedes hacerlo con este portal, por WhatsApp o por teléfono.</p></details>
+    <details><summary>¿Puedo atenderme en cualquier sucursal?</summary><p>Sí. Tu expediente es único, así que cualquier sucursal puede consultar tu historial y dar seguimiento a tu tratamiento.</p></details>
+    <details><summary>¿Atienden a personas con diabetes?</summary><p>Sí, ofrecemos atención y revisión preventiva de pie diabético. Avísanos tu condición al agendar.</p></details>
+    <details><summary>¿Cómo compro en la tienda en línea?</summary><p>Entra a la <a href="/app/#/tienda">tienda en línea</a>, elige tus productos y sigue los pasos. Las formas de pago y entrega se confirmarán con el cliente.</p></details>
+    <details><summary>¿Las plantillas se hacen a la medida?</summary><p>Sí. Se elaboran en nuestro laboratorio a partir de un estudio de tu pisada, además de contar con plantillas de línea.</p></details>
+    <details><summary>¿En qué zonas dan servicio?</summary><p>Valle de Chalco, Ixtapaluca, Los Reyes La Paz y Chalco Díaz Covarrubias.</p></details>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div><h3>Pie Clinic Ortopédicos</h3><p>Podología y ayudas a la movilidad.<br>Blvd Juan Pablo II 370, Valle de Chalco Solidaridad, Estado de México, CP 56615<br>Tel. <a href="tel:+525574212848">+52 55 7421 2848</a></p></div>
+      <div><h3>Enlaces</h3><p><a href="/app/#/tienda">Tienda en línea</a><br><a href="#cita">Agendar cita</a><br><a href="#sucursales">Sucursales</a><br><a href="/app/">Acceso del personal</a></p></div>
+      <div><h3>Legal</h3><p><strong>Aviso de privacidad:</strong> por redactar con el cliente.<br>© 2026 Pie Clinic Ortopédicos. Todos los derechos reservados.</p></div>
+    </div>
+  </div>
+</footer>
+
+<a class="wa" href="https://wa.me/525574212848?text=Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20sus%20servicios%20de%20podolog%C3%ADa%20y%20productos." target="_blank" rel="noopener" aria-label="Escribir por WhatsApp (se abre en una pestaña nueva)">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 00-8.6 15L2 22l5.2-1.4A10 10 0 1012 2zm0 18.2a8.2 8.2 0 01-4.2-1.2l-.3-.2-3.1.8.8-3-.2-.3A8.2 8.2 0 1112 20.200zm4.500-6.100c-.2-.1-1.500-.7-1.700-.8s-.4-.1-.6.1-.6.800-.8 1-.3.200-.6.100a6.700 6.700 0 01-3.300-2.900c-.3-.4.300-.4.800-1.300.1-.2 0-.3 0-.5s-.6-1.400-.8-1.900-.4-.4-.6-.4h-.5a1 1 0 00-.7.300 3 3 0 00-.9 2.200 5.200 5.200 0 001.100 2.800 11.900 11.900 0 004.600 4c1.700.7 2.400.8 3.200.7a2.700 2.700 0 001.800-1.300 2.200 2.200 0 00.2-1.300c-.1-.1-.3-.2-.6-.3z"/></svg>
+  <span>WhatsApp</span>
+</a>
+<script src="/assets/portal.js"></script>
+</body>
+</html>

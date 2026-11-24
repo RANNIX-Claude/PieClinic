@@ -1,0 +1,10 @@
+[
+  {
+    "pantalla": "Recepción › registrar llegada del paciente",
+    "motivo": "No existe pantalla ni botón para registrar la llegada (la columna citas.llegada_en no tiene interfaz). Se usa «Confirmar» de la agenda como aviso de presencia."
+  },
+  {
+    "pantalla": "Consulta › firma del podólogo en pantalla",
+    "motivo": "locator.waitFor: Timeout 10000ms exceeded."
+  }
+]

@@ -1,0 +1,48 @@
+/* Pie Clinic · demo: tablero del dueño, menú de presentación y teléfono de WhatsApp simulado. Letra grande y legible en celular. */
+.pc-w{display:grid;gap:14px;font-size:16px}
+.pc-w h3{margin:0 0 8px;font-size:18px}
+.pc-marca{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;color:var(--p)}
+.pc-cuadro{width:100%;border-collapse:collapse;font-size:15px}
+.pc-cuadro th,.pc-cuadro td{padding:8px 6px;text-align:right;border-bottom:1px solid var(--bd,#e5e7eb)}
+.pc-cuadro th:first-child,.pc-cuadro td:first-child{text-align:left}
+.pc-barra{height:14px;border-radius:7px;background:#e8e8ef;overflow:hidden;position:relative}
+.pc-barra>i{display:block;height:100%;border-radius:7px}
+.pc-meta{position:absolute;top:-3px;bottom:-3px;width:2px;background:#111}
+.pc-bien{color:#15803d}.pc-mal{color:#b91c1c}.pc-med{color:#b45309}
+.pc-serie{display:flex;align-items:flex-end;gap:4px;height:150px}
+.pc-serie>div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;font-size:11px}
+.pc-serie>div>i{display:block;width:100%;border-radius:4px 4px 0 0;background:var(--p)}
+.pc-serie>div.baja>i{background:#dc2626}
+.pc-acciones{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Menú de presentación */
+.pc-menu{min-height:100vh;display:flex;flex-direction:column;align-items:center;gap:22px;padding:28px 16px;background:linear-gradient(160deg,#f3effa,#fff 55%)}
+.pc-menu h1{margin:0;font-size:34px;color:var(--p)}
+.pc-menu p{margin:0;font-size:18px;color:#555;text-align:center}
+.pc-botones{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;width:100%;max-width:920px}
+@media (min-width:900px){.pc-botones{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.pc-boton{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:150px;border:0;border-radius:20px;background:#fff;box-shadow:0 6px 22px rgba(80,50,140,.15);font-size:22px;font-weight:800;color:#2b2140;cursor:pointer;padding:16px}
+.pc-boton:active{transform:scale(.98)}
+.pc-boton small{font-size:14px;font-weight:500;color:#666}
+.pc-pie{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+
+/* Celular de WhatsApp simulado */
+.pc-cel-w{display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap}
+.pc-cel-w>.pc-izq{flex:1 1 360px;min-width:0}
+.pc-cel{width:300px;flex:none;border:10px solid #1f2937;border-radius:38px;background:#e5ddd5;box-shadow:0 10px 30px rgba(0,0,0,.25);overflow:hidden;position:sticky;top:12px;margin:0 auto}
+.pc-cel-top{background:#075e54;color:#fff;padding:10px 12px;font-size:15px;font-weight:700;display:flex;gap:8px;align-items:center}
+.pc-cel-msgs{height:430px;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
+.pc-burbuja{max-width:88%;background:#dcf8c6;border-radius:10px 10px 10px 2px;padding:8px 10px;font-size:14px;line-height:1.35;box-shadow:0 1px 1px rgba(0,0,0,.15);animation:pc-in .35s ease}
+.pc-burbuja small{display:block;text-align:right;color:#667;font-size:11px;margin-top:3px}
+.pc-burbuja.alerta{background:#fff3cd}
+.pc-burbuja.falta{background:#fde2e2}
+@keyframes pc-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.pc-cel-sin{background:#fff;padding:6px 10px;font-size:12px;color:#555;text-align:center}
+
+@media print{
+  .pc-acciones,.pc-noprint{display:none!important}
+  .nav,.side,.cab,.barra-accion,.fab,.avisos{display:none!important}
+  .app,.app.desk,.main,.cuerpo{height:auto!important;max-width:none!important;overflow:visible!important;display:block!important;box-shadow:none!important}
+  .pc-w{font-size:12px}
+  .pc-barra>i,.pc-serie>div>i{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}

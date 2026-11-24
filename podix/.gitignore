@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env.local
+.env
+*.log
+public/icons/
+public/manifest-*.webmanifest
+
+# Fuera del repositorio
+.tmp-*
+../.tmp-*
+propuesta/
+docs/portalweb/
+docs/formatos_reales/
+.netlify/
+.claude/settings.local.json

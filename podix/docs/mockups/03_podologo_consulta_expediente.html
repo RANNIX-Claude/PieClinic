@@ -1,0 +1,35 @@
+<!doctype html><html lang='es'><head><meta charset='utf-8'><title>03_podologo_consulta_expediente</title><style>
+:root{--p:#7b5ea7;--pd:#5b3f8c;--pl:#efe9f8;--bg:#f4f5f9;--tx:#1f2330;--mu:#6b7280;--bd:#e5e7eb;--ok:#059669;--al:#d97706;--er:#dc2626}
+*{box-sizing:border-box}
+body{font:14px/1.45 Inter,'Segoe UI',system-ui,Arial,sans-serif;margin:0;background:var(--bg);color:var(--tx);display:flex;flex-direction:column;min-height:100vh}
+.bar{order:1;display:block;background:transparent;color:var(--tx);padding:22px 28px 4px}
+.bar b{display:block;font-size:26px;font-weight:700;letter-spacing:-.3px}
+.bar span{display:block;margin-top:2px;color:var(--mu);font-size:13px}
+.wrap{order:2;padding:12px 28px 24px;display:grid;gap:16px}
+.meta{order:3;margin:0 28px 28px;background:#fffbea;border:1px solid #f3dd8a;border-radius:10px;padding:0;font-size:12px;color:#5b4a10}
+.meta summary{cursor:pointer;padding:9px 14px;font-weight:600;color:#7a5d00}
+.meta .rows{padding:2px 14px 12px}
+.meta .rows div{margin:2px 0}.meta b{display:inline-block;min-width:200px;color:#7a5d00}
+.card{background:#fff;border:1px solid var(--bd);border-radius:12px;padding:16px 18px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.card h3{margin:0 0 12px;font-size:13px;font-weight:700;color:var(--pd);text-transform:uppercase;letter-spacing:.5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px 18px}
+.f label{display:block;font-size:10.5px;font-weight:600;color:#8a90a0;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.f div{border:1px solid #d9dce3;border-radius:8px;padding:8px 10px;background:#fff;min-height:36px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{background:#f8f9fc;text-align:left;padding:9px 10px;font-size:10.5px;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--bd);white-space:nowrap}
+th::after{content:" \25BD";font-size:9px;color:#b4b9c6}
+td{border-top:1px solid #f0f1f5;padding:10px}
+tr:hover td{background:#faf8fe}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.k{background:#fff;border:1px solid var(--bd);border-left:4px solid var(--p);border-radius:12px;padding:14px 16px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.k:nth-child(4n+2){border-left-color:var(--ok)}.k:nth-child(4n+3){border-left-color:var(--er)}.k:nth-child(4n+4){border-left-color:var(--al)}
+.k small{display:block;font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.5px}
+.k span{display:block;margin-top:4px;font-size:26px;font-weight:700;color:var(--tx)}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+.btn{background:var(--p);color:#fff;border-radius:9px;padding:9px 18px;font-weight:600;font-size:13px;box-shadow:0 1px 2px rgba(91,63,140,.3)}
+.btn.sec{background:#f1f2f6;color:#3b3f4e;box-shadow:none}
+.btn.warn{background:#fff;color:var(--er);border:1px solid #f3b4b4;box-shadow:none}
+.bd{display:inline-block;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600;background:var(--pl);color:var(--pd)}
+.bd.ok{background:#d1fae5;color:#065f46}.bd.al{background:#fef3c7;color:#92400e}.bd.er{background:#fee2e2;color:#991b1b}
+.note{font-size:12px;color:var(--mu);background:#fff;border:1px dashed var(--bd);border-radius:8px;padding:8px 12px}
+</style></head><body><div class='bar'><b>Consulta y expediente clínico único</b><span>Dra. Ríos · Sucursal Centro</span></div><div class='wrap'><div class='card'><h3>Paciente</h3><div class='grid'><div class='f'><label>Nombre</label><div>Ana López Ruiz (67 años)</div></div><div class='f'><label>Expediente</label><div>EXP-000482</div></div><div class='f'><label>Alertas</label><div>Diabetes tipo 2 · Anticoagulada · Alergia: látex</div></div><div class='f'><label>Última visita</label><div>03/09 · Sucursal Norte</div></div></div></div><div class='card'><h3>Signos y exploración</h3><div class='grid'><div class='f'><label>Peso / talla</label><div>68 kg / 1.60 m</div></div><div class='f'><label>Glucosa capilar</label><div>142 mg/dL</div></div><div class='f'><label>Presión arterial</label><div>130/80</div></div><div class='f'><label>Monofilamento</label><div>Sensibilidad disminuida (der.)</div></div><div class='f'><label>Pulsos pedios</label><div>Presentes</div></div><div class='f'><label>Índice tobillo-brazo</label><div>0.95</div></div><div class='f'><label>Clasificación pie diabético</label><div>Wagner 0</div></div><div class='f'><label>Exploración ungueal</label><div>Onicomicosis 1º-2º dedo</div></div></div></div><div class='card'><h3>Diagnóstico y plan</h3><div class='grid'><div class='f'><label>Diagnóstico CIE-10</label><div>B35.1 Tiña de las uñas</div></div><div class='f'><label>Procedimiento hoy</label><div>Quiropodia + desbaste ungueal</div></div><div class='f'><label>Plan</label><div>6 sesiones láser cada 2 semanas</div></div><div class='f'><label>Referencia</label><div>Endocrinología</div></div><div class='f'><label>Nota de evolución</label><div>Paciente tolera procedimiento…</div></div><div class='f'><label>Indicaciones al paciente</label><div>Secar entre dedos; calzado amplio</div></div></div></div><div class='card'><h3>Evidencia</h3><table><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th></tr><tr><td>03/09</td><td>Foto</td><td>Antes · pie derecho</td></tr><tr><td>29/10</td><td>Foto</td><td>Sesión 2 · pie derecho</td></tr></table></div><div class='card'><h3>Insumos consumidos (descuento de almacén)</h3><table><tr><th>Insumo</th><th>Cantidad</th></tr><tr><td>Cuchilla desechable #15</td><td>2</td></tr><tr><td>Gasa estéril</td><td>4</td></tr></table></div><div class='btns'><div class='btn '>Guardar nota</div><div class='btn sec'>Receta</div><div class='btn sec'>Prescribir producto / plantilla</div><div class='btn sec'>Programar siguiente cita</div><div class='btn warn'>Cerrar consulta y enviar a caja</div></div></div><details class='meta'><summary>Ficha de la pantalla (E2)</summary><div class='rows'><div><b>PANTALLA:</b> 03_podologo_consulta_expediente</div><div><b>PARA QUÉ:</b> El podólogo atiende, explora, diagnostica y registra evolución en el expediente único del paciente.</div><div><b>QUIÉN LA USA:</b> Podólogo en consultorio, tableta o PC, con el paciente enfrente</div><div><b>CUÁNTAS VECES AL DÍA (propuesto):</b> ~12 por podólogo</div><div><b>QUÉ NO PUEDE FALLAR:</b> Que la nota no se pierda y que cada acceso al expediente quede en bitácora</div></div></details></body></html>

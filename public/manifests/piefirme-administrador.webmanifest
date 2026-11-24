@@ -1,0 +1,68 @@
+{
+  "id": "/app/?rol=administrador",
+  "name": "Pie Firme Administración",
+  "short_name": "PF Admin",
+  "description": "Tablero, agenda, caja y alertas de tu clínica",
+  "start_url": "/app/?pwa=administrador",
+  "scope": "/app/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F5F5F7",
+  "theme_color": "#7B5EA7",
+  "lang": "es-MX",
+  "icons": [
+    {
+      "src": "/app/icons/piefirme-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/app/icons/piefirme-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/app/icons/piefirme-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Tablero",
+      "url": "/app/analisis/ejecutivo",
+      "icons": [
+        {
+          "src": "/app/icons/piefirme-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Caja",
+      "url": "/app/caja",
+      "icons": [
+        {
+          "src": "/app/icons/piefirme-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Agenda",
+      "url": "/app/agenda",
+      "icons": [
+        {
+          "src": "/app/icons/piefirme-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+/* Dominio «saas»: importación, exportación, salud, datos de prueba, suscripción y panel RANNIX. Prefijo sa-. */
+.sa-check{display:flex;gap:8px;align-items:flex-start;font-size:14px;cursor:pointer;min-height:32px;padding:4px 0}
+.sa-check input{width:18px;height:18px;margin-top:2px;flex:none;accent-color:var(--p)}
+.sa-sim{background:var(--all);color:#92400e;border-radius:10px;padding:8px 12px;font-size:13px}
+.sa-rejilla{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:10px}
+.sa-rejilla>*{min-width:0}
+.sa-mapeo{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+.sa-col{background:var(--sup);border:1px solid var(--bd);border-radius:var(--r);padding:10px 12px;display:grid;gap:6px;min-width:0}
+.sa-col.pend{border-left:4px solid var(--al)}.sa-col.ok{border-left:4px solid var(--ok)}.sa-col.sin{border-left:4px solid var(--bd)}
+.sa-col-t{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between}
+.sa-col-t b{word-break:break-word}
+.sa-ej{font-size:12px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sa-chips{display:flex;flex-wrap:wrap;gap:4px}
+.sa-area{min-height:150px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+.sa-msgs{display:grid;gap:4px;font-size:12.5px;color:var(--tx)}
+.sa-msgs span{display:block}
+.sa-modulo{display:grid;gap:6px}
+.sa-modulo h4{margin:0;font-size:15px}
+.sa-precio{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline}
+.sa-precio b{font-size:20px}
+.sa-precio s{color:var(--mu);font-size:13px}
+.sa-hilo{display:grid;gap:6px;max-height:45dvh;overflow:auto}
+.sa-msj{background:var(--bg);border-radius:10px;padding:8px 10px;font-size:13px;white-space:pre-wrap}
+.sa-msj.rannix{background:var(--pl)}
+.sa-msj small{display:block;color:var(--mu);font-size:11px;margin-bottom:2px}
+.sa-humo{display:grid;gap:6px}
+.sa-humo div{display:flex;gap:8px;align-items:flex-start;font-size:13px}
+.sa-humo em{color:var(--mu);font-style:normal;font-size:12px;margin-left:auto;flex:none}
+.sa-barra{height:8px;background:var(--bd);border-radius:4px;overflow:hidden}
+.sa-barra i{display:block;height:100%;background:var(--ok)}
+.sa-barra i.warn{background:var(--al)}.sa-barra i.bad{background:var(--er)}
+@media (min-width:1024px){.sa-mapeo{grid-template-columns:repeat(2,minmax(0,1fr))}}

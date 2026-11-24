@@ -1,0 +1,36 @@
+# Pruebas de seguridad (RLS y permisos) contra QA: en cada push a develop que toque migraciones
+# y todos los días. Detecta una migración que reabre una política, una vista sin security_invoker
+# o una tabla nueva sin RLS.
+#
+# Secrets requeridos (Settings → Secrets → Actions) — los puede crear Claude con `gh secret set`:
+#   QA_SUPABASE_REF, QA_SUPABASE_DB_PASSWORD, QA_SUPABASE_URL, QA_SUPABASE_ANON_KEY
+#   (y QA_SUPABASE_DB_HOST / QA_SUPABASE_DB_USER si se usa el pooler)
+name: Seguridad QA
+
+on:
+  push:
+    branches: [develop]
+    paths: ["migraciones/**", "tests/rls.config.json", "scripts/test-rls.mjs", ".github/workflows/rls-tests.yml"]
+  schedule:
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+
+jobs:
+  rls:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts || npm install --ignore-scripts
+      - name: Pruebas de seguridad
+        env:
+          QA_SUPABASE_REF: ${{ secrets.QA_SUPABASE_REF }}
+          QA_SUPABASE_DB_PASSWORD: ${{ secrets.QA_SUPABASE_DB_PASSWORD }}
+          QA_SUPABASE_DB_HOST: ${{ secrets.QA_SUPABASE_DB_HOST }}
+          QA_SUPABASE_DB_USER: ${{ secrets.QA_SUPABASE_DB_USER }}
+          QA_SUPABASE_URL: ${{ secrets.QA_SUPABASE_URL }}
+          QA_SUPABASE_ANON_KEY: ${{ secrets.QA_SUPABASE_ANON_KEY }}
+        run: node scripts/test-rls.mjs qa

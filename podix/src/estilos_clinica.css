@@ -1,0 +1,55 @@
+/* Dominio «clínica»: planes, pie diabético, plantillas, lotes, quejas y seguimiento. Solo variables del tema. */
+.cl-rejilla{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:10px}
+.cl-fila-h{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cl-fila-h>*{min-width:0}
+.cl-entre{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.cl-qr{display:block;background:#fff;border-radius:6px;max-width:100%;height:auto}
+.cl-barra{height:8px;border-radius:99px;background:var(--bd);overflow:hidden}
+.cl-barra>div{height:100%;border-radius:99px}
+.cl-barra-ok{background:var(--ok)}.cl-barra-warn{background:var(--al)}.cl-barra-bad{background:var(--er)}.cl-barra-info{background:var(--p)}
+.cl-sem{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 8px;border-radius:99px;white-space:nowrap}
+.cl-sem i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.cl-sem-verde{background:var(--okl);color:#065f46}.cl-sem-verde i{background:var(--ok)}
+.cl-sem-ambar{background:var(--all);color:#92400e}.cl-sem-ambar i{background:var(--al)}
+.cl-sem-rojo{background:var(--erl);color:#991b1b}.cl-sem-rojo i{background:var(--er)}
+.cl-campo-pac{text-align:left;cursor:pointer;background:var(--sup);color:var(--tx)}
+.cl-link{background:none;border:0;color:var(--p);padding:4px 0;cursor:pointer;text-align:left;min-height:32px}
+.cl-sesiones{display:grid;gap:6px}
+.cl-sesion{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px;border:1px solid var(--bd);border-radius:12px;background:var(--sup)}
+.cl-sesion b.n{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--pl);color:var(--pd);font-size:13px}
+.cl-sesion.realizada b.n{background:var(--okl);color:#065f46}.cl-sesion.falta b.n{background:var(--erl);color:#991b1b}.cl-sesion.cancelada{opacity:.55}
+.cl-sesion small{display:block;color:var(--mu);font-size:12px}
+.cl-sinbad{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:8px}
+.cl-item{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--bd);border-radius:10px;background:var(--sup)}
+.cl-item small{color:var(--mu);font-size:11px;display:block}
+.cl-toggle{display:inline-flex;border:1px solid var(--bd);border-radius:10px;overflow:hidden}
+.cl-toggle button{min-width:44px;min-height:40px;border:0;background:var(--sup);color:var(--tx);font-weight:600;cursor:pointer}
+.cl-toggle button.on{background:var(--p);color:#fff}
+.cl-mono{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.cl-mono button{min-height:44px;border:1px solid var(--bd);border-radius:10px;background:var(--okl);color:#065f46;font-size:11px;cursor:pointer;padding:2px}
+.cl-mono button.falla{background:var(--erl);color:#991b1b;font-weight:700}
+.cl-puntaje{font-size:28px;font-weight:800;line-height:1}
+.cl-grafica{width:100%;height:auto;display:block}
+.cl-pasos-po{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+.cl-pasos-po span{font-size:11px;text-align:center;padding:6px 2px;border-radius:8px;background:var(--bd);color:var(--mu)}
+.cl-pasos-po span.on{background:var(--p);color:#fff}.cl-pasos-po span.ok{background:var(--okl);color:#065f46}
+.cl-kit{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:center}
+.cl-alerta{border-left:4px solid var(--er);background:var(--erl);color:#7f1d1d;border-radius:10px;padding:10px 12px;font-size:14px}
+.cl-nota{border-left:3px solid var(--bd);padding:4px 0 4px 10px;font-size:13px}
+.cl-nota small{color:var(--mu);display:block}
+.cl-sim{font-size:12px;color:var(--mu);border:1px dashed var(--bd);border-radius:10px;padding:8px 10px}
+.cl-etiquetas{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.cl-etiqueta{border:1px solid var(--bd);border-radius:10px;padding:10px;text-align:center;background:#fff;color:#111}
+.cl-etiqueta b{display:block;font-size:13px}.cl-etiqueta small{display:block;font-size:11px}
+.cl-solo-print{display:none}
+@media print{
+  /* Solo mientras se imprimen etiquetas (body.cl-imprimiendo); sin el alcance, esta regla dejaba en blanco cualquier otra impresión. */
+  body.cl-imprimiendo *{visibility:hidden}
+  body.cl-imprimiendo .cl-imprimible,body.cl-imprimiendo .cl-imprimible *{visibility:visible}
+  body.cl-imprimiendo .cl-imprimible{position:absolute;left:0;top:0;width:100%;display:block!important}
+  .cl-no-print{display:none!important}
+  .cl-etiqueta{break-inside:avoid;border-color:#999}
+}
+@media (min-width:1024px){
+  .cl-dos-desk{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px;align-items:start}
+}
