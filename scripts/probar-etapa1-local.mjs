@@ -1,4 +1,4 @@
-// Prueba de comportamiento de la migración 076 (etapa 1: catálogo completo) en una BD local desechable (PGlite).
+// Prueba de comportamiento de las migraciones 076 y 077 (etapa 1: catálogo completo y características de un producto especial) en una BD local desechable (PGlite).
 //   node scripts/probar-etapa1-local.mjs
 // Cubre: folio automático y relleno de lo existente, factor de unidades, listas de precio con caída a la lista 1, mínimo de SICAR que se
 // activa con la primera entrada, inventario inicial como conteo, e inicialización del catálogo. No toca Supabase.
@@ -38,6 +38,7 @@ await db.exec(`
   insert into piefirme.productos (organizacion_id, sku, nombre, categoria) values ('${ORG}','SKU-VIEJO','Producto anterior','General');
 `);
 await db.exec(fs.readFileSync(path.join(dir, archivos.find((x) => x.startsWith("076_"))), "utf8"));
+await db.exec(fs.readFileSync(path.join(dir, archivos.find((x) => x.startsWith("077_"))), "utf8"));
 
 let ok = 0, mal = 0;
 const como = async (uid, sql) => {
@@ -108,6 +109,56 @@ esperar("la primera entrada deja existencia 12", Number(m.existencia) === 12, JS
 esperar("y activa el mínimo (5) y el máximo (8) de SICAR", Number(m.minimo) === 5 && Number(m.maximo) === 8, JSON.stringify(m));
 r = await db.query(`select tipo from piefirme.conteos_fisicos where id='${cid}'`);
 esperar("el conteo quedó como tipo «inicial»", r.rows[0].tipo === "inicial");
+
+// ── 077: características de un producto especial ──
+r = await como(U.rec, `select piefirme.caracteristicas_inicializar()`);
+esperar("caja NO inicializa las características", !r.ok, r.msg);
+r = await como(U.admin, `select piefirme.caracteristicas_inicializar() as n`);
+esperar("los dueños cargan el catálogo base (21 características)", r.ok && Number(r.rows[0].n) === 21, JSON.stringify(r.rows?.[0]) + (r.msg ?? ""));
+r = await como(U.admin, `select piefirme.caracteristicas_inicializar() as n`);
+esperar("cargarlo de nuevo no duplica", r.ok && Number(r.rows[0].n) === 0, JSON.stringify(r.rows?.[0]));
+r = await como(U.rec, `select count(*)::int as n from piefirme.caracteristicas_producto where activa`);
+esperar("caja lee el catálogo de características", r.ok && r.rows[0].n === 21, r.msg);
+r = await como(U.rec, `insert into piefirme.caracteristicas_producto (organizacion_id, grupo, nombre, frase) values ('${ORG}','Otro','Nueva','nueva')`);
+esperar("caja NO crea características", !r.ok, r.msg);
+r = await como(U.admin, `insert into piefirme.caracteristicas_producto (organizacion_id, grupo, nombre, frase, efecto_precio, monto) values ('${ORG}','Otro','Por unidad sin número','x','por_unidad', 10)`);
+esperar("un precio «por unidad» exige un valor numérico", !r.ok, r.msg);
+r = await como(U.admin, `insert into piefirme.caracteristicas_producto (organizacion_id, grupo, nombre, frase) values ('${ORG}','Material','Pelite','otra')`);
+esperar("el nombre no se repite dentro del grupo", !r.ok, r.msg);
+r = await como(U.admin, `select nombre, efecto_precio, monto::numeric as monto from piefirme.caracteristicas_producto where nombre in ('Molde de yeso','Compensación por disimetría','Virón y cuña') order by nombre`);
+const por = (n) => r.rows?.find((x) => x.nombre === n);
+esperar("las tres que mencionó la junta traen precio (1500, 450 por cm, 590)", r.ok && r.rows.length === 3 && Number(por("Molde de yeso").monto) === 1500 && Number(por("Compensación por disimetría").monto) === 450 && por("Compensación por disimetría").efecto_precio === "por_unidad" && Number(por("Virón y cuña").monto) === 590, JSON.stringify(r.rows) + (r.msg ?? ""));
+
+// vistas con las columnas nuevas, y las anteriores intactas
+r = await como(U.admin, `select clave_alterna, folio, departamento_id, factor, precio_lista, margen_pct from piefirme.prp_productos limit 1`);
+esperar("prp_productos muestra las columnas nuevas y conserva precio_lista y margen_pct", r.ok, r.msg);
+r = await como(U.admin, `select folio, codigo_barras, admite_caracteristicas, precio_lista, sedes_con_precio_propio from piefirme.prp_servicios limit 1`);
+esperar("prp_servicios muestra folio, código y «admite características»", r.ok, r.msg);
+r = await db.query(`select string_agg(attname, ',' order by attnum) filter (where attname in ('precio_lista','margen_pct','clave_alterna')) as orden from pg_attribute where attrelid = 'piefirme.prp_productos'::regclass and attnum > 0 and not attisdropped`);
+esperar("las columnas calculadas quedaron antes de las nuevas", r.rows[0].orden === "precio_lista,margen_pct,clave_alterna", r.rows[0].orden);
+
+// renglón de venta con características
+const sv = (await db.query(`select id from piefirme.servicios where codigo='NUEVO-1'`)).rows[0].id;
+await db.exec(`update piefirme.servicios set admite_caracteristicas = true where id = '${sv}'`);
+const ven = (await db.query(`insert into piefirme.ventas (organizacion_id, sede_id, origen, estado) values ('${ORG}','${SEDE}','mostrador','por_cobrar') returning id`)).rows[0].id;
+r = await como(U.rec, `insert into piefirme.venta_lineas (organizacion_id, venta_id, orden, tipo, servicio_id, descripcion, cantidad, precio_unitario, tipo_precio) values ('${ORG}', '${ven}', 0, 'servicio', '${sv}', 'Plantilla especial: altura 3 mm; con molde de yeso', 1, 3000, 'fijo') returning id`);
+esperar("la caja guarda el renglón con la descripción y el precio armados", r.ok, r.msg);
+const lin = r.ok ? r.rows[0].id : null;
+if (lin) {
+  const ids = (await db.query(`select id, nombre from piefirme.caracteristicas_producto where nombre in ('Molde de yeso','Mayor altura')`)).rows;
+  const m = ids.find((x) => x.nombre === "Molde de yeso").id, h = ids.find((x) => x.nombre === "Mayor altura").id;
+  r = await como(U.rec, `insert into piefirme.venta_linea_caracteristicas (venta_linea_id, caracteristica_id, grupo, nombre, frase, valor, unidad, efecto_precio, monto_unitario, importe, orden) values
+    ('${lin}','${m}','Molde','Molde de yeso','con molde de yeso', null, null, 'fijo', 1500, 1500, 0),
+    ('${lin}','${h}','Altura y grosor','Mayor altura','altura 3 mm', 3, 'mm', 'ninguno', 0, 0, 1) returning sede_id`);
+  esperar("caja guarda las características elegidas y la sede se hereda del renglón", r.ok && r.rows.every((x) => x.sede_id === SEDE), r.msg);
+  r = await como(U.sup, `select count(*)::int as n from piefirme.venta_linea_caracteristicas`);
+  esperar("el supervisor las puede leer", r.ok && r.rows[0].n === 2, r.msg);
+  r = await como(U.sup, `insert into piefirme.venta_linea_caracteristicas (venta_linea_id, grupo, nombre, frase, efecto_precio) values ('${lin}','X','Y','z','ninguno')`);
+  esperar("el supervisor NO las modifica", !r.ok, r.msg);
+  await db.exec(`delete from piefirme.venta_lineas where id = '${lin}'`);
+  r = await db.query(`select count(*)::int as n from piefirme.venta_linea_caracteristicas where venta_linea_id = '${lin}'`);
+  esperar("al borrar el renglón se borran sus características", r.rows[0].n === 0);
+}
 
 console.log(`\n${ok} correctas, ${mal} fallidas`);
 process.exitCode = mal ? 1 : 0;
