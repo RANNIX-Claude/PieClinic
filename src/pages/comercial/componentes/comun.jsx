@@ -1,10 +1,12 @@
 // Utilidades compartidas por las pantallas del área comercial (agenda, caja, facturación, catálogo, portal).
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, WifiOff, FlaskConical } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { leer, esVistaInexistente, rpc } from '../../../lib/api'
 import { zonaHoraria, offsetZona } from '../../../lib/formato'
 import { useApp } from '../../../context/AppContext'
+import { guardarSnapshot, leerSnapshot } from '../../../lib/offline/almacen'
 
 /** Texto legible de un error de Supabase (o de excepción). */
 export function textoError(e) {
@@ -13,6 +15,7 @@ export function textoError(e) {
   if (esVistaInexistente(e)) return 'Esta vista aún no está disponible (migración sin aplicar).'
   const m = String(e.message ?? e)
   if (/descuento_requiere_pin/.test(m)) return 'Más del límite de descuento: requiere PIN de Administrador.'
+  if (/turnos_una_abierta_por_caja/.test(m)) return 'Esa caja ya tiene un turno abierto (de otra persona). Pide que lo cierre con su corte, o escribe otro nombre en el campo Caja (por ejemplo «Caja 2»).'
   return m.replace(/^PF\d+:?\s*/, '')
 }
 
@@ -31,6 +34,31 @@ export function useLeer(clave, vista, opts = {}, enabled = true) {
     },
   })
   return { filas: q.data?.data ?? [], count: q.data?.count ?? null, cargando: q.isLoading, error: q.data?.error ?? q.error ?? null, refetch: q.refetch, fetching: q.isFetching }
+}
+
+/** ¿Hay red? Escucha los eventos online/offline del navegador. */
+export function useEnLinea() {
+  const [en, setEn] = useState(() => navigator.onLine)
+  useEffect(() => {
+    const on = () => setEn(true), off = () => setEn(false)
+    window.addEventListener('online', on); window.addEventListener('offline', off)
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off) }
+  }, [])
+  return en
+}
+
+/**
+ * Como useLeer, pero guarda una copia local de lo leído y, SIN CONEXIÓN, devuelve esa copia (catálogo de la caja sin internet).
+ * `desdeCopia` avisa a la pantalla que los datos son los últimos que se alcanzaron a leer.
+ */
+export function useLeerOffline(clave, vista, opts = {}, enabled = true) {
+  const q = useLeer(clave, vista, opts, enabled)
+  const enLinea = useEnLinea()
+  const [copia, setCopia] = useState(null)
+  useEffect(() => { if (enLinea && !q.error && !q.cargando && q.filas.length) guardarSnapshot(clave, q.filas) }, [q.filas, q.error, q.cargando, enLinea]) // eslint-disable-line
+  const sinRed = !enLinea || !!q.error
+  useEffect(() => { if (sinRed) leerSnapshot(clave).then(setCopia) }, [sinRed, clave])
+  return sinRed && copia ? { ...q, filas: copia, error: null, cargando: false, desdeCopia: true } : q
 }
 
 /** Mensaje de error / sin conexión con el estilo del sistema. */
@@ -96,7 +124,7 @@ export const nombrePerfil = p => (p ? [p.nombre, p.apellidos].filter(Boolean).jo
 /** Podólogos activos (perfiles) de la sede activa. Si el rol no puede leer `perfiles`, devuelve la lista vacía. */
 export function usePodologos() {
   const { sedeActivaId } = useApp()
-  const q = useLeer('podologos', 'perfiles', { sedeCol: false, filtros: { rol: ['podologo', 'administrador'], activo: true }, columnas: 'id,nombre,apellidos,rol,sedes,cedula', orden: { columna: 'nombre' } })
+  const q = useLeerOffline('podologos', 'perfiles', { sedeCol: false, filtros: { rol: ['podologo', 'administrador'], activo: true }, columnas: 'id,nombre,apellidos,rol,sedes,cedula', orden: { columna: 'nombre' } })
   const filas = q.filas.filter(p => !sedeActivaId || !p.sedes?.length || p.sedes.includes(sedeActivaId))
   return { ...q, filas }
 }

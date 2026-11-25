@@ -1,0 +1,84 @@
+# ESC-INV-03 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: ESC-INV-03
+nombre: Traspaso que llega con piezas dañadas o con más piezas de las enviadas
+version: 1
+fuente: REGLAS_NEGOCIO.md P-080 (faltante/dañado); MODELO_ESTADOS.md D-41; DICCIONARIO_DATOS.md E93
+prioridad: media
+rol: recepcion_y_administrador
+ambiguo:
+  - id: A-INV-06
+    pregunta: "Mercancía dañada que sí llegó físicamente: ¿entra a la existencia del destino y se da de baja con merma, o nunca entra? El esperado propuesto: no queda vendible y se registra con motivo (P-080), una sola vez."
+  - id: A-INV-07
+    pregunta: "Llega de MÁS de lo enviado: ninguna regla lo cubre. Esperado propuesto: no se acepta más que lo enviado; el sobrante se resuelve con un traspaso inverso o un ajuste de conteo autorizado. ¿Es correcto?"
+reglas:
+  - P-080
+  - P-086
+precondiciones:
+  - Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, m@g.com administrador, p@g.com podólogo; a@g.com superadministrador)
+  - "Dos sedes de la misma clínica: Centenario (origen) y Patio Valle de Chalco (destino). Reglas de alcance (sede) según MATRIZ_ROLES §4.3; usuarios de recepción asignados a una sola sede cada uno (ver ambiguo A-INV-12)"
+  - "Catálogo: QA-{corrida}-CREMA (venta, costo_promedio 100.00, sin lote) y QA-{corrida}-TALCO (venta, costo_promedio 50.00, sin lote)"
+  - "Traspaso Enviado (aislado, prefijo ESC-INV-03) de 10 × CREMA y 5 × TALCO desde Centenario; existencia Centenario después del envío: CREMA 10, TALCO 5; destino: CREMA 2, TALCO 1"
+datos_creados:
+  prefijo_qa: QA-{corrida}-ESC-INV-03
+  nota_en_registros: QA-{corrida}-ESC-INV-03  (se captura en comentarios del traspaso / nota del movimiento / motivo de la merma)
+  traspaso:
+    enviado:
+      CREMA: 10
+      TALCO: 5
+pasos:
+  - "n": 1
+    descripcion: Recepción con 10 CREMA recibidas de las cuales 2 llegan dañadas (motivo «Dañado»)
+    esperado: Estado Recibido con diferencias; la regla pide registrar el dañado con motivo (merma o reclamación); no queda como existencia vendible la mercancía dañada
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: "Reportar diferencia: CREMA recibida 8 utilizable + 2 dañada con motivo «Dañado» (según cómo capture la pantalla)"
+    verificar_ui: Diferencia de 2 con motivo Dañado
+    verificar_bd: |-
+      SELECT pr.nombre, l.cantidad_enviada, l.cantidad_recibida, l.diferencia, l.motivo_diferencia, l.costo_unitario
+      FROM piefirme.traspaso_lineas l
+      JOIN piefirme.traspasos t ON t.id = l.traspaso_id
+      JOIN piefirme.productos pr ON pr.id = l.producto_id
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-03%'
+      ORDER BY pr.nombre;
+    esperado_bd:
+      estado: recibido_con_diferencias
+      diferencia_crema: 2
+      motivo_diferencia_crema: Dañado
+      existencia_pvc_crema: según A-INV-06
+    ambiguo: A-INV-06
+  - "n": 2
+    descripcion: Verificar que el dañado se registra una sola vez como merma o reclamación valuada a costo
+    esperado: Registro por 2 piezas × 100.00 = 200.00 pendiente de autorización; no se descuenta dos veces
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Mermas y reclamaciones del folio
+    verificar_ui: Un registro de 2 piezas dañadas
+    verificar_bd: SELECT m.tipo, m.es_reclamacion, m.cantidad, m.motivo, m.estado FROM piefirme.mermas m JOIN piefirme.traspasos t ON t.id = m.traspaso_id WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-03%';
+    esperado_bd:
+      cantidad: 2
+      estado: pendiente
+    ambiguo: A-INV-06
+  - "n": 3
+    descripcion: Intentar recibir MÁS de lo enviado (CREMA 12 recibidas de 10 enviadas)
+    esperado: "No se permite inflar existencia sin respaldo: se rechaza la captura (cantidad recibida mayor a la enviada) o se exige tratamiento aparte; el inventario no sube por encima de lo enviado"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: En la recepción capturar 12 en cantidad recibida
+    verificar_ui: Mensaje de validación; no se confirma
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      existencia_pvc_crema: sin aumento por encima de lo enviado
+    ambiguo: A-INV-07

@@ -1,0 +1,90 @@
+# ESC-CAJA-71 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-71"
+nombre: "Plantilla a medida: anticipo del 50 %, sin inventario y estudio acreditable"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-075 (anticipo 50 %; estudio acreditable 30 días), P-087 (por encargo, sin inventario), P-069 (precio de prueba $2,500; estudio $1,200)"
+prioridad: "media"
+rol: "recepcion"
+reglas:
+  - "P-075"
+  - "P-087"
+  - "P-069"
+  - "P-034"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-71'"
+  - "Producto por encargo QA-{corrida}-PLANTILLA-MEDIDA de 2,500.00 y servicio estudio de pisada QA-{corrida}-ESTUDIO de 1,200.00; paciente QA-{corrida}-PAC-1"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-71"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-71  (se captura en la nota del ticket y/o turno; ver A33)"
+  producto:
+    nombre: "QA-{corrida}-PLANTILLA-MEDIDA"
+    tipo: "por_encargo"
+    precio: 2500
+  servicio:
+    nombre: "QA-{corrida}-ESTUDIO"
+    precio: 1200
+ambiguo:
+  - id: "A36"
+    pregunta: "Plantilla a medida (P-075): el estudio de pisada se acredita al comprar dentro de 30 días, pero no se define si se acredita completo (1,200.00) ni sobre qué base (precio total o saldo) ni cómo se imprime."
+pasos:
+  - n: 1
+    descripcion: "Ordenar la plantilla a medida y cobrar anticipo"
+    esperado: "Anticipo de 1,250.00 (50 % de 2,500.00); se registra ligado a la orden"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Crear orden; anticipo efectivo 1250; nota QA-{corrida}-ESC-CAJA-71"
+    verificar_ui: "Anticipo registrado"
+    verificar_bd: "SELECT a.monto, a.estado FROM piefirme.anticipos a JOIN piefirme.pacientes p ON p.id = a.paciente_id WHERE p.nombre LIKE 'QA-{corrida}-PAC-1%' ORDER BY a.created_at DESC LIMIT 1;"
+    esperado_bd:
+      monto: 1250
+      estado: "pagado"
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Revisar inventario"
+    esperado: "La orden por encargo no genera movimiento de inventario"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Consultar kardex"
+    verificar_ui: "Sin movimiento"
+    verificar_bd: |
+      SELECT m.tipo, m.cantidad, m.referencia_tipo, m.referencia_folio, m.fecha
+      FROM piefirme.movimientos_inventario m JOIN piefirme.productos pr ON pr.id = m.producto_id
+      WHERE pr.nombre = 'QA-{corrida}-PLANTILLA-MEDIDA'
+      ORDER BY m.created_at;
+    esperado_bd:
+      numero_de_filas: 0
+  - n: 3
+    descripcion: "Al entregar, cobrar el saldo aplicando el anticipo"
+    esperado: "Por cobrar 1,250.00 (2,500.00 − 1,250.00); ticket de 2,500.00"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cobrar entrega con anticipo; nota QA-{corrida}-ESC-CAJA-71-E"
+    verificar_ui: "Total 2,500.00; anticipo 1,250.00; por pagar 1,250.00"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-71%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      total: 2500
+      anticipo_aplicado: 1250
+  - n: 4
+    descripcion: "Comprar el estudio de pisada (1,200.00) y la plantilla dentro de 30 días"
+    esperado: "El estudio se acredita al comprar las plantillas dentro de 30 días (monto de la acreditación AMBIGUO)"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cobrar estudio y luego orden de plantilla"
+    verificar_ui: "Registrar cómo se acredita"
+    verificar_bd: null
+    ambiguo: "A36"

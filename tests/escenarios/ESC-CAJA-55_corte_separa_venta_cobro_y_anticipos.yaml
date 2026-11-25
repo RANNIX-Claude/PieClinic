@@ -1,0 +1,101 @@
+# ESC-CAJA-55 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-55"
+nombre: "Corte: separa venta, dinero recibido y anticipos aplicados"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-059 (venta devengada / cobro del turno / anticipos no son dinero del turno); METRICAS.md M-043"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-059"
+  - "P-073"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno QA-{corrida}-ESC-CAJA-55 abierto con fondo 1,000.00 y 5 tickets cobrados: T1 efectivo 632.00; T2 tarjeta 400.00; T3 transferencia 400.00; T4 gift card 500.00 + efectivo 132.00 (total 632.00); T5 QUIROPODIA 400.00 con anticipo aplicado 120.00 y efectivo 280.00"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-55"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-55  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+    gift500:
+      tipo: "gift_card"
+      codigo: "QA-{corrida}-GC500"
+      saldo: 500
+      caduca_el: "dentro de 6 meses"
+      estado: "activa"
+    anticipo120:
+      tipo: "anticipo"
+      folio_prefijo: "QA-{corrida}-ANT"
+      monto: 120
+      estado: "pagado"
+      nota: "30 % de 400.00 (P-034); ligado a cita QA y paciente QA-{corrida}-PAC-1"
+ambiguo:
+  - id: "A19"
+    pregunta: "Fórmula de corte P-059 («fondo + efectivo − retiros − cancelaciones en efectivo»): ¿«efectivo» incluye lo cobrado en tickets que luego se cancelan? Se asume neto físico (el efectivo en cajón es el mismo en ambas lecturas)."
+  - id: "A21"
+    pregunta: "Gift card en el corte: ¿cuenta como «dinero recibido en el turno» (cobros_total) o como instrumento aparte, igual que el anticipo? METRICAS M-043 la suma a las ventas del turno."
+pasos:
+  - n: 1
+    descripcion: "Abrir la vista previa del corte del turno"
+    esperado: "Venta devengada 2,464.00 (632 + 400 + 400 + 632 + 400)"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cerrar turno → resumen"
+    verificar_ui: "Ventas totales 2,464.00"
+    verificar_bd: |
+      SELECT c.ventas_total, c.cobros_total, c.ventas_efectivo, c.ventas_tarjeta, c.ventas_transferencia, c.ventas_clip, c.ventas_gift_card, c.anticipos_aplicados, c.cortesias, c.retiros, c.cancelaciones_efectivo, c.cancelaciones_total, c.numero_cancelaciones, c.fondo_inicial, c.efectivo_esperado, c.efectivo_contado, c.diferencia, c.justificacion, c.autorizacion_id
+      FROM piefirme.cortes_caja c JOIN piefirme.turnos_caja t ON t.id = c.turno_id
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-55%';
+    esperado_bd:
+      ventas_total: 2464
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Revisar el desglose por método"
+    esperado: "Efectivo 1,044.00 (632 + 132 + 280); tarjeta 400.00; transferencia 400.00; gift card 500.00; anticipos aplicados 120.00; la suma 2,464.00 coincide con la venta"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Leer desglose"
+    verificar_ui: "Cifras por método"
+    verificar_bd: |
+      SELECT c.ventas_total, c.cobros_total, c.ventas_efectivo, c.ventas_tarjeta, c.ventas_transferencia, c.ventas_clip, c.ventas_gift_card, c.anticipos_aplicados, c.cortesias, c.retiros, c.cancelaciones_efectivo, c.cancelaciones_total, c.numero_cancelaciones, c.fondo_inicial, c.efectivo_esperado, c.efectivo_contado, c.diferencia, c.justificacion, c.autorizacion_id
+      FROM piefirme.cortes_caja c JOIN piefirme.turnos_caja t ON t.id = c.turno_id
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-55%';
+    esperado_bd:
+      ventas_efectivo: 1044
+      ventas_tarjeta: 400
+      ventas_transferencia: 400
+      ventas_gift_card: 500
+      anticipos_aplicados: 120
+  - n: 3
+    descripcion: "Revisar dinero recibido del turno y efectivo esperado"
+    esperado: "Dinero recibido = 2,464.00 − 120.00 de anticipo = 2,344.00 (si la gift card se cuenta como dinero, A21); efectivo esperado = 1,000.00 + 1,044.00 = 2,044.00"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Leer cobros y efectivo esperado"
+    verificar_ui: "Cobros del turno 2,344.00; efectivo esperado 2,044.00"
+    verificar_bd: |
+      SELECT c.ventas_total, c.cobros_total, c.ventas_efectivo, c.ventas_tarjeta, c.ventas_transferencia, c.ventas_clip, c.ventas_gift_card, c.anticipos_aplicados, c.cortesias, c.retiros, c.cancelaciones_efectivo, c.cancelaciones_total, c.numero_cancelaciones, c.fondo_inicial, c.efectivo_esperado, c.efectivo_contado, c.diferencia, c.justificacion, c.autorizacion_id
+      FROM piefirme.cortes_caja c JOIN piefirme.turnos_caja t ON t.id = c.turno_id
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-55%';
+    esperado_bd:
+      cobros_total: 2344
+      efectivo_esperado: 2044
+    ambiguo: "A21"

@@ -1,0 +1,63 @@
+# ESC-CAJA-11 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-11"
+nombre: "Una clínica no ve ventas, turnos ni cortes de otra clínica"
+version: 1
+fuente: "REQUERIMIENTO.md «QUÉ NO PUEDE FALLAR» (1) privacidad entre clínicas; REGLAS_NEGOCIO.md P-128; MATRIZ_ROLES.md §3.1"
+prioridad: "alta"
+rol: "administrador_otra_clinica"
+ejecutar_primero: "QUÉ NO PUEDE FALLAR (REQUERIMIENTO.md): ejecutar antes que el resto"
+reglas:
+  - "P-128"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Segunda clínica de prueba QA-{corrida}-ORG-B con un administrador propio y una venta cobrada"
+  - "Venta cobrada QA-{corrida}-ESC-CAJA-11 en la clínica principal (Centenario)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-11"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-11  (se captura en la nota del ticket y/o turno; ver A33)"
+  organizacion_b: "QA-{corrida}-ORG-B"
+ambiguo:
+  - id: "A34"
+    pregunta: "Sede B de prueba y segunda clínica (aislamiento): requieren usuarios y datos sembrados que hoy no están documentados (ver ACCESOS.md)."
+pasos:
+  - n: 1
+    descripcion: "Iniciar sesión como el administrador de la clínica B y abrir ventas"
+    esperado: "No aparece ninguna venta de la clínica principal"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Login con el admin de ORG-B; Caja → Ventas; buscar folio CEN-TKT de la clínica principal"
+    verificar_ui: "Lista sin tickets ajenos; búsqueda por folio sin resultados"
+    verificar_bd: "SELECT count(*) AS visibles FROM piefirme.prp_ventas WHERE nota LIKE 'QA-{corrida}-ESC-CAJA-11%';"
+    esperado_bd:
+      visibles: 0
+    precondicion_critica: true
+    ambiguo: "A34"
+  - n: 2
+    descripcion: "Abrir por URL directa el detalle de una venta ajena (con su id) y consultar turnos y cortes"
+    esperado: "Acceso denegado o inexistente; ningún dato visible"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Pegar la URL con el id de la venta de la clínica principal"
+    verificar_ui: "Mensaje de no encontrado o sin permiso"
+    verificar_bd: "SELECT (SELECT count(*) FROM piefirme.prp_turnos_caja) AS turnos_ajenos, (SELECT count(*) FROM piefirme.prp_cortes_caja) AS cortes_ajenos;"
+    esperado_bd:
+      turnos_ajenos: "solo los de ORG-B"
+      cortes_ajenos: "solo los de ORG-B"
+  - n: 3
+    descripcion: "Intentar escribir (cobrar) en un ticket de la otra clínica con una llamada directa"
+    esperado: "Rechazado"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Reenviar la operación de pago con id ajeno desde la consola del navegador (solo ambiente QA)"
+    verificar_ui: "Error de permiso; el ticket no cambia"
+    verificar_bd: "SELECT v.estado, v.pagado_total FROM piefirme.ventas v WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-11%';"
+    esperado_bd:
+      estado: "sin cambio respecto a antes del intento"

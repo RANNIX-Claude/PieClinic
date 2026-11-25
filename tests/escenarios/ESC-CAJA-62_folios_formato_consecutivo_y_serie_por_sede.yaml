@@ -1,0 +1,74 @@
+# ESC-CAJA-62 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-62"
+nombre: "Folios: formato por sede, consecutivos y sin reutilización"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-133 ({SEDE}-TKT-{NNNNNN}; nunca se reutilizan ni reinician), P-129"
+prioridad: "alta"
+rol: "recepcion"
+ejecutar_primero: "QUÉ NO PUEDE FALLAR (REQUERIMIENTO.md): ejecutar antes que el resto"
+reglas:
+  - "P-133"
+  - "P-129"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-62'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "Segundo cajero QA-{corrida}-REC-PAT con turno abierto en la sede Patio"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-62"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-62  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+  usuario_patio: "QA-{corrida}-REC-PAT"
+ambiguo:
+  - id: "A34"
+    pregunta: "Sede B de prueba y segunda clínica (aislamiento): requieren usuarios y datos sembrados que hoy no están documentados (ver ACCESOS.md)."
+pasos:
+  - n: 1
+    descripcion: "Cobrar dos tickets seguidos en Centenario"
+    esperado: "Folios CEN-TKT-N y CEN-TKT-N+1"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cobrar CREMA-A dos veces; notas QA-{corrida}-ESC-CAJA-62 y -B"
+    verificar_ui: "Folios consecutivos"
+    verificar_bd: "SELECT v.folio FROM piefirme.ventas v WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-62%' ORDER BY v.created_at;"
+    esperado_bd:
+      formato: "^CEN-TKT-[0-9]{6}$"
+      segundo: "primero + 1"
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Cobrar un ticket en Patio"
+    esperado: "Folio con serie propia de la sede: PAT-TKT-NNNNNN"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Login usuario de Patio y cobrar; nota QA-{corrida}-ESC-CAJA-62-P"
+    verificar_ui: "Prefijo PAT"
+    verificar_bd: "SELECT v.folio, s.clave FROM piefirme.ventas v JOIN piefirme.sedes s ON s.id = v.sede_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-62-P%';"
+    esperado_bd:
+      formato: "^PAT-TKT-[0-9]{6}$"
+    ambiguo: "A34"
+  - n: 3
+    descripcion: "Cancelar el último ticket de Centenario y cobrar otro"
+    esperado: "El nuevo folio es N+2: no reutiliza el cancelado"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cancelar y cobrar"
+    verificar_ui: "Folio nuevo"
+    verificar_bd: "SELECT v.folio, v.estado FROM piefirme.ventas v WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-62%' AND v.folio LIKE 'CEN-%' ORDER BY v.created_at;"
+    esperado_bd:
+      folios_unicos: true
+      tercer_folio: "primero + 2"

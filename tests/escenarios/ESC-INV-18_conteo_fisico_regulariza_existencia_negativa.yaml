@@ -1,0 +1,111 @@
+# ESC-INV-18 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: ESC-INV-18
+nombre: "Conteo físico: Administración autoriza el ajuste y regulariza la existencia negativa"
+version: 1
+fuente: REGLAS_NEGOCIO.md P-085, P-086; DICCIONARIO_DATOS.md E90; METRICAS M-006
+prioridad: alta
+rol: recepcion_y_administrador
+reglas:
+  - P-085
+  - P-086
+  - P-079
+precondiciones:
+  - Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, m@g.com administrador, p@g.com podólogo; a@g.com superadministrador)
+  - "Dos sedes de la misma clínica: Centenario (origen) y Patio Valle de Chalco (destino). Reglas de alcance (sede) según MATRIZ_ROLES §4.3; usuarios de recepción asignados a una sola sede cada uno (ver ambiguo A-INV-12)"
+  - "Catálogo: QA-{corrida}-CREMA (venta, costo_promedio 100.00, sin lote)"
+  - Existencia de CREMA en Centenario −1 (venta sin existencia, ver ESC-CAJA-39) con marca de existencia negativa
+  - Físicamente hay 3 piezas en el anaquel
+datos_creados:
+  prefijo_qa: QA-{corrida}-ESC-INV-18
+  nota_en_registros: QA-{corrida}-ESC-INV-18  (se captura en comentarios del traspaso / nota del movimiento / motivo de la merma)
+  conteo:
+    esperado: -1
+    contado: 3
+    ajuste: 4
+pasos:
+  - "n": 1
+    descripcion: Ver la marca de existencia negativa
+    esperado: El producto aparece con marca «existencia negativa»; alerta visible para Administración
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Inventario → Existencias → filtro Existencia negativa
+    verificar_ui: Marca visible
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      existencia_negativa: true
+      existencia: -1
+    precondicion_critica: true
+  - "n": 2
+    descripcion: "Recepción captura un conteo físico: contado 3"
+    esperado: Conteo con folio, sede, responsable; línea con esperado −1, contado 3 y ajuste +4; queda capturado, la existencia no cambia todavía
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: r@g.com → Conteo físico → Nuevo
+    verificar_ui: Conteo capturado
+    verificar_bd: SELECT c.folio, c.estado, c.responsable_id, l.esperado, l.contado, l.ajuste FROM piefirme.conteos_fisicos c JOIN piefirme.conteo_lineas l ON l.conteo_id = c.id WHERE c.nota LIKE 'QA-{corrida}-ESC-INV-18%';
+    esperado_bd:
+      estado: capturado
+      esperado: -1
+      contado: 3
+      ajuste: 4
+    ambiguo: A-INV-14
+  - "n": 3
+    descripcion: Conteo con contado negativo (−2)
+    esperado: Se rechaza
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Capturar −2
+    verificar_ui: Validación
+    verificar_bd: null
+  - "n": 4
+    descripcion: Administración autoriza el conteo
+    esperado: Existencia pasa a 3; kardex con movimiento tipo conteo (+4); desaparece la marca negativa; bitácora; queda quién autorizó y cuándo
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: m@g.com → Autorizar conteo
+    verificar_ui: Existencia 3; marca quitada
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+      SELECT c.estado, c.autorizado_por, c.autorizado_en FROM piefirme.conteos_fisicos c WHERE c.nota LIKE 'QA-{corrida}-ESC-INV-18%';
+    esperado_bd:
+      estado: autorizado
+      existencia: 3
+      existencia_negativa: false
+      kardex_tipo: conteo
+      kardex_cantidad: 4
+  - "n": 5
+    descripcion: Reintentar la autorización
+    esperado: No aplica el ajuste dos veces (existencia sigue 3, no 7)
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Doble clic / repetir
+    verificar_ui: Sin cambio
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      existencia: 3

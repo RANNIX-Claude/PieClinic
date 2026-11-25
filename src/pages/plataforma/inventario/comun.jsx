@@ -112,6 +112,8 @@ export function SelectorProducto({ productos, value, onChange, ids, placeholder 
   )
 }
 
+/** Las condiciones de pago se guardan como código (contado | credito | anticipo); datos viejos o importados traen texto libre («Crédito 15 días»). */
+export const condicionPago = t => (/anticipo/i.test(t ?? '') ? 'anticipo' : /cr[eé]dito/i.test(t ?? '') ? 'credito' : 'contado')
 export const num = v => (v == null || v === '' ? 0 : Number(v))
 export const qty = v => (v == null ? '—' : Number(v).toLocaleString('es-MX', { maximumFractionDigits: 3 }))
 export const hoy = () => new Date().toISOString().slice(0, 10)

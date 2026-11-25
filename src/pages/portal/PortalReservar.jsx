@@ -21,6 +21,13 @@ const sumarDias = (d, n) => { const x = new Date(`${d}T12:00:00Z`); x.setUTCDate
 const lunes = d => { const x = new Date(`${d}T12:00:00Z`); return sumarDias(d, -((x.getUTCDay() + 6) % 7)) }
 const edad = nac => { if (!nac) return null; const n = new Date(nac), h = new Date(); let e = h.getFullYear() - n.getFullYear(); if (h.getMonth() < n.getMonth() || (h.getMonth() === n.getMonth() && h.getDate() < n.getDate())) e--; return e }
 const NOMBRE_DIA = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+// Horario de la sede tal como lo guarda la clínica ({ lun_vie: '09:00-19:00', sab: '09:00-14:00', dias_cerrados: [7] }) → texto legible para el paciente
+const ETQ_DIAS = { lun_vie: 'Lun a Vie', lun_sab: 'Lun a Sáb', lun: 'Lun', mar: 'Mar', mie: 'Mié', jue: 'Jue', vie: 'Vie', sab: 'Sáb', dom: 'Dom' }
+const textoHorario = h => {
+  if (typeof h === 'string') return h
+  const dias = ['', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+  return Object.entries(h ?? {}).map(([d, v]) => (d === 'dias_cerrados' ? `Cerrado: ${[].concat(v).map(n => dias[n] ?? n).join(', ')}` : `${ETQ_DIAS[d] ?? d} ${String(v).replace('-', ' a ')}`)).join(' · ')
+}
 
 export default function PortalReservar() {
   const { clinica: slug } = useParams()
@@ -94,8 +101,8 @@ export default function PortalReservar() {
           {sedesVis.length === 0 && <div className="text-muted">La clínica aún no tiene sedes publicadas.</div>}
           {sedesVis.map(s => (
             <Opcion key={s.id} activa={sede?.id === s.id} onClick={() => { setSede(s); setPaso(2) }}>
-              <b>{s.nombre}</b> <div className="text-muted" style={{ fontSize: 13 }}><MapPin size={12} style={{ verticalAlign: -1 }} /> {s.direccion ?? ''}{s.telefono ? ` · Tel. ${s.telefono}` : ''}</div>
-              {s.horario && Object.keys(s.horario).length > 0 && <div className="text-muted" style={{ fontSize: 12.5 }}>{typeof s.horario === 'string' ? s.horario : Object.entries(s.horario).map(([d, h]) => `${d} ${h}`).join(' · ')}</div>}
+              <b>{s.nombre}</b> <div className="text-muted" style={{ fontSize: 13 }}><MapPin size={12} style={{ display: 'inline-block', verticalAlign: -1 }} /> {s.direccion ?? ''}{s.telefono ? ` · Tel. ${s.telefono}` : ''}</div>
+              {s.horario && Object.keys(s.horario).length > 0 && <div className="text-muted" style={{ fontSize: 12.5 }}>{textoHorario(s.horario)}</div>}
             </Opcion>))}
         </Seccion>
       )}

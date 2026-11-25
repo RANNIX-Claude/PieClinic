@@ -53,10 +53,12 @@ function Nueva() {
     setF(s => ({ ...s, sede_id: c.sede_id, cabina_id: c.cabina_id ?? '', servicio_id: c.servicio_id ?? '', tipo_atencion: c.tipo_atencion === 'videoconsulta' ? 'a_distancia' : c.tipo_atencion === 'domicilio' ? 'domicilio' : 'presencial', plan_id: c.plan_tratamiento_id ?? '' }))
     if (!paciente) leer('prp_pacientes', { sedeCol: false, filtros: { id: c.paciente_id }, limite: 1 }).then(r => r.data?.[0] && setPaciente(r.data[0]))
   }, [cita.data]) // eslint-disable-line
+  // Ventana de citas fija al abrir la pantalla: si se calculara en cada render la clave de la consulta cambiaría siempre y no terminaría de cargar.
+  const [ventanaCitas] = useState(() => ({ gte: new Date(Date.now() - 12 * 3600e3).toISOString(), lte: new Date(Date.now() + 24 * 3600e3).toISOString() }))
   const cabinas = useVista('cabinas-' + f.sede_id, 'cabinas', { sedeCol: false, filtros: { sede_id: f.sede_id, activa: true } }, { enabled: !!f.sede_id })
   const servicios = useVista('servicios-consulta', 'prp_servicios', { sedeCol: false, columnas: 'id,nombre', orden: { columna: 'nombre' }, limite: 300 })
   const planes = useVista('planes-abiertos-' + paciente?.id, 'prp_planes_progreso', { sedeCol: false, filtros: { paciente_id: paciente?.id, estado: 'en_curso' } }, { enabled: !!paciente })
-  const citas = useVista('citas-hoy-' + paciente?.id, 'prp_agenda', { sedeCol: false, filtros: { paciente_id: paciente?.id, estado: ['por_confirmar', 'confirmada', 'en_camino'], inicio: { gte: new Date(Date.now() - 12 * 3600e3).toISOString(), lte: new Date(Date.now() + 24 * 3600e3).toISOString() } }, orden: { columna: 'inicio' } }, { enabled: !!paciente })
+  const citas = useVista('citas-hoy-' + paciente?.id, 'prp_agenda', { sedeCol: false, filtros: { paciente_id: paciente?.id, estado: ['por_confirmar', 'confirmada', 'en_camino'], inicio: ventanaCitas }, orden: { columna: 'inicio' } }, { enabled: !!paciente })
 
   if (!p['consultas.escribir']) return <div className="pagina"><Aviso tipo="err">Solo el podólogo abre consultas (y la clínica debe estar activa).</Aviso><Volver a="/consultas" /></div>
   const crear = async () => {

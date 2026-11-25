@@ -4,6 +4,7 @@ import { fijarContextoApi } from '../lib/api'
 import { fijarZonaHoraria } from '../lib/formato'
 import { registrarBitacora } from '../lib/bitacora'
 import { fijarSuperadmin } from '../lib/permisos'
+import { borrarSnapshots } from '../lib/offline/almacen'
 
 export const AppContext = createContext(null)
 
@@ -28,6 +29,14 @@ function demoDesdeUrl() {
     sedes: [{ id: 'sede-1', clave: 'CEN', nombre: 'Sede Centro', activa: true }, { id: 'sede-2', clave: 'SUR', nombre: 'Sede Sur', activa: true }],
   }
 }
+
+const copiaArranque = {
+  get: uid => { try { const c = JSON.parse(localStorage.getItem('pf.arranque') || 'null'); return c?.uid === uid ? c : null } catch { return null } },
+  set: (uid, d) => { try { localStorage.setItem('pf.arranque', JSON.stringify({ uid, ...d })) } catch { /* sin almacenamiento */ } },
+  borrar: () => { try { localStorage.removeItem('pf.arranque') } catch { /* sin almacenamiento */ } },
+}
+const leerCopiaArranque = uid => copiaArranque.get(uid)
+const guardarCopiaArranque = (uid, d) => copiaArranque.set(uid, d)
 
 export function AppProvider({ children }) {
   const [user, setUser] = useState(null)
@@ -66,7 +75,15 @@ export function AppProvider({ children }) {
   const cargarPerfil = useCallback(async (u) => {
     setErrorPerfil(null)
     const { data: p, error } = await supabase.from('perfiles').select('*').eq('id', u.id).maybeSingle()
-    if (error) { setErrorPerfil(error.message); setPerfil(null); return }
+    if (error) {
+      // Sin conexión: se arranca con la copia del último acceso de ESTA persona (la caja debe seguir operando sin internet).
+      const copia = leerCopiaArranque(u.id)
+      if (copia && (!navigator.onLine || /failed to fetch|network|load failed/i.test(error.message ?? ''))) {
+        fijarSuperadmin(copia.superadmin === true); setEsRannix(copia.superadmin === true); setLiberacion(copia.liberacion); setPerfil(copia.perfil); setOrganizacion(copia.organizacion); setSedes(copia.sedes)
+        return
+      }
+      setErrorPerfil(error.message); setPerfil(null); return
+    }
     if (!p || !p.activo) {
       const { data: staff } = await supabase.from('rannix_staff').select('user_id, nombre').eq('user_id', u.id).maybeSingle()
       if (staff) { setEsRannix(true); setPerfil({ id: u.id, rol: 'rannix', nombre: staff.nombre, apellidos: '', sedes: [] }); return }
@@ -90,6 +107,7 @@ export function AppProvider({ children }) {
     setOrganizacion(org ?? null)
     const accesibles = (ss ?? []).filter(s => !p.sedes?.length || p.sedes.includes(s.id)) // sedes vacío = todas
     setSedes(accesibles)
+    guardarCopiaArranque(u.id, { perfil: p, organizacion: org ?? null, sedes: accesibles, superadmin: soyRannix === true, liberacion: !errLib && lib && typeof lib === 'object' ? { estricta: lib.estricta === true, claves: Array.isArray(lib.claves) ? lib.claves : [] } : { estricta: false, claves: [] } })
     supabase.from('perfiles').update({ ultimo_acceso: new Date().toISOString() }).eq('id', u.id).then(() => {})
   }, [])
 
@@ -142,6 +160,7 @@ export function AppProvider({ children }) {
   const cerrarSesion = async () => {
     ls.set('pf.demo', null)
     await supabase.auth.signOut()
+    copiaArranque.borrar(); borrarSnapshots()   // P-050: el equipo no conserva datos de la clínica sin sesión (la cola de tickets por sincronizar sí se conserva)
     limpiar(); setUser(null)
   }
 

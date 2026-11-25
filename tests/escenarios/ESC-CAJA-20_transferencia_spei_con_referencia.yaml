@@ -1,0 +1,82 @@
+# ESC-CAJA-20 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-20"
+nombre: "Transferencia / SPEI con referencia"
+version: 1
+fuente: "METRICAS.md M-043 (método SPEI); REGLAS_NEGOCIO.md P-059, P-094"
+prioridad: "media"
+rol: "recepcion"
+reglas:
+  - "P-059"
+  - "P-094"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-20'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-20"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-20  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+ambiguo:
+  - id: "A10"
+    pregunta: "Transferencia/SPEI: ¿la clave de rastreo es obligatoria? ¿se valida contra el banco (P-094 solo concilia después)?"
+pasos:
+  - n: 1
+    descripcion: "Cobrar QUIROPODIA por transferencia con referencia QA-SPEI-0020"
+    esperado: "Se registra el pago con su referencia"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Método transferencia, referencia; nota QA-{corrida}-ESC-CAJA-20"
+    verificar_ui: "Ticket cobrado"
+    verificar_bd: |
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-20%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      metodo: "transferencia"
+      monto: 400
+      referencia: "QA-SPEI-0020"
+    precondicion_critica: true
+    ambiguo: "A10"
+  - n: 2
+    descripcion: "Intentar transferencia sin referencia en otro ticket"
+    esperado: "Comportamiento por definir"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Dejar referencia vacía"
+    verificar_ui: "Registrar si bloquea o no"
+    verificar_bd: |
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-20%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      resultado: "AMBIGUO: registrar comportamiento y marcar VERIFICAR"
+    ambiguo: "A10"
+  - n: 3
+    descripcion: "Verificar que SPEI no suma al efectivo esperado"
+    esperado: "La transferencia no es efectivo del cajón"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Revisar vista previa del corte"
+    verificar_ui: "Efectivo esperado sin 400.00"
+    verificar_bd: |
+      SELECT t.caja, t.estado, t.fondo_inicial, t.efectivo_esperado, t.efectivo_contado, t.diferencia, t.justificacion, t.autorizacion_id, t.cerrado_por, t.revisado_por
+      FROM piefirme.turnos_caja t
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-20%'
+      ORDER BY t.apertura_en;
+    esperado_bd:
+      nota: "efectivo_esperado = fondo + efectivo − retiros; SPEI excluido"

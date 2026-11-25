@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import { Link } from 'react-router-dom'
 import { leer, insertar, actualizar } from '../../../lib/api'
 import Tabs from '../../../components/ui/Tabs'
@@ -17,13 +18,17 @@ export default function ConsultaExploracion({ consultaId, pacienteId, editable, 
   const fila = (q.data ?? []).find(x => x.tipo === tipo)
   const [datos, setDatos] = useState({})
   const [resumen, setResumen] = useState('')
-  useEffect(() => { setDatos(fila?.datos ?? {}); setResumen(fila?.resumen ?? '') }, [fila?.id, tipo, q.data])
+  const [pie, setPie] = useState('')   // la exploración ungueal exige pie y dedo (restricción exploraciones_check)
+  const [dedo, setDedo] = useState('')
+  useEffect(() => { setDatos(fila?.datos ?? {}); setResumen(fila?.resumen ?? ''); setPie(fila?.pie ?? ''); setDedo(fila?.dedo ? String(fila.dedo) : '') }, [fila?.id, tipo, q.data])
   const campos = CAMPOS_EXPLORACION[tipo] ?? []
 
   async function guardar() {
     const limpio = { ...datos }
     if (tipo === 'vascular') { const itb = normalizarItb(limpio.itb); if (itb === null) delete limpio.itb; else limpio.itb = itb } // P-011: jamás 0
-    await ejecutar(() => (fila ? actualizar('exploraciones', fila.id, { datos: limpio, resumen: resumen || null }) : insertar('exploraciones', { consulta_id: consultaId, tipo, datos: limpio, resumen: resumen || null })),
+    const ung = tipo === 'ungueal' ? { pie: pie || null, dedo: dedo ? Number(dedo) : null } : {}
+    if (tipo === 'ungueal' && (!pie || !dedo)) return toast.error('Indica el pie y el dedo de la exploración ungueal')
+    await ejecutar(() => (fila ? actualizar('exploraciones', fila.id, { datos: limpio, resumen: resumen || null, ...ung }) : insertar('exploraciones', { consulta_id: consultaId, tipo, datos: limpio, resumen: resumen || null, ...ung })),
       { ok: 'Exploración guardada', invalidar: ['clinico'] })
   }
   if (q.error) return <Aviso tipo="err">{mensajeError(q.error)}</Aviso>
@@ -33,6 +38,11 @@ export default function ConsultaExploracion({ consultaId, pacienteId, editable, 
       {tipo === 'miembro' ? <ExploracionMI consultaId={consultaId} editable={editable} /> : (
         <>
           <fieldset disabled={!editable} style={{ border: 0, padding: 0 }}>
+            {tipo === 'ungueal' && (
+              <div className="row">
+                <FormField label="Pie" required as="select" options={[{ value: 'D', label: 'Derecho' }, { value: 'I', label: 'Izquierdo' }]} value={pie} onChange={e => setPie(e.target.value)} />
+                <FormField label="Dedo" required as="select" options={[1, 2, 3, 4, 5].map(n => ({ value: String(n), label: n === 1 ? '1 (dedo gordo)' : String(n) }))} value={dedo} onChange={e => setDedo(e.target.value)} />
+              </div>)}
             <div className="row">
               {campos.map(([k, label, opts]) => {
                 const common = { key: k, label, value: datos[k] ?? '', onChange: e => setDatos(s => ({ ...s, [k]: e.target.value })) }

@@ -1,0 +1,94 @@
+# ESC-CAJA-51 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-51"
+nombre: "Corte de caja con datos conocidos: efectivo esperado calculado a mano"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-059; METRICAS.md M-042 (esperado = fondo + efectivo − retiros)"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-059"
+  - "P-058"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno QA-{corrida}-ESC-CAJA-51 abierto con fondo 1,000.00 y estos movimientos sembrados o capturados: T1 cobrado en efectivo 632.00; T2 cobrado en efectivo 232.00 y luego cancelado en el mismo turno; T3 cobrado con tarjeta 400.00 (voucher QA-VCH-0051); retiro de 300.00 con concepto"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-51"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-51  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+ambiguo:
+  - id: "A19"
+    pregunta: "Fórmula de corte P-059 («fondo + efectivo − retiros − cancelaciones en efectivo»): ¿«efectivo» incluye lo cobrado en tickets que luego se cancelan? Se asume neto físico (el efectivo en cajón es el mismo en ambas lecturas)."
+  - id: "A20"
+    pregunta: "Tolerancia de $50.00 (P-058): ¿es absoluta (sobrante y faltante)? ¿$50.00 exactos está dentro? ¿una diferencia de $0.00 exige justificación? ¿longitud mínima de la justificación?"
+pasos:
+  - n: 1
+    descripcion: "Abrir la vista previa del corte"
+    esperado: "Efectivo esperado = 1,000.00 + 632.00 + 232.00 − 300.00 − 232.00 = 1,332.00; tarjeta 400.00; retiros 300.00; cancelaciones 1 ticket por 232.00"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cerrar turno → ver resumen"
+    verificar_ui: "Cifras coinciden con el cálculo manual"
+    verificar_bd: |
+      SELECT t.caja, t.estado, t.fondo_inicial, t.efectivo_esperado, t.efectivo_contado, t.diferencia, t.justificacion, t.autorizacion_id, t.cerrado_por, t.revisado_por
+      FROM piefirme.turnos_caja t
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-51%'
+      ORDER BY t.apertura_en;
+    esperado_bd:
+      efectivo_esperado: 1332
+    precondicion_critica: true
+    ambiguo: "A19"
+  - n: 2
+    descripcion: "Capturar efectivo contado 1,332.00"
+    esperado: "Diferencia 0.00; cierra sin pedir justificación obligatoria"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Teclear 1332 y cerrar"
+    verificar_ui: "Diferencia 0.00"
+    verificar_bd: |
+      SELECT c.ventas_total, c.cobros_total, c.ventas_efectivo, c.ventas_tarjeta, c.ventas_transferencia, c.ventas_clip, c.ventas_gift_card, c.anticipos_aplicados, c.cortesias, c.retiros, c.cancelaciones_efectivo, c.cancelaciones_total, c.numero_cancelaciones, c.fondo_inicial, c.efectivo_esperado, c.efectivo_contado, c.diferencia, c.justificacion, c.autorizacion_id
+      FROM piefirme.cortes_caja c JOIN piefirme.turnos_caja t ON t.id = c.turno_id
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-51%';
+    esperado_bd:
+      fondo_inicial: 1000
+      retiros: 300
+      cancelaciones_efectivo: 232
+      numero_cancelaciones: 1
+      ventas_tarjeta: 400
+      efectivo_esperado: 1332
+      efectivo_contado: 1332
+      diferencia: 0
+    ambiguo: "A20"
+  - n: 3
+    descripcion: "Verificar estado del turno"
+    esperado: "Cerrado y de solo lectura"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Intentar registrar un retiro posterior"
+    verificar_ui: "Rechazado"
+    verificar_bd: |
+      SELECT t.caja, t.estado, t.fondo_inicial, t.efectivo_esperado, t.efectivo_contado, t.diferencia, t.justificacion, t.autorizacion_id, t.cerrado_por, t.revisado_por
+      FROM piefirme.turnos_caja t
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-51%'
+      ORDER BY t.apertura_en;
+    esperado_bd:
+      estado: "cerrado"

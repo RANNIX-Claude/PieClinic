@@ -1,0 +1,150 @@
+# ESC-INV-09 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: ESC-INV-09
+nombre: Un solo catálogo; existencia y mínimo propios por sucursal; solo Administración fija mínimos
+version: 1
+fuente: REGLAS_NEGOCIO.md P-079 (inventario por sucursal), P-084; METRICAS.md M-006, M-060, M-061; REQUERIMIENTO.md pregunta 18
+prioridad: alta
+rol: administrador
+ambiguo:
+  - id: A-INV-16
+    pregunta: "Mínimos: ¿qué prueba de límites quiere negocio (mínimo 0, mínimo decimal, máximo vacío)? ¿Puede el Podólogo ver el mínimo? ¿Un producto en cero cuenta como «sin existencia» y también como «bajo mínimo» en el contador M-061 (mockup dice 7 productos)? Se propone: sin existencia es un estado aparte."
+reglas:
+  - P-079
+  - P-084
+  - P-129
+precondiciones:
+  - Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, m@g.com administrador, p@g.com podólogo; a@g.com superadministrador)
+  - "Dos sedes de la misma clínica: Centenario (origen) y Patio Valle de Chalco (destino). Reglas de alcance (sede) según MATRIZ_ROLES §4.3; usuarios de recepción asignados a una sola sede cada uno (ver ambiguo A-INV-12)"
+  - "Catálogo: QA-{corrida}-CREMA (venta, costo_promedio 100.00, sin lote) (un solo registro de producto para toda la clínica)"
+  - "Sin existencias previas: se cargan CREMA Centenario 20 (mínimo 5), CREMA PVC 2 (mínimo 6)"
+datos_creados:
+  prefijo_qa: QA-{corrida}-ESC-INV-09
+  nota_en_registros: QA-{corrida}-ESC-INV-09  (se captura en comentarios del traspaso / nota del movimiento / motivo de la merma)
+  inventario:
+    - sede: Centenario
+      producto: CREMA
+      existencia: 20
+      minimo: 5
+    - sede: Patio Valle de Chalco
+      producto: CREMA
+      existencia: 2
+      minimo: 6
+pasos:
+  - "n": 1
+    descripcion: Confirmar que el producto CREMA es uno solo en el catálogo y tiene una fila de existencia por sede
+    esperado: Un solo producto; una existencia por sede; el total de la clínica es la suma (22)
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Catálogo → buscar CREMA; Inventario → ¿Qué producto hay en cada tienda?
+    verificar_ui: Una sola ficha de producto; desglose por sede y total 22
+    verificar_bd: |-
+      SELECT count(*) AS productos FROM piefirme.productos WHERE nombre = 'QA-{corrida}-CREMA';
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      productos: 1
+      filas_inventario: 2
+      existencia_total: 22
+    precondicion_critica: true
+  - "n": 2
+    descripcion: Verificar el mínimo propio de cada sede y el estado por sede
+    esperado: Centenario 20 con mínimo 5 → OK; Patio Valle de Chalco 2 con mínimo 6 → Bajo mínimo (existencia < mínimo)
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Existencias por sede
+    verificar_ui: Semáforo distinto en cada sede
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      estado_centenario: ok
+      estado_pvc: bajo_minimo
+  - "n": 3
+    descripcion: Administrador cambia el mínimo de PVC a 2
+    esperado: Existencia 2 = mínimo 2 → estado En el mínimo (no Bajo mínimo); el mínimo de Centenario no cambia
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: m@g.com → editar mínimo en PVC
+    verificar_ui: Estado En el mínimo
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      minimo_pvc: 2
+      estado_pvc: en_el_minimo
+      minimo_centenario: 5
+  - "n": 4
+    descripcion: Llevar existencia de PVC a 0 con un conteo autorizado
+    esperado: Estado Sin existencia (0)
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Conteo físico PVC CREMA contado 0 → autorizar
+    verificar_ui: Sin existencia
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      existencia_pvc: 0
+      estado_pvc: sin_existencia
+    ambiguo: A-INV-16
+  - "n": 5
+    descripcion: Recepción intenta fijar el mínimo de su sede
+    esperado: "No puede: el mínimo lo captura Administración (P-084)"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: r@g.com → editar mínimo
+    verificar_ui: Campo no editable / error
+    verificar_bd: SELECT i.minimo FROM piefirme.prp_inventario i JOIN piefirme.productos pr ON pr.id = i.producto_id WHERE pr.nombre = 'QA-{corrida}-CREMA' AND i.sede_nombre = 'Patio Valle de Chalco';
+    esperado_bd:
+      minimo: 2
+    ambiguo: A-INV-16
+  - "n": 6
+    descripcion: "Mínimo inválido: negativo (−1) y máximo menor que el mínimo"
+    esperado: Se rechazan
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Capturar mínimo −1; máximo 1 con mínimo 5
+    verificar_ui: Validación
+    verificar_bd: SELECT i.minimo, i.maximo FROM piefirme.inventario_sede i JOIN piefirme.productos pr ON pr.id = i.producto_id WHERE pr.nombre = 'QA-{corrida}-CREMA';
+    esperado_bd:
+      minimo: sin cambio
+      maximo: sin cambio
+    ambiguo: A-INV-16
+  - "n": 7
+    descripcion: "Tarjetas de resumen: productos bajo mínimo y valor de inventario"
+    esperado: "Bajo mínimo = COUNT(producto, sede con existencia < mínimo); valor = Σ existencia × costo promedio calculado a mano (CREMA: 22 × 100 = 2,200)"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Cuadro de resumen de inventario
+    verificar_ui: Cifras iguales al cálculo manual
+    verificar_bd: SELECT count(*) FILTER (WHERE i.estado = 'bajo_minimo') AS bajo_minimo, sum(i.valor) AS valor_total FROM piefirme.prp_inventario i JOIN piefirme.productos pr ON pr.id = i.producto_id WHERE pr.nombre LIKE 'QA-{corrida}-%';
+    esperado_bd:
+      valor_total: existencia total × 100.00

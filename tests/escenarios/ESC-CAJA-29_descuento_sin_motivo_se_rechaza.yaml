@@ -1,0 +1,97 @@
+# ESC-CAJA-29 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-29"
+nombre: "Todo descuento exige motivo"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-055 (todo descuento exige motivo)"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-055"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-29'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-29"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-29  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+pasos:
+  - n: 1
+    descripcion: "Descuento de 5 % en línea sin motivo"
+    esperado: "No se aplica; pide motivo"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Aplicar 5 % sin motivo; nota QA-{corrida}-ESC-CAJA-29"
+    verificar_ui: "Mensaje de motivo requerido"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-29%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      descuento: 0
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Descuento con motivo de solo espacios"
+    esperado: "Se trata como sin motivo"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Motivo «   »"
+    verificar_ui: "Mensaje de motivo requerido"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-29%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      descuento: 0
+  - n: 3
+    descripcion: "Descuento global de 5 % sin motivo"
+    esperado: "No se aplica"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Descuento global sin motivo"
+    verificar_ui: "Mensaje de motivo requerido"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-29%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      descuento_total: 0
+  - n: 4
+    descripcion: "Descuento por monto fijo de 20.00 sin motivo"
+    esperado: "No se aplica"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Descuento monto 20"
+    verificar_ui: "Mensaje de motivo requerido"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-29%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      descuento: 0

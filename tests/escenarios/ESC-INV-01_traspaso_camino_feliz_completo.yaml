@@ -1,0 +1,226 @@
+# ESC-INV-01 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: ESC-INV-01
+nombre: "Traspaso entre sucursales completo: solicitar, enviar, recibir"
+version: 1
+fuente: REGLAS_NEGOCIO.md P-080, P-079, P-083; MODELO_ESTADOS.md S28; MATRIZ_ROLES.md §4.3; METRICAS.md M-064
+prioridad: alta
+rol: recepcion_y_administrador
+ambiguo:
+  - id: A-INV-01
+    pregunta: "Formato del folio del traspaso: el mockup 22 usa «TR-0062» y el esquema genera «{SEDE}-TRA-{NNNNNN}». ¿Cuál es el formato correcto y de qué sede es el consecutivo (origen)? El escenario solo exige único y consecutivo."
+  - id: A-INV-03
+    pregunta: ¿Dónde debe verse la mercancía en tránsito (tarjeta, columna o solo en la lista de traspasos)? Negocio no lo define; el escenario solo exige que no figure como existencia de ninguna sede.
+reglas:
+  - P-080
+  - P-079
+  - P-083
+  - P-086
+precondiciones:
+  - Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, m@g.com administrador, p@g.com podólogo; a@g.com superadministrador)
+  - "Dos sedes de la misma clínica: Centenario (origen) y Patio Valle de Chalco (destino). Reglas de alcance (sede) según MATRIZ_ROLES §4.3; usuarios de recepción asignados a una sola sede cada uno (ver ambiguo A-INV-12)"
+  - Catálogo único de la clínica con QA-{corrida}-CREMA (venta, costo_promedio 100.00, sin lote) y QA-{corrida}-TALCO (venta, costo_promedio 50.00, sin lote)
+  - "Existencia en Centenario: CREMA 20, TALCO 10. Existencia en Patio Valle de Chalco: CREMA 2, TALCO 1. Mínimos en Patio Valle de Chalco: CREMA 6, TALCO 3"
+  - Sesión de recepción de Centenario (r@g.com, sede Centenario) y de recepción de Patio Valle de Chalco (usuario QA-{corrida}-recep-pvc); administrador m@g.com
+datos_creados:
+  prefijo_qa: QA-{corrida}-ESC-INV-01
+  nota_en_registros: QA-{corrida}-ESC-INV-01  (se captura en comentarios del traspaso / nota del movimiento / motivo de la merma)
+  traspaso:
+    origen: Centenario
+    destino: Patio Valle de Chalco
+    partidas:
+      - producto: QA-{corrida}-CREMA
+        cantidad: 10
+      - producto: QA-{corrida}-TALCO
+        cantidad: 5
+    valor_esperado_a_costo_promedio: 1250
+pasos:
+  - "n": 1
+    descripcion: "Crear el traspaso en Borrador: origen Centenario, destino Patio Valle de Chalco, 10 × CREMA y 5 × TALCO, comentario con el prefijo QA"
+    esperado: Se crea el traspaso en estado Borrador con folio consecutivo; la solicitud queda a nombre de quien la captura; no se mueve ninguna existencia
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Inventario → Traspasos → Nuevo traspaso; elegir origen y destino; agregar las dos partidas; Guardar borrador
+    verificar_ui: Estado Borrador; folio visible; 2 partidas, 15 unidades; valor a costo promedio 1,250.00; las pantallas muestran existencia en origen, existencia en destino y mínimo de destino de cada partida
+    verificar_bd: |-
+      SELECT t.folio, t.estado, t.sede_origen_id, t.sede_destino_id, t.partidas, t.unidades, t.valor_total, t.enviado_en, t.recibido_en, t.recibio_por, t.cancelado_motivo
+      FROM piefirme.traspasos t
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-01%';
+      SELECT pr.nombre, l.cantidad_enviada, l.cantidad_recibida, l.diferencia, l.motivo_diferencia, l.costo_unitario
+      FROM piefirme.traspaso_lineas l
+      JOIN piefirme.traspasos t ON t.id = l.traspaso_id
+      JOIN piefirme.productos pr ON pr.id = l.producto_id
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-01%'
+      ORDER BY pr.nombre;
+    esperado_bd:
+      estado: borrador
+      partidas: 2
+      unidades: 15
+      valor_total: 1250
+    precondicion_critica: true
+  - "n": 2
+    descripcion: Verificar que el borrador NO mueve existencias
+    esperado: La existencia sigue igual en las dos sedes; no hay movimientos de kardex del traspaso
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Abrir Inventario → Existencias por sede
+    verificar_ui: Centenario CREMA 20, TALCO 10; Patio Valle de Chalco CREMA 2, TALCO 1
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+      -- y: SELECT count(*) AS movs FROM piefirme.movimientos_inventario m WHERE m.referencia_folio IN (SELECT folio FROM piefirme.traspasos WHERE comentarios LIKE 'QA-{corrida}-ESC-INV-01%');
+    esperado_bd:
+      existencia_centenario_crema: 20
+      existencia_pvc_crema: 2
+      movs: 0
+  - "n": 3
+    descripcion: "Validar existencia en origen al enviar: existe suficiente para cada partida"
+    esperado: No hay aviso de falta de existencia en origen (20 ≥ 10 y 10 ≥ 5)
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Abrir el borrador y revisar la columna de existencia en origen
+    verificar_ui: Sin advertencias; botón Enviar traspaso habilitado
+    verificar_bd: null
+  - "n": 4
+    descripcion: Enviar el traspaso (recepción de Centenario, responsable del envío con transporte y fecha estimada de llegada)
+    esperado: Estado Enviado (en tránsito); el envío descuenta del origen; el destino todavía no suma; partidas congeladas; queda fecha de envío y quién envió
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Botón Enviar traspaso; capturar responsable del envío, transporte y fecha estimada; confirmar
+    verificar_ui: Estado En tránsito; ya no se pueden editar partidas
+    verificar_bd: |-
+      SELECT t.folio, t.estado, t.sede_origen_id, t.sede_destino_id, t.partidas, t.unidades, t.valor_total, t.enviado_en, t.recibido_en, t.recibio_por, t.cancelado_motivo
+      FROM piefirme.traspasos t
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-01%';
+      SELECT s.nombre AS sede, pr.nombre AS producto, m.tipo, m.cantidad, m.costo_unitario, m.referencia_tipo, m.referencia_folio, m.usuario_id, m.fecha
+      FROM piefirme.movimientos_inventario m
+      JOIN piefirme.sedes s ON s.id = m.sede_id
+      JOIN piefirme.productos pr ON pr.id = m.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+        AND (m.nota LIKE 'QA-{corrida}-ESC-INV-01%' OR m.referencia_folio IN (SELECT t.folio FROM piefirme.traspasos t WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-01%'))
+      ORDER BY m.created_at, m.id;
+    esperado_bd:
+      estado: enviado
+      kardex_origen_crema: -10
+      kardex_origen_talco: -5
+      tipo_kardex: traspaso_salida
+      costo_unitario_crema: 100
+      costo_unitario_talco: 50
+      kardex_destino: sin movimientos todavía
+  - "n": 5
+    descripcion: "Revisar existencias en tránsito: ni se pierden ni se duplican"
+    esperado: Centenario CREMA 10, TALCO 5; Patio Valle de Chalco sigue CREMA 2, TALCO 1; las 10 y 5 unidades aparecen como en tránsito (pendientes de recepción), no como existencia de ninguna sede
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Inventario → Existencias por sede y lista de traspasos (filtro En tránsito)
+    verificar_ui: Existencias coherentes; el traspaso aparece En tránsito con 15 unidades
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      existencia_centenario_crema: 10
+      existencia_centenario_talco: 5
+      existencia_pvc_crema: 2
+      existencia_pvc_talco: 1
+    ambiguo: A-INV-03
+  - "n": 6
+    descripcion: "Recepción en destino por el responsable de Patio Valle de Chalco: confirmar recepción completa (10 y 5)"
+    esperado: Estado Recibido completo; la recepción suma al destino; queda quién recibió y cuándo
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Sesión del usuario de Patio Valle de Chalco → Traspasos → abrir el folio → Confirmar recepción con cantidades iguales a las enviadas
+    verificar_ui: Estado Recibido completo; sin diferencias
+    verificar_bd: |-
+      SELECT t.folio, t.estado, t.sede_origen_id, t.sede_destino_id, t.partidas, t.unidades, t.valor_total, t.enviado_en, t.recibido_en, t.recibio_por, t.cancelado_motivo
+      FROM piefirme.traspasos t
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-01%';
+      SELECT pr.nombre, l.cantidad_enviada, l.cantidad_recibida, l.diferencia, l.motivo_diferencia, l.costo_unitario
+      FROM piefirme.traspaso_lineas l
+      JOIN piefirme.traspasos t ON t.id = l.traspaso_id
+      JOIN piefirme.productos pr ON pr.id = l.producto_id
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-01%'
+      ORDER BY pr.nombre;
+    esperado_bd:
+      estado: recibido_completo
+      cantidad_recibida_crema: 10
+      cantidad_recibida_talco: 5
+      diferencia: 0
+    precondicion_critica: true
+  - "n": 7
+    descripcion: Verificar existencias finales y kardex en las dos sedes
+    esperado: "Centenario CREMA 10 y TALCO 5; Patio Valle de Chalco CREMA 12 y TALCO 6; kardex: salida (−) en origen y entrada (+) en destino con la misma referencia de folio y al costo promedio; el total de la clínica no cambió (CREMA 22, TALCO 11)"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Inventario → Existencias por sede y Kardex
+    verificar_ui: Existencias finales correctas; el estado de Patio Valle de Chalco CREMA pasa de bajo mínimo a OK (12 ≥ 6)
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+      SELECT s.nombre AS sede, pr.nombre AS producto, m.tipo, m.cantidad, m.costo_unitario, m.referencia_tipo, m.referencia_folio, m.usuario_id, m.fecha
+      FROM piefirme.movimientos_inventario m
+      JOIN piefirme.sedes s ON s.id = m.sede_id
+      JOIN piefirme.productos pr ON pr.id = m.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+        AND (m.nota LIKE 'QA-{corrida}-ESC-INV-01%' OR m.referencia_folio IN (SELECT t.folio FROM piefirme.traspasos t WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-01%'))
+      ORDER BY m.created_at, m.id;
+    esperado_bd:
+      total_clinica_crema: 22
+      total_clinica_talco: 11
+      existencia_pvc_crema: 12
+      existencia_pvc_talco: 6
+      estado_pvc_crema: ok
+      kardex_destino: traspaso_entrada +10 / +5 con el mismo folio
+  - "n": 8
+    descripcion: "Verificar valor de inventario: el traspaso entre sedes no cambia el valor total de la clínica ni el costo promedio"
+    esperado: El valor total de inventario de la clínica es el mismo antes y después; el costo promedio es por clínica, no por sede, y no se recalcula con un traspaso
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Comparar tarjeta de valor de inventario antes/después (por sede suma al total)
+    verificar_ui: Valor por sede refleja el movimiento; total de la clínica sin cambio
+    verificar_bd: SELECT sum(i.valor) AS valor_total_clinica FROM piefirme.prp_inventario i JOIN piefirme.productos pr ON pr.id = i.producto_id WHERE pr.nombre LIKE 'QA-{corrida}-%';
+    esperado_bd:
+      valor_total_clinica: 2750
+  - "n": 9
+    descripcion: Verificar folio y bitácora del traspaso
+    esperado: El folio es único y consecutivo; la bitácora registra creación, envío y recepción con usuario, sede y hora
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Utilerías → Bitácora, filtrar por el folio
+    verificar_ui: "Tres eventos: creación, envío, recepción, cada uno con su usuario"
+    verificar_bd: |-
+      SELECT b.accion, b.entidad, b.entidad_id, b.usuario_id, b.sede_id, b.detalle, b.created_at
+      FROM piefirme.bitacora b
+      WHERE b.entidad IN ('traspasos') AND b.entidad_id IN (SELECT t.id::text FROM piefirme.traspasos t WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-01%')
+      ORDER BY b.id;
+    esperado_bd:
+      eventos_minimos: 3
+      usuarios: "creación y envío: recepción Centenario; recepción: usuario de Patio Valle de Chalco"
+    ambiguo: A-INV-01

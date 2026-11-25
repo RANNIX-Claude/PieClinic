@@ -1,0 +1,100 @@
+# ESC-CAJA-43 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-43"
+nombre: "Cancelación de ticket de turno cerrado: solo Administración, con motivo"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-060, P-099, Autoridad (resumen: cancelar ticket de turno cerrado = Administrador); MATRIZ_ROLES.md §4.2"
+prioridad: "alta"
+rol: "recepcion_y_administrador"
+reglas:
+  - "P-060"
+  - "P-099"
+  - "P-130"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno anterior QA-{corrida}-ESC-CAJA-43-T0 ya cerrado, con un ticket cobrado de 232.00 (nota QA-{corrida}-ESC-CAJA-43)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-43'"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-43"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-43  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+ambiguo:
+  - id: "A17"
+    pregunta: "Cancelación de ticket de turno cerrado (P-060 + P-099): ¿cómo se refleja si el corte ya está cerrado? Se asume ajuste en el turno/periodo siguiente con referencia; ¿sale el dinero como devolución o retiro?"
+pasos:
+  - n: 1
+    descripcion: "Como r@g.com buscar el ticket del turno cerrado e intentar cancelarlo"
+    esperado: "Recepción no puede: no hay acción o es rechazada"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Ventas → ticket → Cancelar venta"
+    verificar_ui: "Acción ausente o mensaje de que solo Administración puede"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-43%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cobrada"
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Como m@g.com cancelarlo sin motivo"
+    esperado: "Exige motivo"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cancelar con motivo vacío"
+    verificar_ui: "Mensaje de motivo requerido"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-43%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cobrada"
+  - n: 3
+    descripcion: "Cancelar con motivo «QA-{corrida}-ESC-CAJA-43 ajuste autorizado»"
+    esperado: "Se cancela; no se borra; se registra quién y por qué"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cancelar con motivo"
+    verificar_ui: "Estado Cancelada"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-43%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cancelada"
+      cancelada_por: "id de m@g.com"
+    ambiguo: "A17"
+  - n: 4
+    descripcion: "Verificar que el corte cerrado no cambió y el ajuste va al periodo siguiente"
+    esperado: "El corte del turno cerrado queda de solo lectura (P-099); el ajuste se refleja con referencia en el periodo siguiente"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Consultar corte del turno T0 y el turno actual"
+    verificar_ui: "Corte T0 sin modificaciones"
+    verificar_bd: |
+      SELECT c.ventas_total, c.cobros_total, c.ventas_efectivo, c.ventas_tarjeta, c.ventas_transferencia, c.ventas_clip, c.ventas_gift_card, c.anticipos_aplicados, c.cortesias, c.retiros, c.cancelaciones_efectivo, c.cancelaciones_total, c.numero_cancelaciones, c.fondo_inicial, c.efectivo_esperado, c.efectivo_contado, c.diferencia, c.justificacion, c.autorizacion_id
+      FROM piefirme.cortes_caja c JOIN piefirme.turnos_caja t ON t.id = c.turno_id
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-43%';
+    esperado_bd:
+      corte_T0: "sin cambios"
+      ajuste: "en periodo siguiente con referencia"
+    ambiguo: "A17"

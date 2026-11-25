@@ -1,0 +1,87 @@
+# ESC-CAJA-27 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-27"
+nombre: "Descuento de Recepción de hasta 10 %: no pide PIN y queda con motivo"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-055, P-057"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-055"
+  - "P-057"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-27'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-27"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-27  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+pasos:
+  - n: 1
+    descripcion: "CREMA-A × 1 con descuento 10 % y motivo «QA-{corrida}-ESC-CAJA-27 cliente frecuente»"
+    esperado: "Descuento 11.60; línea 104.40; base 90.00; IVA 14.40; sin pedir PIN"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Aplicar 10 % a la línea con motivo; nota QA-{corrida}-ESC-CAJA-27"
+    verificar_ui: "Total 104.40; sin ventana de PIN"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-27%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      descuento: 11.6
+      importe: 104.4
+      base_neta: 90
+      iva_monto: 14.4
+    precondicion_critica: true
+  - n: 2
+    descripcion: "QUIROPODIA × 1 con descuento 5 % y motivo"
+    esperado: "Descuento 20.00; línea 380.00; exento"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Aplicar 5 %"
+    verificar_ui: "Total línea 380.00"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-27%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      descuento: 20
+      importe: 380
+      iva_monto: 0
+  - n: 3
+    descripcion: "Cobrar ambos en efectivo (484.40)"
+    esperado: "Ticket cobrado; descuento y motivo en bitácora"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Efectivo 500"
+    verificar_ui: "Cambio 15.60"
+    verificar_bd: |
+      SELECT b.accion, b.entidad, b.entidad_id, b.usuario_id, b.detalle, b.created_at
+      FROM piefirme.bitacora b JOIN piefirme.ventas v ON b.entidad_id = v.id::text
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-27%'
+      ORDER BY b.created_at;
+    esperado_bd:
+      accion: "registrada con descuento y motivo"

@@ -1,0 +1,15 @@
+import { chromium } from '@playwright/test'
+const b = await chromium.launch({ channel: 'chrome', headless: true })
+const p = await b.newPage({ viewport: { width: 1366, height: 768 } })
+p.on('response', async r => { if (/exploraciones/.test(r.url()) && r.request().method() !== 'GET') console.log(r.request().method(), r.status(), (await r.text()).slice(0, 400)) })
+await p.goto('http://localhost:5174/app/login', { timeout: 150000, waitUntil: 'domcontentloaded' })
+await p.locator('#pf-email').waitFor({ timeout: 150000 })
+await p.locator('#pf-email').fill('p@g.com'); await p.locator('#pf-pass').fill('123456')
+await p.getByRole('button', { name: 'Iniciar sesión' }).click()
+await p.locator('header').waitFor({ timeout: 90000 }); await p.waitForTimeout(3000)
+await p.goto('http://localhost:5174/app/consultas/b4fc747b-8535-4a15-a12c-270115618b4a'); await p.waitForTimeout(6000)
+await p.getByLabel('Forma', { exact: true }).selectOption({ label: 'Hipertrófica' })
+await p.getByLabel('Resumen / observaciones de la exploración').fill('prueba')
+await p.getByRole('button', { name: /Guardar exploración ungueal/ }).click()
+for (let i = 0; i < 6; i++) { await p.waitForTimeout(700); console.log('toasts:', await p.locator('[role=status]').allInnerTexts()) }
+await b.close()

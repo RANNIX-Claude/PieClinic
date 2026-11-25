@@ -7,7 +7,7 @@ import { requiereAutorizacion, totalesOCPorLinea, importeLineaOC, variacionCosto
 import Modal from '../../../components/ui/Modal'
 import FormField from '../../../components/ui/FormField'
 import LoadingSpinner from '../../../components/ui/LoadingSpinner'
-import { useLectura, useProductos, useProveedores, useAccion, SelectorProducto, num, qty, hoy } from './comun'
+import { useLectura, useProductos, useProveedores, useAccion, SelectorProducto, num, qty, hoy, condicionPago } from './comun'
 
 const CONDICIONES = [{ value: 'contado', label: 'Contado' }, { value: 'credito', label: 'Crédito' }, { value: 'anticipo', label: 'Anticipo' }]
 const ID_NULO = '00000000-0000-0000-0000-000000000000'
@@ -31,7 +31,7 @@ export default function OrdenEditor({ id, inicial, onClose, onGuardada }) {
   if (!f && (!id || (ex.filas[0] && !exL.cargando))) {
     const e = ex.filas[0]
     setF(id ? {
-      proveedor_id: e.proveedor_id, sede_id: e.sede_id, fecha: e.fecha, entrega_esperada: e.entrega_esperada ?? '', condiciones_pago: e.condiciones_pago, dias_credito: e.dias_credito,
+      proveedor_id: e.proveedor_id, sede_id: e.sede_id, fecha: e.fecha, entrega_esperada: e.entrega_esperada ?? '', condiciones_pago: condicionPago(e.condiciones_pago), dias_credito: e.dias_credito,
       moneda: e.moneda, referencia_cotizacion: e.referencia_cotizacion ?? '', notas: e.notas ?? '',
       lineas: exL.filas.map(l => ({ producto_id: l.producto_id, descripcion: l.descripcion ?? '', cantidad: l.cantidad, costo_unitario: l.costo_unitario, descuento_pct: l.descuento_pct, iva_pct: l.iva_pct, ultimo_costo: l.ultimo_costo, lineaId: l.id })),
     } : {
@@ -45,7 +45,7 @@ export default function OrdenEditor({ id, inicial, onClose, onGuardada }) {
   const prov = proveedores.find(p => p.id === f.proveedor_id)
   const elegirProveedor = pid => {
     const p = proveedores.find(x => x.id === pid)
-    setF(x => ({ ...x, proveedor_id: pid, condiciones_pago: p?.condiciones_pago ?? x.condiciones_pago, dias_credito: p?.dias_credito ?? x.dias_credito }))
+    setF(x => ({ ...x, proveedor_id: pid, condiciones_pago: p ? condicionPago(p.condiciones_pago) : x.condiciones_pago, dias_credito: p?.dias_credito ?? x.dias_credito }))
   }
   const costoRef = pid => { const v = pp.filas.find(r => r.proveedor_id === f.proveedor_id && r.producto_id === pid); return v?.ultimo_costo ?? mapa[pid]?.costo_promedio ?? null }
   const agregar = pid => {

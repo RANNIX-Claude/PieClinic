@@ -1,0 +1,65 @@
+# ESC-CAJA-21 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-21"
+nombre: "Clip simulado como método de cobro (cobro bruto)"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-034, P-077, P-094; METRICAS.md M-043; CLAUDE.md (integraciones en modo SIMULADO)"
+prioridad: "media"
+rol: "recepcion"
+reglas:
+  - "P-034"
+  - "P-077"
+  - "P-094"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-21'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "Clip en modo simulado (sin llaves reales); la pantalla debe rotularlo"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-21"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-21  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+ambiguo:
+  - id: "A08"
+    pregunta: "Clip como método de cobro en caja: P-034 dice que el único uso de Clip es anticipos, pero METRICAS M-043 y el mockup 17 lo listan como método de cobro del turno. ¿Entra en esta fase? ¿Cuánto es la comisión (P-077 dice solo que el cobro va bruto)?"
+pasos:
+  - n: 1
+    descripcion: "Cobrar QUIROPODIA con método Clip"
+    esperado: "La pantalla indica que Clip está en modo simulado; se aprueba el cobro simulado"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Método Clip, Cobrar; nota QA-{corrida}-ESC-CAJA-21"
+    verificar_ui: "Rótulo «simulado» visible"
+    verificar_bd: |
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-21%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      metodo: "clip"
+      monto: 400
+    precondicion_critica: true
+    ambiguo: "A08"
+  - n: 2
+    descripcion: "Verificar que el cobro se registra bruto"
+    esperado: "El monto del ticket es 400.00 completo; la comisión de Clip no se descuenta ni del ticket ni del podólogo"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Consultar el pago Clip"
+    verificar_ui: "Importe 400.00"
+    verificar_bd: "SELECT pc.modo, pc.monto, pc.comision, pc.estado FROM piefirme.pagos_clip pc JOIN piefirme.pagos p ON p.id = pc.venta_pago_id JOIN piefirme.ventas v ON v.id = p.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-21%';"
+    esperado_bd:
+      modo: "simulado"
+      monto: 400
+      estado: "aprobado"
+    ambiguo: "A08"

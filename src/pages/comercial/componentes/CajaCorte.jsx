@@ -49,7 +49,8 @@ export default function CajaCorte({ turno, onCambio }) {
   const resumen = useMemo(() => {
     if (!turno || !d) return null
     const idsCanc = new Set(d.canceladas.map(v => v.id))
-    const idsTurno = new Set(d.ventas.filter(v => v.estado !== 'cancelada').map(v => v.id))
+    // Igual que cerrar_turno en el servidor: los pagos de TODAS las ventas del turno (incluidas las canceladas en él); su reverso entra en «Cancelaciones».
+    const idsTurno = new Set(d.ventas.map(v => v.id))
     const pagosTurno = d.pagos.filter(p => idsTurno.has(p.venta_id))
     const efCanc = suma(d.pagos.filter(p => idsCanc.has(p.venta_id) && p.metodo === 'efectivo').map(p => p.monto))
     return resumenTurno({ turno, pagos: pagosTurno, movimientos: d.movs, canceladasEfectivo: efCanc, canceladasTotal: suma(d.canceladas.map(v => v.total)), numeroCancelaciones: d.canceladas.length, ventasTotal: suma(d.ventas.filter(v => v.estado !== 'cancelada').map(v => v.total)) })

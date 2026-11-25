@@ -1,0 +1,87 @@
+# ESC-CAJA-56 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-56"
+nombre: "Turno cerrado: solo lectura y revisión por Administración"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-099 (periodo cerrado = solo lectura), P-058; MATRIZ_ROLES.md §4.2 (Recepción abre y cierra; Administración revisa)"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-099"
+  - "P-058"
+  - "P-059"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno anterior QA-{corrida}-ESC-CAJA-56 cerrado con corte (efectivo esperado 1,332.00, contado 1,332.00)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-56"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-56  (se captura en la nota del ticket y/o turno; ver A33)"
+pasos:
+  - n: 1
+    descripcion: "Como r@g.com intentar agregar un pago o retiro al turno cerrado"
+    esperado: "Rechazado: turno cerrado"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Abrir el turno cerrado → Registrar retiro"
+    verificar_ui: "Sin acción disponible"
+    verificar_bd: |
+      SELECT m.tipo, m.monto, m.concepto, m.autorizacion_id
+      FROM piefirme.movimientos_caja m JOIN piefirme.turnos_caja t ON t.id = m.turno_id
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-56%'
+      ORDER BY m.created_at;
+    esperado_bd:
+      numero_de_filas_nuevas: 0
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Como r@g.com intentar reabrir o cerrar de nuevo"
+    esperado: "No se puede"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Buscar Reabrir / Cerrar"
+    verificar_ui: "Sin acción"
+    verificar_bd: |
+      SELECT t.caja, t.estado, t.fondo_inicial, t.efectivo_esperado, t.efectivo_contado, t.diferencia, t.justificacion, t.autorizacion_id, t.cerrado_por, t.revisado_por
+      FROM piefirme.turnos_caja t
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-56%'
+      ORDER BY t.apertura_en;
+    esperado_bd:
+      estado: "cerrado"
+  - n: 3
+    descripcion: "Como r@g.com intentar marcar el turno como revisado"
+    esperado: "No puede: la revisión es de Administración"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Buscar Revisar"
+    verificar_ui: "Sin acción"
+    verificar_bd: |
+      SELECT t.caja, t.estado, t.fondo_inicial, t.efectivo_esperado, t.efectivo_contado, t.diferencia, t.justificacion, t.autorizacion_id, t.cerrado_por, t.revisado_por
+      FROM piefirme.turnos_caja t
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-56%'
+      ORDER BY t.apertura_en;
+    esperado_bd:
+      estado: "cerrado"
+      revisado_por: null
+  - n: 4
+    descripcion: "Como m@g.com marcar el turno como revisado"
+    esperado: "Queda revisado con quién y cuándo"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Revisar corte"
+    verificar_ui: "Estado Revisado"
+    verificar_bd: |
+      SELECT t.caja, t.estado, t.fondo_inicial, t.efectivo_esperado, t.efectivo_contado, t.diferencia, t.justificacion, t.autorizacion_id, t.cerrado_por, t.revisado_por
+      FROM piefirme.turnos_caja t
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-56%'
+      ORDER BY t.apertura_en;
+    esperado_bd:
+      estado: "revisado"
+      revisado_por: "id de m@g.com"

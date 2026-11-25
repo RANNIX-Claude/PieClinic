@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { leer } from '../../../lib/api'
+import { leerSnapshot } from '../../../lib/offline/almacen'
 import { telefono } from '../../../lib/formato'
 
 export default function PacienteBuscador({ valor, onElegir, placeholder = 'Buscar paciente por nombre, teléfono o expediente…', deshabilitado }) {
@@ -14,6 +15,13 @@ export default function PacienteBuscador({ valor, onElegir, placeholder = 'Busca
     if (texto.trim().length < 2) { setRes([]); return }
     const id = setTimeout(async () => {
       setBuscando(true)
+      if (!navigator.onLine) {   // sin internet: se busca en la copia de pacientes (solo datos mínimos) guardada al abrir la caja
+        const copia = (await leerSnapshot('pacientes-min')) ?? []
+        const t = texto.trim().toLowerCase()
+        setBuscando(false); setError(null)
+        setRes(copia.filter(p => `${p.nombre_completo ?? ''} ${p.telefono_celular ?? ''} ${p.numero_expediente ?? ''}`.toLowerCase().includes(t)).slice(0, 8))
+        return
+      }
       const r = await leer('prp_pacientes', { sedeCol: false, buscar: { columnas: ['nombre', 'apellido_paterno', 'apellido_materno', 'telefono_celular', 'numero_expediente'], texto }, limite: 8,
         columnas: 'id,nombre,apellido_paterno,apellido_materno,nombre_completo,telefono_celular,numero_expediente,fecha_nacimiento,es_menor,tiene_datos_fiscales' })
       setBuscando(false); setError(r.error?.message ?? null); setRes(r.data)

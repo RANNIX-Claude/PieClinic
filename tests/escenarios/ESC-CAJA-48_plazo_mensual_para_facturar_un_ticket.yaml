@@ -1,0 +1,83 @@
+# ESC-CAJA-48 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-48"
+nombre: "Plazo para facturar: hasta el cierre del mismo mes calendario"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-064 (mismo mes calendario, parámetro de clínica)"
+prioridad: "media"
+rol: "recepcion"
+reglas:
+  - "P-064"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Tickets sembrados: uno cobrado el último día del mes anterior y uno cobrado hoy (mes en curso)"
+  - "Parámetro de plazo = mismo mes calendario (valor inicial)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-48"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-48  (se captura en la nota del ticket y/o turno; ver A33)"
+ambiguo:
+  - id: "A23"
+    pregunta: "Plazo para facturar (P-064): ¿Administración puede facturar fuera de plazo? ¿corte del último día en zona de la sede (23:59:59)? ¿se imprime la fecha límite en el ticket?"
+pasos:
+  - n: 1
+    descripcion: "Solicitar factura del ticket cobrado hoy"
+    esperado: "Se permite (mismo mes)"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Facturar este ticket"
+    verificar_ui: "Solicitud aceptada"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-48%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      requiere_factura: true
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Solicitar factura del ticket del mes anterior"
+    esperado: "Se rechaza: venció el plazo (P-064); mensaje claro con la fecha límite"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Facturar este ticket"
+    verificar_ui: "Mensaje de plazo vencido"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-48%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      requiere_factura: false
+    ambiguo: "A23"
+  - n: 3
+    descripcion: "Como m@g.com intentar facturar el ticket vencido"
+    esperado: "AMBIGUO: ¿Administración puede?"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Facturar"
+    verificar_ui: "Registrar comportamiento"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-48%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      resultado: "AMBIGUO"
+    ambiguo: "A23"
+  - n: 4
+    descripcion: "Facturar un ticket de hoy a público en general"
+    esperado: "Se permite factura a público en general"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Facturar a público en general"
+    verificar_ui: "Factura generada"
+    verificar_bd: null

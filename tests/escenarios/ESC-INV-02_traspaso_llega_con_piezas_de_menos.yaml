@@ -1,0 +1,187 @@
+# ESC-INV-02 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: ESC-INV-02
+nombre: "Traspaso que llega con piezas de menos: recepción con diferencias y reclamación"
+version: 1
+fuente: REGLAS_NEGOCIO.md P-080, P-086, P-083; MODELO_ESTADOS.md S28 y D-41/D-72; MATRIZ_ROLES.md §4.3
+prioridad: alta
+rol: recepcion_y_administrador
+ambiguo:
+  - id: A-INV-04
+    pregunta: "Faltante en recepción (P-080 / D-41 / D-72): la regla dice «las diferencias se registran como merma o reclamación con motivo». ¿Quién decide cuál de las dos y quién absorbe el costo (sede origen, sede destino, transportista, pérdida de la clínica)? ¿Qué sede aparece en el kardex de la merma? ¿Hay plazo para reclamar? El escenario valida solo que se registre, con motivo, una sola vez y lo autorice Administración (P-086)."
+  - id: A-INV-05
+    pregunta: ¿Cuánto tiempo puede estar un traspaso Enviado sin recibirse antes de alertar (envíos «vencidos» en tránsito)? No hay regla.
+reglas:
+  - P-080
+  - P-086
+  - P-083
+  - P-079
+precondiciones:
+  - Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, m@g.com administrador, p@g.com podólogo; a@g.com superadministrador)
+  - "Dos sedes de la misma clínica: Centenario (origen) y Patio Valle de Chalco (destino). Reglas de alcance (sede) según MATRIZ_ROLES §4.3; usuarios de recepción asignados a una sola sede cada uno (ver ambiguo A-INV-12)"
+  - "Catálogo: QA-{corrida}-CREMA (venta, costo_promedio 100.00, sin lote) y QA-{corrida}-TALCO (venta, costo_promedio 50.00, sin lote)"
+  - "Existencia en Centenario: CREMA 20, TALCO 10. Patio Valle de Chalco: CREMA 2, TALCO 1"
+  - "Traspaso del escenario ESC-INV-01 recreado con prefijo propio y ya en estado Enviado: 10 × CREMA y 5 × TALCO (enviado por Centenario)"
+datos_creados:
+  prefijo_qa: QA-{corrida}-ESC-INV-02
+  nota_en_registros: QA-{corrida}-ESC-INV-02  (se captura en comentarios del traspaso / nota del movimiento / motivo de la merma)
+  traspaso:
+    enviado:
+      CREMA: 10
+      TALCO: 5
+    llega:
+      CREMA: 7
+      TALCO: 5
+    faltante:
+      CREMA: 3
+    motivo: Faltante en caja
+  valor_faltante_a_costo: 300
+pasos:
+  - "n": 1
+    descripcion: "Abrir el traspaso Enviado desde la sede destino y capturar la recepción: CREMA 7 recibidas (enviadas 10), TALCO 5 recibidas (enviadas 5)"
+    esperado: El sistema muestra la diferencia de 3 piezas de CREMA y exige un motivo (Faltante, dañado…) para la partida con diferencia
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Usuario de Patio Valle de Chalco → Traspasos → folio → Reportar diferencia; cantidad recibida CREMA 7; motivo «Faltante en caja»
+    verificar_ui: Diferencia −3 resaltada en CREMA; TALCO sin diferencia; no deja confirmar sin motivo
+    verificar_bd: null
+    precondicion_critica: true
+  - "n": 2
+    descripcion: Confirmar la recepción con diferencias
+    esperado: Estado Recibido con diferencias (no Recibido completo); el destino suma solo lo recibido (7 y 5); queda quién recibió y cuándo
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Confirmar recepción
+    verificar_ui: Estado Recibido con diferencias; 1 partida con diferencia
+    verificar_bd: |-
+      SELECT t.folio, t.estado, t.sede_origen_id, t.sede_destino_id, t.partidas, t.unidades, t.valor_total, t.enviado_en, t.recibido_en, t.recibio_por, t.cancelado_motivo
+      FROM piefirme.traspasos t
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-02%';
+      SELECT pr.nombre, l.cantidad_enviada, l.cantidad_recibida, l.diferencia, l.motivo_diferencia, l.costo_unitario
+      FROM piefirme.traspaso_lineas l
+      JOIN piefirme.traspasos t ON t.id = l.traspaso_id
+      JOIN piefirme.productos pr ON pr.id = l.producto_id
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-02%'
+      ORDER BY pr.nombre;
+    esperado_bd:
+      estado: recibido_con_diferencias
+      cantidad_recibida_crema: 7
+      diferencia_crema: 3
+      motivo_diferencia_crema: Faltante en caja
+      cantidad_recibida_talco: 5
+      diferencia_talco: 0
+  - "n": 3
+    descripcion: "Verificar existencias: el destino suma solo lo recibido y el faltante no se suma a ninguna sede"
+    esperado: Centenario CREMA 10 y TALCO 5 (descontó lo enviado); Patio Valle de Chalco CREMA 9 y TALCO 6; las 3 piezas faltantes no aparecen como existencia de ninguna sede
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Inventario → Existencias por sede
+    verificar_ui: "CREMA: 10 en Centenario + 9 en PVC = 19, y 3 piezas bajo reclamación = 22 totales originales"
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      existencia_centenario_crema: 10
+      existencia_pvc_crema: 9
+      existencia_pvc_talco: 6
+      piezas_sin_ubicacion_crema: 3
+  - "n": 4
+    descripcion: Verificar el registro del faltante (reclamación o merma con motivo) y que no se duplique el descuento
+    esperado: Se crea un registro de reclamación/merma por 3 × CREMA ligado al folio del traspaso, con motivo, valuado a costo promedio (300.00), en estado pendiente de autorización de Administración; NO se descuenta otra vez la existencia de ninguna sede
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Inventario → Mermas y reclamaciones, filtrar por el folio
+    verificar_ui: Un registro «Reclamación de traspaso», 3 piezas, valor 300.00, pendiente
+    verificar_bd: |-
+      SELECT m.folio, m.tipo, m.es_reclamacion, m.cantidad, m.motivo, m.estado, m.sede_id, m.registrado_por, m.autorizado_por, m.movimiento_id
+      FROM piefirme.mermas m JOIN piefirme.traspasos t ON t.id = m.traspaso_id
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-02%';
+      -- y movimientos de tipo merma/ajuste del traspaso: debe haber 0 antes de autorizar
+      SELECT count(*) AS movs_merma FROM piefirme.movimientos_inventario m WHERE m.tipo IN ('merma','ajuste') AND m.nota LIKE 'QA-{corrida}-ESC-INV-02%';
+    esperado_bd:
+      es_reclamacion: true
+      cantidad: 3
+      estado: pendiente
+      motivo: Faltante en caja
+      movs_merma: 0
+    ambiguo: A-INV-04
+  - "n": 5
+    descripcion: Verificar que la recepción con diferencias queda en bitácora y se puede localizar
+    esperado: "Bitácora con el reporte de diferencia: usuario de la sede destino, folio, partida y cantidad"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Utilerías → Bitácora
+    verificar_ui: Evento visible con el detalle de la diferencia
+    verificar_bd: |-
+      SELECT b.accion, b.entidad, b.entidad_id, b.usuario_id, b.sede_id, b.detalle, b.created_at
+      FROM piefirme.bitacora b
+      WHERE b.entidad IN ('traspasos','mermas') AND b.entidad_id IN (SELECT t.id::text FROM piefirme.traspasos t WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-02%')
+      ORDER BY b.id;
+    esperado_bd:
+      eventos_minimos: 2
+  - "n": 6
+    descripcion: Administrador autoriza o resuelve la reclamación (aceptar la pérdida como merma o mantener reclamación a transportista)
+    esperado: Solo Administración autoriza; queda quién autorizó y cuándo; al autorizarse como merma se registra UNA sola salida de 3 piezas valuada a costo del momento; si es reclamación no se vuelve a descontar existencia
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Sesión m@g.com → Mermas y reclamaciones → Autorizar
+    verificar_ui: Estado autorizada; autorizado por m@g.com
+    verificar_bd: |-
+      SELECT m.estado, m.autorizado_por, m.autorizado_en, m.es_reclamacion, m.movimiento_id FROM piefirme.mermas m JOIN piefirme.traspasos t ON t.id = m.traspaso_id WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-02%';
+      SELECT sum(m.cantidad) AS neto_faltante FROM piefirme.movimientos_inventario m WHERE m.tipo IN ('merma','ajuste') AND m.nota LIKE 'QA-{corrida}-ESC-INV-02%';
+    esperado_bd:
+      estado: autorizada
+      autorizado_por: m@g.com (administrador)
+      descuento_duplicado: ninguno (suma de kardex de la clínica = −3 como máximo, una vez)
+    ambiguo: A-INV-04
+  - "n": 7
+    descripcion: Intentar que la recepción (r@g.com) autorice el ajuste
+    esperado: "Rechazado: el ajuste lo autoriza solo Administración (P-086)"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Sesión de recepción → intentar Autorizar la reclamación / merma
+    verificar_ui: Sin opción de autorizar, o error de permiso; el registro no cambia
+    verificar_bd: SELECT m.estado, m.autorizado_por FROM piefirme.mermas m JOIN piefirme.traspasos t ON t.id = m.traspaso_id WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-02%';
+    esperado_bd:
+      estado: sin cambio respecto al paso anterior
+  - "n": 8
+    descripcion: Estado final y conservación de unidades
+    esperado: "El traspaso queda en Recibido con diferencias (estado final); suma de unidades: origen (−10) + destino (+7) + faltante registrado (3 como merma/reclamación) = 0; ninguna pieza queda sin registrar ni contada dos veces"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Revisar el traspaso y el kardex
+    verificar_ui: Estado final Recibido con diferencias, no reabrible a Recibido completo
+    verificar_bd: |-
+      SELECT s.nombre AS sede, pr.nombre AS producto, m.tipo, m.cantidad, m.costo_unitario, m.referencia_tipo, m.referencia_folio, m.usuario_id, m.fecha
+      FROM piefirme.movimientos_inventario m
+      JOIN piefirme.sedes s ON s.id = m.sede_id
+      JOIN piefirme.productos pr ON pr.id = m.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+        AND (m.nota LIKE 'QA-{corrida}-ESC-INV-02%' OR m.referencia_folio IN (SELECT t.folio FROM piefirme.traspasos t WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-02%'))
+      ORDER BY m.created_at, m.id;
+      SELECT t.estado
+      FROM piefirme.traspasos t
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-02%';
+    esperado_bd:
+      estado: recibido_con_diferencias
+      balance_unidades_crema: 0

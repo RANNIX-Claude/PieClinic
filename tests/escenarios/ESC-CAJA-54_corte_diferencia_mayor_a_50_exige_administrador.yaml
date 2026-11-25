@@ -1,0 +1,99 @@
+# ESC-CAJA-54 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-54"
+nombre: "Corte con diferencia mayor a $50.00: exige Administrador"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-058 (mayor requiere Administrador); Autoridad (resumen)"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-058"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno con el mismo juego de movimientos de ESC-CAJA-51: fondo 1,000.00; efectivo esperado 1,332.00 (1,000.00 + 632.00 + 232.00 − 300.00 retiro − 232.00 cancelación en efectivo); nombre_turno 'QA-{corrida}-ESC-CAJA-54'"
+  - "PIN de m@g.com disponible"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-54"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-54  (se captura en la nota del ticket y/o turno; ver A33)"
+ambiguo:
+  - id: "A15"
+    pregunta: "PIN de Administrador (P-055): ¿vigencia (un ticket, un minuto)?, ¿intentos fallidos antes de bloqueo?, ¿el PIN es de la persona o único de la clínica?"
+  - id: "A20"
+    pregunta: "Tolerancia de $50.00 (P-058): ¿es absoluta (sobrante y faltante)? ¿$50.00 exactos está dentro? ¿una diferencia de $0.00 exige justificación? ¿longitud mínima de la justificación?"
+pasos:
+  - n: 1
+    descripcion: "Capturar efectivo contado 1,281.99"
+    esperado: "Diferencia −50.01; supera la tolerancia: exige autorización de Administrador"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Teclear 1281.99 y justificar"
+    verificar_ui: "Solicita PIN de Administrador"
+    verificar_bd: |
+      SELECT t.caja, t.estado, t.fondo_inicial, t.efectivo_esperado, t.efectivo_contado, t.diferencia, t.justificacion, t.autorizacion_id, t.cerrado_por, t.revisado_por
+      FROM piefirme.turnos_caja t
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-54%'
+      ORDER BY t.apertura_en;
+    esperado_bd:
+      estado: "abierto"
+    precondicion_critica: true
+    ambiguo: "A20"
+  - n: 2
+    descripcion: "Intentar cerrar sin PIN de Administrador"
+    esperado: "No cierra"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cerrar sin PIN"
+    verificar_ui: "Rechazado"
+    verificar_bd: |
+      SELECT t.caja, t.estado, t.fondo_inicial, t.efectivo_esperado, t.efectivo_contado, t.diferencia, t.justificacion, t.autorizacion_id, t.cerrado_por, t.revisado_por
+      FROM piefirme.turnos_caja t
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-54%'
+      ORDER BY t.apertura_en;
+    esperado_bd:
+      estado: "abierto"
+  - n: 3
+    descripcion: "Cerrar con el PIN de m@g.com y justificación «QA-{corrida}-ESC-CAJA-54 faltante grande»"
+    esperado: "Cierra; queda autorización de tipo diferencia de corte"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "PIN administrador y cerrar"
+    verificar_ui: "Turno cerrado"
+    verificar_bd: |
+      SELECT c.ventas_total, c.cobros_total, c.ventas_efectivo, c.ventas_tarjeta, c.ventas_transferencia, c.ventas_clip, c.ventas_gift_card, c.anticipos_aplicados, c.cortesias, c.retiros, c.cancelaciones_efectivo, c.cancelaciones_total, c.numero_cancelaciones, c.fondo_inicial, c.efectivo_esperado, c.efectivo_contado, c.diferencia, c.justificacion, c.autorizacion_id
+      FROM piefirme.cortes_caja c JOIN piefirme.turnos_caja t ON t.id = c.turno_id
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-54%';
+    esperado_bd:
+      diferencia: -50.01
+      autorizacion_id: "no nulo"
+    ambiguo: "A15"
+  - n: 4
+    descripcion: "Verificar la autorización"
+    esperado: "Autorización de diferencia de corte con autorizador m@g.com"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Consultar"
+    verificar_ui: "—"
+    verificar_bd: "SELECT a.tipo, a.autorizador_id, a.motivo FROM piefirme.autorizaciones_admin a WHERE a.tipo = 'diferencia_corte' AND a.motivo LIKE 'QA-{corrida}-ESC-CAJA-54%';"
+    esperado_bd:
+      tipo: "diferencia_corte"
+      autorizador: "m@g.com"
+  - n: 5
+    descripcion: "Repetir con un sobrante de +50.01 en otro turno equivalente"
+    esperado: "AMBIGUO: ¿el límite aplica también a sobrantes?"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Contado 1,382.01"
+    verificar_ui: "Registrar comportamiento"
+    verificar_bd: null
+    ambiguo: "A20"

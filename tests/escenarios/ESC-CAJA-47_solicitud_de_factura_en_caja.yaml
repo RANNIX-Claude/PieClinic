@@ -1,0 +1,87 @@
+# ESC-CAJA-47 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-47"
+nombre: "Solicitud de factura desde el ticket (incluye público en general)"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-064, P-066, P-061; MODELO_ESTADOS.md S12 (Cobrada → Por facturar)"
+prioridad: "media"
+rol: "recepcion"
+reglas:
+  - "P-064"
+  - "P-066"
+  - "P-061"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-47'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "PAC en modo simulado; paciente QA-{corrida}-PAC-1 con datos fiscales de prueba"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-47"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-47  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+    pac1:
+      tipo: "paciente"
+      nombre: "QA-{corrida}-PAC-1"
+pasos:
+  - n: 1
+    descripcion: "Cobrar QUIROPODIA para PAC-1 marcando «requiere factura»"
+    esperado: "El ticket pasa a por facturar con los datos fiscales del paciente"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cobrar y marcar requiere factura; nota QA-{corrida}-ESC-CAJA-47"
+    verificar_ui: "Estado Por facturar"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-47%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "por_facturar"
+      requiere_factura: true
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Timbrar la factura"
+    esperado: "Factura vigente (simulada) con el mismo total del ticket"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Facturación → Timbrar y enviar"
+    verificar_ui: "Estado Facturada"
+    verificar_bd: "SELECT f.estado, f.total, f.receptor_rfc, f.publico_general FROM piefirme.facturas f JOIN piefirme.ventas v ON v.id = f.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-47%';"
+    esperado_bd:
+      estado: "vigente"
+      total: 400
+  - n: 3
+    descripcion: "Segundo ticket sin datos fiscales, facturado a público en general"
+    esperado: "Se permite factura a público en general"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Facturar a público en general; nota QA-{corrida}-ESC-CAJA-47-B"
+    verificar_ui: "Factura generada"
+    verificar_bd: "SELECT f.publico_general, f.total FROM piefirme.facturas f JOIN piefirme.ventas v ON v.id = f.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-47-B%';"
+    esperado_bd:
+      publico_general: true
+      total: 400
+  - n: 4
+    descripcion: "Cambiar los datos fiscales del paciente y revisar la factura emitida"
+    esperado: "La factura timbrada conserva los datos con los que se emitió"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Editar RFC del paciente; reabrir factura"
+    verificar_ui: "Sin cambios"
+    verificar_bd: "SELECT f.receptor_rfc FROM piefirme.facturas f JOIN piefirme.ventas v ON v.id = f.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-47%' ORDER BY v.created_at LIMIT 1;"
+    esperado_bd:
+      receptor_rfc: "el original"

@@ -1,0 +1,52 @@
+# ESC-CAJA-01 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-01"
+nombre: "Entrar a Caja con turno abierto"
+version: 1
+fuente: "tests/escenarios/CAJA_escenarios.md (ESC-CAJA-01); REGLAS_NEGOCIO.md P-058, P-129"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-058"
+  - "P-129"
+legado_fila:
+  que_se_prueba: "Entrar a Caja con turno abierto"
+  resultado_esperado: "Se ve el turno, la sucursal y el cajero"
+  verificacion_en_base: "`turnos_caja` abierto"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-01'"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-01"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-01  (se captura en la nota del ticket y/o turno; ver A33)"
+pasos:
+  - n: 1
+    descripcion: "Iniciar sesión como r@g.com y abrir /app/caja"
+    esperado: "La pantalla de Caja carga sin errores"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Login con r@g.com y navegar a la ruta de Caja"
+    verificar_ui: "Pantalla Caja visible, sin mensajes de error ni de consola"
+    verificar_bd: null
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Entrar a Caja con turno abierto"
+    esperado: "Se ve el turno, la sucursal y el cajero"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Leer el encabezado del turno"
+    verificar_ui: "Se muestran: turno abierto (Caja 1), sede Centenario, cajero r@g.com (nombre), fecha y hora de apertura y fondo inicial 1,000.00"
+    verificar_bd: |
+      SELECT t.caja, t.estado, t.fondo_inicial, t.efectivo_esperado, t.efectivo_contado, t.diferencia, t.justificacion, t.autorizacion_id, t.cerrado_por, t.revisado_por
+      FROM piefirme.turnos_caja t
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-01%'
+      ORDER BY t.apertura_en;
+    esperado_bd:
+      estado: "abierto"
+      caja: "Caja 1"
+      fondo_inicial: 1000

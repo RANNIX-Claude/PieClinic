@@ -1,0 +1,18 @@
+import { chromium } from '@playwright/test'
+const b = await chromium.launch({ channel: 'chrome', headless: true })
+const p = await b.newPage({ viewport: { width: 1366, height: 768 } })
+const B = 'http://localhost:5174/app'
+await p.goto(B + '/login', { timeout: 150000, waitUntil: 'domcontentloaded' })
+await p.locator('#pf-email').waitFor({ timeout: 150000 })
+await p.locator('#pf-email').fill('p@g.com'); await p.locator('#pf-pass').fill('123456')
+await p.getByRole('button', { name: 'Iniciar sesión' }).click()
+await p.locator('header').waitFor({ timeout: 90000 }); await p.waitForTimeout(3000)
+console.log('select?', await p.locator('header select').count(), await p.locator('header select').allInnerTexts())
+console.log('links', await p.getByRole('link').allInnerTexts())
+await p.getByRole('link', { name: /^Consultas/ }).first().click(); await p.waitForTimeout(3000)
+await p.getByRole('link', { name: /Nueva consulta/ }).click(); await p.waitForTimeout(2000)
+await p.getByPlaceholder(/Buscar|paciente/i).first().pressSequentially('CHA-EXP-000038', { delay: 50 })
+await p.waitForTimeout(2500)
+console.log(await p.locator('.pagina').innerText())
+await p.screenshot({ path: process.env.TEMP + '/c1.png' })
+await b.close()

@@ -1,0 +1,143 @@
+# ESC-INV-08 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: ESC-INV-08
+nombre: Aislamiento de inventario y traspasos entre sedes y entre clínicas; recepción por alguien de otra sede
+version: 1
+fuente: REQUERIMIENTO.md «QUÉ NO PUEDE FALLAR» (1); REGLAS_NEGOCIO.md P-128, P-129, P-080; MATRIZ_ROLES §3 y §4.3 (alcance origen y destino)
+prioridad: alta
+rol: recepcion_y_administrador_otra_clinica
+ambiguo:
+  - id: A-INV-15
+    pregunta: "Visibilidad entre sedes de la misma clínica: MATRIZ_ROLES dice alcance «sede» (existencias) y «origen y destino» (traspasos). ¿Puede recepción ver las existencias de otras sedes (necesario para solicitar mercancía, mockup 22 muestra existencia en origen y destino)? ¿Quién puede enviar: solo la sede origen o también el destino que lo solicitó?"
+reglas:
+  - P-128
+  - P-129
+  - P-080
+precondiciones:
+  - Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, m@g.com administrador, p@g.com podólogo; a@g.com superadministrador)
+  - "Dos sedes de la misma clínica: Centenario (origen) y Patio Valle de Chalco (destino). Reglas de alcance (sede) según MATRIZ_ROLES §4.3; usuarios de recepción asignados a una sola sede cada uno (ver ambiguo A-INV-12)"
+  - Tercera sede de la clínica principal (QA-{corrida}-SEDE-C) con un usuario de recepción asignado solo a ella
+  - Segunda clínica QA-{corrida}-ORG-B con su administrador, un producto y existencias propios
+  - Traspaso Enviado Centenario → Patio Valle de Chalco (prefijo ESC-INV-08)
+datos_creados:
+  prefijo_qa: QA-{corrida}-ESC-INV-08
+  nota_en_registros: QA-{corrida}-ESC-INV-08  (se captura en comentarios del traspaso / nota del movimiento / motivo de la merma)
+  organizacion_b: QA-{corrida}-ORG-B
+  traspaso_enviado: QA-{corrida}-ESC-INV-08 (10 × CREMA)
+pasos:
+  - "n": 1
+    descripcion: Administrador de ORG-B abre inventario, kardex, traspasos y mermas
+    esperado: No aparece ningún producto, existencia, traspaso ni merma de la clínica principal
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Login admin ORG-B → Inventario; buscar QA-{corrida}-CREMA
+    verificar_ui: Listas sin datos ajenos
+    verificar_bd: SELECT (SELECT count(*) FROM piefirme.prp_inventario) AS inv, (SELECT count(*) FROM piefirme.prp_traspasos) AS trasp, (SELECT count(*) FROM piefirme.prp_mermas) AS mermas, (SELECT count(*) FROM piefirme.prp_kardex) AS kardex;
+    esperado_bd:
+      inv: solo ORG-B
+      trasp: solo ORG-B
+      mermas: solo ORG-B
+      kardex: solo ORG-B
+    precondicion_critica: true
+    ejecutar_primero: QUÉ NO PUEDE FALLAR
+  - "n": 2
+    descripcion: ORG-B intenta recibir el traspaso de la clínica principal por URL directa y por llamada directa
+    esperado: No lo encuentra / permiso denegado; el estado no cambia
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: URL con el id del traspaso; reenviar la acción recibir desde consola QA
+    verificar_ui: No encontrado
+    verificar_bd: |-
+      SELECT t.estado, t.recibio_por
+      FROM piefirme.traspasos t
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-08%';
+    esperado_bd:
+      estado: enviado
+      recibio_por: null
+  - "n": 3
+    descripcion: Recepción de la sede C (misma clínica, ni origen ni destino) intenta ver o recibir el traspaso
+    esperado: No puede recibir (solo el responsable de la sede destino); según el alcance origen y destino no opera un traspaso ajeno
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Login recepción sede C → Traspasos → buscar el folio; intentar Confirmar recepción
+    verificar_ui: No lo ve, o lo ve sin acción de recibir
+    verificar_bd: |-
+      SELECT t.estado, t.recibio_por
+      FROM piefirme.traspasos t
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-08%';
+    esperado_bd:
+      estado: enviado
+      recibio_por: null
+    ambiguo: A-INV-15
+  - "n": 4
+    descripcion: Recepción de Centenario (la sede ORIGEN) intenta confirmar la recepción del traspaso que ella misma envió
+    esperado: "No: recibe el responsable de la sede destino"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: r@g.com → folio → Confirmar recepción
+    verificar_ui: Sin acción de recibir o rechazo
+    verificar_bd: |-
+      SELECT t.estado, t.recibio_por
+      FROM piefirme.traspasos t
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-08%';
+    esperado_bd:
+      estado: enviado
+      recibio_por: null
+  - "n": 5
+    descripcion: Recepción de Patio Valle de Chalco (destino) intenta ENVIAR o cancelar el traspaso de Centenario
+    esperado: "No: solo envía quien tiene la sede origen (y Administración); el destino solo recibe"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Sesión PVC → folio → Enviar/Cancelar
+    verificar_ui: Sin acción
+    verificar_bd: |-
+      SELECT t.estado
+      FROM piefirme.traspasos t
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-08%';
+    esperado_bd:
+      estado: enviado
+    ambiguo: A-INV-15
+  - "n": 6
+    descripcion: Recepción de Patio Valle de Chalco recibe correctamente
+    esperado: "Funciona: recibe quien está en la sede destino"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Confirmar recepción
+    verificar_ui: Recibido completo
+    verificar_bd: |-
+      SELECT t.estado, t.recibio_por
+      FROM piefirme.traspasos t
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-08%';
+    esperado_bd:
+      estado: recibido_completo
+  - "n": 7
+    descripcion: Recepción de Centenario consulta existencias de Patio Valle de Chalco
+    esperado: "Esperado propuesto: existencias y kardex limitados a su sede (alcance sede, MATRIZ §4.3), salvo la referencia de existencia en destino que muestra la pantalla de traspaso"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Inventario → Existencias
+    verificar_ui: Solo su sede, o todas las sedes de solo lectura
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      sedes_visibles: solo la propia
+    ambiguo: A-INV-15

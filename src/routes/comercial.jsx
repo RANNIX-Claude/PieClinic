@@ -14,6 +14,7 @@ export default [
   { path: '/caja', element: lazy(() => import('../pages/comercial/Caja.jsx')), roles: rolesCon('ventas.cobrar'), titulo: 'Caja y tickets', cap: 'ventas.ver' },
   { path: '/facturacion', element: lazy(() => import('../pages/comercial/Facturacion.jsx')), roles: rolesCon('facturas.ver'), titulo: 'Facturación', cap: 'facturas.ver' },
   { path: '/catalogo', element: lazy(() => import('../pages/comercial/Catalogo.jsx')), roles: rolesCon('catalogo.ver'), titulo: 'Catálogo y precios', cap: 'catalogo.ver' },
+  { path: '/catalogo/caracteristicas', element: lazy(() => import('../pages/comercial/Caracteristicas.jsx')), roles: rolesCon('catalogo.ver'), titulo: 'Características y adaptaciones', cap: 'catalogo.ver' },
   { path: '/paquetes', element: lazy(() => import('../pages/comercial/Paquetes.jsx')), roles: rolesCon('catalogo.ver'), titulo: 'Paquetes y membresías', cap: 'catalogo.ver' },
   // Portal público del paciente (sin sesión)
   { path: '/reservar/:clinica', element: lazy(() => import('../pages/portal/PortalReservar.jsx')), publica: true, titulo: 'Reserva tu cita' },

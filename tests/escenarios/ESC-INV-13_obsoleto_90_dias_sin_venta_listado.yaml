@@ -1,0 +1,116 @@
+# ESC-INV-13 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: ESC-INV-13
+nombre: "Inventario obsoleto: listar lo que lleva 90 días sin venderse y medir el dinero parado a costo"
+version: 1
+fuente: Solicitud del usuario (tema 3). REGLAS_NEGOCIO.md y METRICAS.md NO definen obsolescencia por días sin venta; solo caducidad ≤ 90 días (M-063) y valor de inventario (M-062)
+prioridad: media
+rol: administrador
+ambiguo:
+  - id: A-INV-20
+    pregunta: "INVENTARIO OBSOLETO sin regla escrita: ¿el umbral de 90 días es fijo o configurable (parámetro por clínica)? ¿«90 días» es ≥ 90 o > 90? ¿Se mide por sede o por clínica? ¿Un producto nunca vendido cuenta desde su última entrada? ¿Se valúa solo existencia positiva y a costo promedio? Este escenario no puede juzgarse hasta que negocio responda; el tester registra VERIFICAR."
+  - id: A-INV-21
+    pregunta: "¿Qué cuenta como «venta» para romper la obsolescencia: solo ventas de caja, o también consumo en consulta, traspasos de salida, devoluciones de cliente? ¿Se excluyen insumos clínicos y productos por encargo?"
+reglas:
+  - P-083
+precondiciones:
+  - Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, m@g.com administrador, p@g.com podólogo; a@g.com superadministrador)
+  - "Dos sedes de la misma clínica: Centenario (origen) y Patio Valle de Chalco (destino). Reglas de alcance (sede) según MATRIZ_ROLES §4.3; usuarios de recepción asignados a una sola sede cada uno (ver ambiguo A-INV-12)"
+  - "Catálogo: QA-{corrida}-CREMA (venta, costo_promedio 100.00, sin lote), QA-{corrida}-TALCO (venta, costo_promedio 50.00, sin lote), QA-{corrida}-ANTIMICOTICO (venta, costo_promedio 62.00, maneja_lote y maneja_caducidad) y QA-{corrida}-ORTESIS (venta, costo 200.00)"
+  - "Fechas relativas al día de la corrida (hoy): CREMA última venta hace 10 días; TALCO última venta hace 91 días; ORTESIS sin ventas nunca y recibida hace 120 días; ANTIMICOTICO última venta hace exactamente 90 días"
+  - "Existencias en Centenario: CREMA 20, TALCO 8, ORTESIS 3, ANTIMICOTICO 5 (lote vigente). PVC: TALCO 4"
+datos_creados:
+  prefijo_qa: QA-{corrida}-ESC-INV-13
+  nota_en_registros: QA-{corrida}-ESC-INV-13  (se captura en comentarios del traspaso / nota del movimiento / motivo de la merma)
+  calculo_a_mano:
+    TALCO_CEN: 8 × 50 = 400
+    TALCO_PVC: 4 × 50 = 200
+    ORTESIS: 3 × 200 = 600
+    ANTIMICOTICO: "5 × 62 = 310 (borde: exactamente 90 días)"
+    total_parado_si_umbral_mayor_a_90: 1200
+pasos:
+  - "n": 1
+    descripcion: Abrir el reporte de inventario sin movimiento / obsoleto con umbral 90 días
+    esperado: El reporte existe y lista por producto y sede las existencias sin ventas en el umbral; muestra días sin venta, existencia y valor a costo
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Inventario → Obsoleto (o reporte equivalente)
+    verificar_ui: Lista con TALCO (91 d), ORTESIS (nunca vendida) y, según el borde, ANTIMICOTICO (90 d)
+    verificar_bd: |-
+      -- ULTIMA VENTA por producto y sede (movimientos tipo venta)
+      SELECT s.nombre AS sede, pr.nombre, i.existencia, max(m.fecha) FILTER (WHERE m.tipo = 'venta') AS ultima_venta, (current_date - max(m.fecha) FILTER (WHERE m.tipo = 'venta')::date) AS dias_sin_venta
+      FROM piefirme.inventario_sede i JOIN piefirme.productos pr ON pr.id = i.producto_id JOIN piefirme.sedes s ON s.id = i.sede_id
+      LEFT JOIN piefirme.movimientos_inventario m ON m.producto_id = i.producto_id AND m.sede_id = i.sede_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%' AND i.existencia > 0
+      GROUP BY s.nombre, pr.nombre, i.existencia ORDER BY dias_sin_venta DESC NULLS FIRST;
+    esperado_bd:
+      incluye_TALCO: true
+      incluye_ORTESIS: true
+      excluye_CREMA: true
+    ambiguo: A-INV-20
+    precondicion_critica: true
+  - "n": 2
+    descripcion: "Borde del umbral: ANTIMICOTICO con exactamente 90 días y TALCO con 91"
+    esperado: "Esperado propuesto: «90 días sin venderse» = 90 o más; el de 90 entra. Negocio debe confirmar si es ≥ 90 o > 90"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Revisar si ANTIMICOTICO aparece
+    verificar_ui: Según decisión
+    verificar_bd: null
+    ambiguo: A-INV-20
+  - "n": 3
+    descripcion: Producto que nunca se ha vendido (ORTESIS)
+    esperado: Cuenta desde la fecha de entrada al inventario (120 días) y aparece como obsoleto; no se muestra «días sin venta» vacío ni se excluye
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Revisar ORTESIS en la lista
+    verificar_ui: Aparece con 120 días
+    verificar_bd: null
+    esperado_bd:
+      dias_sin_venta: 120
+    ambiguo: A-INV-20
+  - "n": 4
+    descripcion: Medir el dinero parado a costo
+    esperado: Total parado = Σ existencia × costo promedio de los productos obsoletos (TALCO 600 + ORTESIS 600 = 1,200.00 con umbral > 90); se valúa a costo, no a precio de venta; separado por sede y total
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Pie del reporte
+    verificar_ui: Total igual al cálculo a mano
+    verificar_bd: SELECT sum(i.valor) AS valor_parado FROM piefirme.prp_inventario i JOIN piefirme.productos pr ON pr.id = i.producto_id WHERE pr.nombre IN ('QA-{corrida}-TALCO','QA-{corrida}-ORTESIS');
+    esperado_bd:
+      valor_parado: 1200
+      base: costo_promedio
+    ambiguo: A-INV-20
+  - "n": 5
+    descripcion: Una venta reciente saca al producto de la lista
+    esperado: "Vender 1 × TALCO en Centenario: TALCO deja de ser obsoleto en Centenario (última venta hoy) aunque sigue obsoleto en PVC si se mide por sede"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Caja → vender TALCO; recargar el reporte
+    verificar_ui: TALCO CEN fuera de la lista
+    verificar_bd: null
+    esperado_bd:
+      talco_cen_obsoleto: false
+    ambiguo: A-INV-21
+  - "n": 6
+    descripcion: Ventas de plantillas a medida y consumo en consulta
+    esperado: Ninguna regla dice si el consumo en consulta (insumo clínico) cuenta como movimiento para dejar de ser obsoleto; los productos por encargo (P-087) no tienen inventario
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Revisar un insumo clínico con consumo reciente
+    verificar_ui: Según decisión
+    verificar_bd: null
+    ambiguo: A-INV-21

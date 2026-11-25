@@ -1,0 +1,60 @@
+# ESC-CAJA-67 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-67"
+nombre: "Recepción solo cobra y ve la caja de su sede"
+version: 1
+fuente: "MATRIZ_ROLES.md §3.2 (alcance por sede: caja y turnos); REGLAS_NEGOCIO.md P-129, P-130"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-129"
+  - "P-130"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Usuario QA-{corrida}-REC-CEN asignado solo a Centenario; ventas y corte QA en Centenario y en Patio"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-67"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-67  (se captura en la nota del ticket y/o turno; ver A33)"
+  usuario: "QA-{corrida}-REC-CEN"
+ambiguo:
+  - id: "A34"
+    pregunta: "Sede B de prueba y segunda clínica (aislamiento): requieren usuarios y datos sembrados que hoy no están documentados (ver ACCESOS.md)."
+pasos:
+  - n: 1
+    descripcion: "Iniciar sesión con el usuario solo de Centenario y listar ventas y cortes"
+    esperado: "Solo se ven los de Centenario"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Caja → Ventas y Cortes"
+    verificar_ui: "Ningún folio PAT-TKT"
+    verificar_bd: "SELECT count(*) AS otra_sede FROM piefirme.prp_ventas v JOIN piefirme.sedes s ON s.id = v.sede_id WHERE s.clave <> 'CEN';"
+    esperado_bd:
+      otra_sede: 0
+    precondicion_critica: true
+    ambiguo: "A34"
+  - n: 2
+    descripcion: "Abrir por URL directa un ticket de Patio"
+    esperado: "Sin acceso"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Pegar URL del ticket de Patio"
+    verificar_ui: "No encontrado o sin permiso"
+    verificar_bd: null
+    ambiguo: "A34"
+  - n: 3
+    descripcion: "Intentar abrir turno en una caja de Patio"
+    esperado: "No se permite"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Seleccionar sede Patio"
+    verificar_ui: "La sede no se ofrece"
+    verificar_bd: "SELECT count(*) AS turnos_en_patio FROM piefirme.turnos_caja t JOIN piefirme.sedes s ON s.id = t.sede_id WHERE s.clave = 'PAT' AND t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-67%';"
+    esperado_bd:
+      turnos_en_patio: 0

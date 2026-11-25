@@ -1,0 +1,72 @@
+# ESC-CAJA-50 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-50"
+nombre: "No se cobra sin turno de caja abierto"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-058; MODELO_ESTADOS.md S13"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-058"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "r@g.com sin turno abierto"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-50"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-50  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+ambiguo:
+  - id: "A24"
+    pregunta: "Turno: ¿se permite fondo inicial $0.00? ¿tope? ¿puede un Administrador abrir turno y cobrar? ¿quién fija el fondo?"
+pasos:
+  - n: 1
+    descripcion: "Entrar a Caja sin turno abierto"
+    esperado: "La pantalla pide abrir turno; no ofrece cobrar"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Login r@g.com y abrir Caja"
+    verificar_ui: "Botón Abrir turno"
+    verificar_bd: null
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Armar un ticket de QUIROPODIA e intentar cobrar"
+    esperado: "No cobra sin turno"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Agregar línea; nota QA-{corrida}-ESC-CAJA-50; Cobrar"
+    verificar_ui: "Mensaje de turno requerido"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-50%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "por_cobrar o sin ticket"
+      pagado_total: 0
+  - n: 3
+    descripcion: "Verificar que no se registró pago"
+    esperado: "Cero pagos"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Consultar"
+    verificar_ui: "Sin pagos"
+    verificar_bd: |
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-50%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      numero_de_filas: 0

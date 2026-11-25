@@ -1,0 +1,90 @@
+# ESC-CAJA-61 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-61"
+nombre: "Cada línea registra quién atendió o vendió y la base de comisión"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-078, P-107 (base: importe cobrado sin IVA, neto de descuentos), P-090 (comisión solo sobre lo validado)"
+prioridad: "media"
+rol: "recepcion"
+reglas:
+  - "P-078"
+  - "P-107"
+  - "P-090"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-61'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "Esquema de comisión QA del periodo: 10 % servicios y 5 % productos (dato de prueba; negocio no fija porcentajes, P-106)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-61"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-61  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+ambiguo:
+  - id: "A31"
+    pregunta: "Cancelación y comisiones (P-060, P-108): en periodo abierto se asume que la comisión desaparece del cálculo; en periodo cerrado, ajuste negativo con referencia. ¿Confirmar?"
+pasos:
+  - n: 1
+    descripcion: "Ticket con QUIROPODIA (atendió p@g.com) y 1 × CREMA-A con 10 % (vendió r@g.com)"
+    esperado: "Cada línea guarda su atendió/vendió"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Armar ticket y asignar atendió por línea; nota QA-{corrida}-ESC-CAJA-61"
+    verificar_ui: "Columna atendió por renglón"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-61%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      atendio_id: "p@g.com en el servicio y r@g.com en el producto"
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Cobrar en efectivo 504.40 recibiendo 510.00"
+    esperado: "Cobrado (400.00 + 104.40); cambio 5.60"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Efectivo recibido 510"
+    verificar_ui: "Cambio 5.60"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-61%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cobrada"
+      total: 504.4
+  - n: 3
+    descripcion: "Validar el ingreso y calcular la comisión del periodo"
+    esperado: "Base servicio 400.00 (exento) y base producto 90.00 (104.40 / 1.16); comisiones 40.00 y 4.50"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Administración: validar y calcular periodo"
+    verificar_ui: "Detalle de comisión por renglón"
+    verificar_bd: "SELECT cd.tipo, cd.base, cd.pct, cd.comision FROM piefirme.comision_detalle cd JOIN piefirme.ventas v ON v.id = cd.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-61%' ORDER BY cd.tipo;"
+    esperado_bd:
+      producto:
+        base: 90
+        comision: 4.5
+      servicio:
+        base: 400
+        comision: 40
+    ambiguo: "A31"

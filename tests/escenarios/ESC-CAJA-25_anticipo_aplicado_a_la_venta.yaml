@@ -1,0 +1,110 @@
+# ESC-CAJA-25 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-25"
+nombre: "Anticipo aplicado: total, anticipo y saldo por cobrar"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-034, P-059, P-062; METRICAS.md M-040"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-034"
+  - "P-059"
+  - "P-062"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-25'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "Cita QA con QUIROPODIA del paciente QA-{corrida}-PAC-1 y anticipo pagado ANT de 120.00 (30 % de 400.00)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-25"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-25  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+    anticipo120:
+      tipo: "anticipo"
+      folio_prefijo: "QA-{corrida}-ANT"
+      monto: 120
+      estado: "pagado"
+      nota: "30 % de 400.00 (P-034); ligado a cita QA y paciente QA-{corrida}-PAC-1"
+    pac1:
+      tipo: "paciente"
+      nombre: "QA-{corrida}-PAC-1"
+ambiguo:
+  - id: "A13"
+    pregunta: "Etiqueta TOTAL del ticket con anticipo: METRICAS M-040 señala que el ticket imprime TOTAL 1,810 (antes del anticipo) y el corte 1,610. ¿Qué cifra es «TOTAL» y cuál «por pagar»? Los escenarios esperan Total = venta, Anticipo aplicado y Por pagar rotulados por separado."
+pasos:
+  - n: 1
+    descripcion: "Cobrar la cita: abrir su ticket"
+    esperado: "El ticket trae QUIROPODIA 400.00 y el anticipo disponible 120.00"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Citas → Cobrar; nota QA-{corrida}-ESC-CAJA-25"
+    verificar_ui: "Anticipo ANT visible como aplicable"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-25%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "por_cobrar"
+      total: 400
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Aplicar el anticipo"
+    esperado: "Por cobrar 280.00 (400.00 − 120.00); Total del ticket sigue 400.00 y el anticipo aparece rotulado aparte"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Pulsar Aplicar anticipo"
+    verificar_ui: "Total 400.00, Anticipo −120.00, Por pagar 280.00"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-25%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      total: 400
+      anticipo_aplicado: 120
+    ambiguo: "A13"
+  - n: 3
+    descripcion: "Pagar 280.00 en efectivo"
+    esperado: "Ticket cobrado; el anticipo pasa a aplicado"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Efectivo 280"
+    verificar_ui: "Cobrada"
+    verificar_bd: |
+      SELECT a.estado, a.monto, v.folio FROM piefirme.anticipos a LEFT JOIN piefirme.ventas v ON v.id = a.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-25%';
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-25%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      anticipo_estado: "aplicado"
+      pago_efectivo: 280
+  - n: 4
+    descripcion: "Intentar aplicar el mismo anticipo a otro ticket"
+    esperado: "Rechazado: ya fue aplicado"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Abrir otro ticket y aplicar ANT"
+    verificar_ui: "Anticipo no disponible"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-25%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      segundo_ticket_anticipo_aplicado: 0

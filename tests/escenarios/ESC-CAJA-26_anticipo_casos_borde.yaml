@@ -1,0 +1,87 @@
+# ESC-CAJA-26 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-26"
+nombre: "Anticipo: ajeno, pendiente, reembolsado y mayor que el total"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-034, P-035, P-062"
+prioridad: "media"
+rol: "recepcion"
+reglas:
+  - "P-034"
+  - "P-035"
+  - "P-062"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-26'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "Anticipos QA: de otro paciente (PAC-2), pendiente de pago, reembolsado, y uno de 500.00 contra un ticket de 400.00"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-26"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-26  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+    pac1:
+      tipo: "paciente"
+      nombre: "QA-{corrida}-PAC-1"
+    pac2:
+      tipo: "paciente"
+      nombre: "QA-{corrida}-PAC-2"
+ambiguo:
+  - id: "A12"
+    pregunta: "Anticipo mayor que el total del ticket: ¿saldo a favor, devolución o remanente aplicable a otra cita? (P-035 solo trata cancelación)."
+pasos:
+  - n: 1
+    descripcion: "Ticket de PAC-1: intentar aplicar un anticipo de PAC-2"
+    esperado: "No se ofrece ni se acepta (otro paciente)"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Buscar anticipo; nota QA-{corrida}-ESC-CAJA-26"
+    verificar_ui: "No aparece"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-26%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      anticipo_aplicado: 0
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Intentar aplicar anticipo pendiente de pago y uno reembolsado"
+    esperado: "Solo se aplican anticipos pagados"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Seleccionar cada uno"
+    verificar_ui: "No aplicables"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-26%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      anticipo_aplicado: 0
+  - n: 3
+    descripcion: "Aplicar anticipo de 500.00 a ticket de 400.00"
+    esperado: "Comportamiento por definir (excedente)"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Aplicar"
+    verificar_ui: "Registrar qué hace el sistema"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-26%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      resultado: "AMBIGUO: no inventar; marcar VERIFICAR"
+    ambiguo: "A12"

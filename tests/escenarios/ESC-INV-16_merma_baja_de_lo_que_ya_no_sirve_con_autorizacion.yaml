@@ -1,0 +1,153 @@
+# ESC-INV-16 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: ESC-INV-16
+nombre: "Dar de baja (merma) lo que ya no sirve: captura, autorización de Administración, kardex y bitácora"
+version: 1
+fuente: REGLAS_NEGOCIO.md P-086, P-083, P-079; MATRIZ_ROLES.md §4.3 (autoriza Administración); METRICAS M-006
+prioridad: alta
+rol: recepcion_y_administrador
+ambiguo:
+  - id: A-INV-24
+    pregunta: ¿Existe tolerancia (por ejemplo, merma menor a cierto monto la autoriza el responsable de la sede) o toda merma pasa por Administración? P-086 solo dice que el ajuste lo autoriza Administración; P-086 en PREGUNTAS_ABIERTAS preguntaba por la tolerancia.
+reglas:
+  - P-086
+  - P-083
+  - P-079
+precondiciones:
+  - Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, m@g.com administrador, p@g.com podólogo; a@g.com superadministrador)
+  - "Dos sedes de la misma clínica: Centenario (origen) y Patio Valle de Chalco (destino). Reglas de alcance (sede) según MATRIZ_ROLES §4.3; usuarios de recepción asignados a una sola sede cada uno (ver ambiguo A-INV-12)"
+  - "Catálogo: QA-{corrida}-TALCO (venta, costo_promedio 50.00, sin lote); QA-{corrida}-ANTIMICOTICO (venta, costo_promedio 62.00, maneja_lote y maneja_caducidad) con lote LOTE-QA-1 caducado (caducidad ayer, 4 piezas)"
+  - "Existencias Centenario: TALCO 8; ANTIMICOTICO 4 (lote caducado)"
+datos_creados:
+  prefijo_qa: QA-{corrida}-ESC-INV-16
+  nota_en_registros: QA-{corrida}-ESC-INV-16  (se captura en comentarios del traspaso / nota del movimiento / motivo de la merma)
+  mermas:
+    - producto: TALCO
+      cantidad: 8
+      motivo: Obsoleto sin posibilidad de venta
+      valor_esperado: 400
+    - producto: ANTIMICOTICO
+      cantidad: 4
+      motivo: Caducado
+      tipo: caducidad
+      valor_esperado: 248
+pasos:
+  - "n": 1
+    descripcion: Recepción captura la merma de 8 × TALCO con motivo
+    esperado: Se crea la merma con folio, producto, cantidad, motivo, quién la registró y valor estimado a costo (400.00); queda pendiente de autorización
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: r@g.com → Inventario → Mermas → Nueva
+    verificar_ui: Merma en estado pendiente con folio
+    verificar_bd: |-
+      SELECT m.folio, m.tipo, m.cantidad, m.motivo, m.estado, m.registrado_por, m.autorizado_por FROM piefirme.mermas m JOIN piefirme.productos pr ON pr.id = m.producto_id WHERE m.motivo LIKE 'QA-{corrida}-ESC-INV-16%' AND pr.nombre = 'QA-{corrida}-TALCO';
+      SELECT valor_estimado FROM piefirme.prp_mermas WHERE motivo LIKE 'QA-{corrida}-ESC-INV-16%';
+    esperado_bd:
+      estado: pendiente
+      cantidad: 8
+      valor_estimado: 400
+    precondicion_critica: true
+    ambiguo: A-INV-14
+  - "n": 2
+    descripcion: Merma sin motivo
+    esperado: "Se rechaza: el motivo es obligatorio"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Guardar sin motivo
+    verificar_ui: Validación
+    verificar_bd: null
+  - "n": 3
+    descripcion: Administrador autoriza la merma
+    esperado: La existencia de Centenario baja 8; kardex con movimiento tipo merma (−8) al costo del momento; queda quién autorizó y cuándo; bitácora
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: m@g.com → Autorizar
+    verificar_ui: Estado autorizada; TALCO CEN 0
+    verificar_bd: |-
+      SELECT m.estado, m.autorizado_por, m.autorizado_en, m.movimiento_id FROM piefirme.mermas m WHERE m.motivo LIKE 'QA-{corrida}-ESC-INV-16%';
+      SELECT s.nombre AS sede, pr.nombre AS producto, m.tipo, m.cantidad, m.costo_unitario, m.referencia_tipo, m.referencia_folio, m.usuario_id, m.fecha
+      FROM piefirme.movimientos_inventario m
+      JOIN piefirme.sedes s ON s.id = m.sede_id
+      JOIN piefirme.productos pr ON pr.id = m.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-TALCO'
+        AND (m.nota LIKE 'QA-{corrida}-ESC-INV-16%' OR m.referencia_folio IN (SELECT t.folio FROM piefirme.traspasos t WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-16%'))
+      ORDER BY m.created_at, m.id;
+      SELECT b.accion, b.entidad, b.entidad_id, b.usuario_id, b.sede_id, b.detalle, b.created_at
+      FROM piefirme.bitacora b
+      WHERE b.entidad IN ('mermas') AND b.entidad_id IN (SELECT m.id::text FROM piefirme.mermas m WHERE m.motivo LIKE 'QA-{corrida}-ESC-INV-16%')
+      ORDER BY b.id;
+    esperado_bd:
+      estado: autorizada
+      tipo_kardex: merma
+      cantidad_kardex: -8
+      costo_unitario: 50
+      existencia_talco_cen: 0
+  - "n": 4
+    descripcion: Reintentar la autorización (doble clic / segunda vez)
+    esperado: "No descuenta dos veces: existencia sigue en 0, no −8"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Doble clic en Autorizar
+    verificar_ui: Sin segundo movimiento
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      existencia_talco_cen: 0
+      movimientos_merma: 1
+  - "n": 5
+    descripcion: Rechazar una merma pendiente (ANTIMICOTICO) con motivo
+    esperado: Estado rechazada; no se mueve existencia; queda en bitácora
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: m@g.com → Rechazar
+    verificar_ui: Existencia ANTIMICOTICO sigue 4
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      estado: rechazada
+      existencia_antimicotico: 4
+    ambiguo: A-INV-14
+  - "n": 6
+    descripcion: "Merma de lote caducado: tipo caducidad sobre el lote correcto"
+    esperado: La merma baja el lote caducado y la existencia del producto; el lote queda en cero/agotado
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Capturar merma tipo caducidad con lote LOTE-QA-1 y autorizar
+    verificar_ui: Lote agotado
+    verificar_bd: SELECT l.numero_lote, l.existencia, l.estado FROM piefirme.lotes_producto l JOIN piefirme.productos pr ON pr.id = l.producto_id WHERE pr.nombre = 'QA-{corrida}-ANTIMICOTICO';
+    esperado_bd:
+      existencia: 0
+      estado: agotado
+  - "n": 7
+    descripcion: Total de mermas del periodo valuadas a costo
+    esperado: Σ cantidad × costo del momento = 400.00 + 248.00 = 648.00
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Reporte de mermas
+    verificar_ui: Cifra igual al cálculo
+    verificar_bd: SELECT sum(valor_estimado) FROM piefirme.prp_mermas WHERE motivo LIKE 'QA-{corrida}-ESC-INV-16%' AND estado = 'autorizada';
+    esperado_bd:
+      total: 648

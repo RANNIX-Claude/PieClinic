@@ -1,0 +1,120 @@
+# ESC-CAJA-46 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-46"
+nombre: "Cuenta abierta: guardar, no cuenta como cobro y cobrar después"
+version: 1
+fuente: "MODELO_ESTADOS.md S12; REGLAS_NEGOCIO.md P-076 (crédito solo por servicios prestados o apartados), P-059; PREGUNTAS_ABIERTAS D-68"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-076"
+  - "P-059"
+  - "P-085"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-46'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-46"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-46  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+    pac1:
+      tipo: "paciente"
+      nombre: "QA-{corrida}-PAC-1"
+ambiguo:
+  - id: "A22"
+    pregunta: "Cuenta abierta (D-68, P-076): ¿tope de monto o antigüedad? ¿se puede cerrar el turno con cuentas abiertas? ¿el cobro posterior entra al turno donde se cobra?"
+pasos:
+  - n: 1
+    descripcion: "Armar ticket de QUIROPODIA para PAC-1 y guardarlo como cuenta abierta"
+    esperado: "Queda como cuenta abierta sin pago registrado"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Guardar como cuenta abierta; nota QA-{corrida}-ESC-CAJA-46"
+    verificar_ui: "Estado Cuenta abierta"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-46%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cuenta_abierta"
+      pagado_total: 0
+      saldo: 400
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Revisar el corte previo del turno"
+    esperado: "La cuenta abierta no suma dinero cobrado ni al efectivo esperado"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Vista previa del corte"
+    verificar_ui: "Cobros sin esos 400.00"
+    verificar_bd: |
+      SELECT t.caja, t.estado, t.fondo_inicial, t.efectivo_esperado, t.efectivo_contado, t.diferencia, t.justificacion, t.autorizacion_id, t.cerrado_por, t.revisado_por
+      FROM piefirme.turnos_caja t
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-46%'
+      ORDER BY t.apertura_en;
+    esperado_bd:
+      efectivo_esperado: "fondo + efectivo cobrado, sin la cuenta abierta"
+  - n: 3
+    descripcion: "Reabrir la cuenta abierta y agregar un producto"
+    esperado: "Se puede modificar mientras esté abierta"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Abrir y agregar CREMA-A"
+    verificar_ui: "Total 516.00"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-46%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      total: 516
+  - n: 4
+    descripcion: "Cobrar la cuenta abierta con efectivo 516.00"
+    esperado: "Se cobra y entra al turno donde se cobra"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cobrar"
+    verificar_ui: "Cobrada"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-46%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cobrada"
+      total: 516
+      saldo: 0
+    ambiguo: "A22"
+  - n: 5
+    descripcion: "Cerrar el turno con otra cuenta abierta pendiente"
+    esperado: "AMBIGUO: avisa, bloquea o la arrastra"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Crear otra cuenta abierta y Cerrar turno"
+    verificar_ui: "Registrar comportamiento"
+    verificar_bd: |
+      SELECT t.caja, t.estado, t.fondo_inicial, t.efectivo_esperado, t.efectivo_contado, t.diferencia, t.justificacion, t.autorizacion_id, t.cerrado_por, t.revisado_por
+      FROM piefirme.turnos_caja t
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-46%'
+      ORDER BY t.apertura_en;
+    esperado_bd:
+      resultado: "AMBIGUO"
+    ambiguo: "A22"

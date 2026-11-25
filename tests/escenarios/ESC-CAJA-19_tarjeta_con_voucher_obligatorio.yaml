@@ -1,0 +1,79 @@
+# ESC-CAJA-19 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-19"
+nombre: "Tarjeta: el voucher es obligatorio y queda guardado"
+version: 1
+fuente: "tests/escenarios/CAJA_escenarios.md (ESC-CAJA-03); REGLAS_NEGOCIO.md P-077"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-077"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-19'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "Sin terminal conectada: la tarjeta se registra manualmente con voucher"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-19"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-19  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+ambiguo:
+  - id: "A09"
+    pregunta: "Tarjeta: ¿el voucher es folio de autorización obligatorio? ¿últimos 4 dígitos obligatorios? ¿formato y longitud?"
+pasos:
+  - n: 1
+    descripcion: "Cobrar QUIROPODIA con tarjeta sin capturar voucher"
+    esperado: "No cobra: pide el voucher"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Método tarjeta, voucher vacío; nota QA-{corrida}-ESC-CAJA-19"
+    verificar_ui: "Mensaje de voucher requerido"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-19%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "por_cobrar"
+    precondicion_critica: true
+    ambiguo: "A09"
+  - n: 2
+    descripcion: "Capturar voucher QA-VCH-0019 con últimos 4 dígitos 4242"
+    esperado: "Cobra y guarda el voucher; el cobro se registra bruto (sin descontar comisión)"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Voucher y últimos 4"
+    verificar_ui: "Ticket cobrado"
+    verificar_bd: |
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-19%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      metodo: "tarjeta"
+      monto: 400
+      referencia: "QA-VCH-0019"
+      ultimos4: "4242"
+    ambiguo: "A09"
+  - n: 3
+    descripcion: "Verificar que no se guarda el número completo de tarjeta"
+    esperado: "No existe ningún dato de tarjeta más allá de últimos 4 y voucher"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Revisar el ticket y consulta"
+    verificar_ui: "Ticket muestra a lo mucho últimos 4"
+    verificar_bd: "SELECT p.ultimos4, length(p.ultimos4) AS longitud FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-19%';"
+    esperado_bd:
+      longitud: 4

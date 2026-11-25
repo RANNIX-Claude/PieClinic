@@ -1,0 +1,49 @@
+# ESC-CAJA-09 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-09"
+nombre: "Podólogo entra a Caja"
+version: 1
+fuente: "tests/escenarios/CAJA_escenarios.md (ESC-CAJA-09); MATRIZ_ROLES.md §4.2; REGLAS_NEGOCIO.md P-130, P-078"
+prioridad: "alta"
+rol: "podologo"
+reglas:
+  - "P-130"
+  - "P-078"
+legado_fila:
+  que_se_prueba: "Entrar a Caja"
+  resultado_esperado: "Sin acceso (o solo lo que tenga habilitado)"
+  verificacion_en_base: "—"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-09'"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-09"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-09  (se captura en la nota del ticket y/o turno; ver A33)"
+ambiguo:
+  - id: "A02"
+    pregunta: "Podólogo y Caja: MATRIZ_ROLES §4.2 le da V (ver) en venta/ticket; ESC-CAJA-09 dice «Sin acceso (o solo lo que tenga habilitado)». ¿Ve el módulo Caja en solo lectura o solo tiene «Enviar a caja»?"
+pasos:
+  - n: 1
+    descripcion: "Iniciar sesión como p@g.com y buscar Caja en el menú"
+    esperado: "Sin acceso (o solo lo que tenga habilitado)"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Login p@g.com; revisar menú lateral y barra inferior móvil"
+    verificar_ui: "El menú no ofrece cobrar ni cerrar turno; si aparece Caja, solo en lectura"
+    verificar_bd: null
+    ambiguo: "A02"
+  - n: 2
+    descripcion: "Navegar por URL directa a /app/caja"
+    esperado: "Sin acceso a las acciones de cobro: redirige o muestra solo lectura"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Escribir la URL de Caja"
+    verificar_ui: "No hay botones de Cobrar, Descuento, Cancelar ni Cerrar turno"
+    verificar_bd: "SELECT count(*) AS ventas_creadas_por_podologo FROM piefirme.ventas v WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-09%' AND v.estado IN ('cobrada','por_facturar','facturada');"
+    esperado_bd:
+      ventas_creadas_por_podologo: 0

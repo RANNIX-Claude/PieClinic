@@ -1,0 +1,108 @@
+# ESC-CAJA-03 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-03"
+nombre: "Venta con servicio de precio fijo (Quiropodia) y pago con tarjeta"
+version: 1
+fuente: "tests/escenarios/CAJA_escenarios.md (ESC-CAJA-03); REGLAS_NEGOCIO.md P-056, P-067"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-056"
+  - "P-067"
+legado_fila:
+  que_se_prueba: "Venta con servicio de precio fijo (Quiropodia) y pago con tarjeta"
+  resultado_esperado: "El pago pide el voucher; se guarda"
+  verificacion_en_base: "`pagos.metodo`, referencia"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-03'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-03"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-03  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+ambiguo:
+  - id: "A09"
+    pregunta: "Tarjeta: ¿el voucher es folio de autorización obligatorio? ¿últimos 4 dígitos obligatorios? ¿formato y longitud?"
+pasos:
+  - n: 1
+    descripcion: "Agregar el servicio QA-{corrida}-QUIROPODIA (precio fijo 400.00) a una venta"
+    esperado: "Línea 1 × 400.00, exenta de IVA; total 400.00"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Nueva venta → Agregar servicio → QUIROPODIA; nota QA-{corrida}-ESC-CAJA-03"
+    verificar_ui: "Total 400.00; IVA 0.00"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-03%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      cantidad: 1
+      precio_unitario: 400
+      importe: 400
+      iva_tipo: "exento"
+      iva_monto: 0
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Elegir método tarjeta e intentar cobrar sin capturar voucher"
+    esperado: "El pago pide el voucher; no deja cobrar sin él"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Método tarjeta, dejar voucher vacío, Cobrar"
+    verificar_ui: "Mensaje que exige el voucher; el ticket sigue por cobrar"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-03%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "por_cobrar"
+      pagado_total: 0
+    ambiguo: "A09"
+  - n: 3
+    descripcion: "Capturar voucher QA-VCH-0003 y cobrar"
+    esperado: "El pago se guarda con su voucher"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Capturar voucher y Cobrar"
+    verificar_ui: "Ticket cobrado"
+    verificar_bd: |
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-03%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      metodo: "tarjeta"
+      monto: 400
+      referencia: "QA-VCH-0003"
+  - n: 4
+    descripcion: "Verificar la venta"
+    esperado: "Venta cobrada, saldo 0"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Consultar venta"
+    verificar_ui: "Estado cobrada"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-03%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cobrada"
+      total: 400
+      saldo: 0

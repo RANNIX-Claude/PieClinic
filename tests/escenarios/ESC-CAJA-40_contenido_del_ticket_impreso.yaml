@@ -1,0 +1,126 @@
+# ESC-CAJA-40 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-40"
+nombre: "Contenido del ticket impreso"
+version: 1
+fuente: "tests/escenarios/CAJA_escenarios.md (ESC-CAJA-07); REGLAS_NEGOCIO.md P-133 (folio), P-056, P-057, P-046 (zona horaria de la sede); METRICAS.md M-040"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-133"
+  - "P-056"
+  - "P-057"
+  - "P-061"
+  - "P-046"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-40'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "Sede Centenario con logo, dirección y teléfono configurados; clínica con nombre del impreso configurado (N-06)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-40"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-40  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+ambiguo:
+  - id: "A13"
+    pregunta: "Etiqueta TOTAL del ticket con anticipo: METRICAS M-040 señala que el ticket imprime TOTAL 1,810 (antes del anticipo) y el corte 1,610. ¿Qué cifra es «TOTAL» y cuál «por pagar»? Los escenarios esperan Total = venta, Anticipo aplicado y Por pagar rotulados por separado."
+  - id: "A23"
+    pregunta: "Plazo para facturar (P-064): ¿Administración puede facturar fuera de plazo? ¿corte del último día en zona de la sede (23:59:59)? ¿se imprime la fecha límite en el ticket?"
+pasos:
+  - n: 1
+    descripcion: "Cobrar 2 × CREMA-A + QUIROPODIA con 10 % de descuento en la crema; pagar efectivo 700.00"
+    esperado: "Total 608.80 (232.00 − 23.20 + 400.00); IVA incluido 28.80"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Armar y cobrar; nota QA-{corrida}-ESC-CAJA-40"
+    verificar_ui: "Total 608.80; cambio 91.20"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-40%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      total: 608.8
+      descuento_total: 23.2
+      iva_total: 28.8
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Abrir la vista previa del ticket original y revisar encabezado"
+    esperado: "Muestra logo de la clínica, nombre y datos de la sede, folio con formato CEN-TKT-NNNNNN, fecha y hora en zona de la sede"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cobrar e imprimir ticket"
+    verificar_ui: "Ver cada elemento"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-40%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      folio: "cumple ^CEN-TKT-[0-9]{6}$"
+    ambiguo: "A23"
+  - n: 3
+    descripcion: "Revisar cuerpo"
+    esperado: "Cajero (nombre), una fila por concepto con cantidad, precio, descuento e importe, y quién atendió si aplica"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Leer cuerpo del ticket"
+    verificar_ui: "Dos conceptos con importes 208.80 y 400.00"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-40%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      numero_de_filas: 2
+  - n: 4
+    descripcion: "Revisar totales y pago"
+    esperado: "Subtotal, descuento 23.20, IVA incluido 28.80 desglosado, total 608.80, forma de pago efectivo 700.00 y cambio 91.20"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Leer pie del ticket"
+    verificar_ui: "Importes coinciden con la venta"
+    verificar_bd: |
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-40%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      efectivo_recibido: 700
+      cambio: 91.2
+      monto: 608.8
+    ambiguo: "A13"
+  - n: 5
+    descripcion: "Revisar QR y ausencia de leyenda de copia"
+    esperado: "Código QR legible que lleva a la solicitud de factura; el original no dice «copia»"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Escanear o inspeccionar el QR"
+    verificar_ui: "QR presente; sin la palabra COPIA"
+    verificar_bd: "SELECT v.qr_token IS NOT NULL AS tiene_qr, v.copias_impresas FROM piefirme.ventas v WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-40%';"
+    esperado_bd:
+      tiene_qr: true
+      copias_impresas: 0

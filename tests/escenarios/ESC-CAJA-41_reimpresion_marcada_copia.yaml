@@ -1,0 +1,94 @@
+# ESC-CAJA-41 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-41"
+nombre: "Reimpresión de ticket marcada «copia»"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-060 (la reimpresión sale marcada «copia»); MATRIZ_ROLES.md §4.2"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-060"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-41'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "Ticket QA cobrado de 232.00 (2 × CREMA-A) en el turno actual"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-41"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-41  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+ambiguo:
+  - id: "A18"
+    pregunta: "Reimpresión (P-060): ¿quién puede reimprimir (Recepción en cualquier turno o solo Administración tras cerrar)? ¿hay tope de copias? ¿lleva motivo? ¿un ticket cancelado reimpreso lleva leyenda CANCELADO?"
+pasos:
+  - n: 1
+    descripcion: "Reimprimir el ticket desde el historial"
+    esperado: "La impresión lleva la marca «COPIA» visible; mismo folio, mismas líneas e importes"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Ventas → ticket → Reimprimir; nota QA-{corrida}-ESC-CAJA-41"
+    verificar_ui: "Vista previa con COPIA"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-41%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      folio: "el mismo"
+      total: 232
+    precondicion_critica: true
+    ambiguo: "A18"
+  - n: 2
+    descripcion: "Reimprimir una segunda vez"
+    esperado: "Sigue marcada «copia»; el contador de copias sube a 2"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Reimprimir"
+    verificar_ui: "COPIA"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-41%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      copias_impresas: 2
+    ambiguo: "A18"
+  - n: 3
+    descripcion: "Verificar que la reimpresión no altera la venta y queda en bitácora"
+    esperado: "Estado, importes y pagos intactos; bitácora registra quién y cuándo imprimió"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Consultar"
+    verificar_ui: "Sin cambios en el ticket"
+    verificar_bd: |
+      SELECT b.accion, b.entidad, b.entidad_id, b.usuario_id, b.detalle, b.created_at
+      FROM piefirme.bitacora b JOIN piefirme.ventas v ON b.entidad_id = v.id::text
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-41%'
+      ORDER BY b.created_at;
+    esperado_bd:
+      accion: "imprimir"
+      numero_de_filas: 2
+  - n: 4
+    descripcion: "El original impreso antes de la reimpresión no se recompone"
+    esperado: "El ticket original (primera impresión) nunca llevó la marca"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Comparar primera impresión con reimpresión"
+    verificar_ui: "Solo la reimpresión dice COPIA"
+    verificar_bd: null

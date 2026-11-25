@@ -1,0 +1,104 @@
+# ESC-INV-10 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: ESC-INV-10
+nombre: Alertas y sugerencia de qué reponer en cada sucursal (bajo mínimo, hasta el máximo)
+version: 1
+fuente: REGLAS_NEGOCIO.md P-084; METRICAS.md M-061, M-065; MODELO_ESTADOS.md S30
+prioridad: alta
+rol: administrador
+ambiguo:
+  - id: A-INV-17
+    pregunta: "Reposición «Sugerir» (P-084): ¿qué máximo se usa cuando el producto no lo tiene (máximo por sede o global, M-065 dice «máximo configurable»)? ¿Los productos «en el mínimo» entran en la sugerencia? ¿La sugerencia es para traspaso, para compra o ambas?"
+reglas:
+  - P-084
+  - P-079
+precondiciones:
+  - Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, m@g.com administrador, p@g.com podólogo; a@g.com superadministrador)
+  - "Dos sedes de la misma clínica: Centenario (origen) y Patio Valle de Chalco (destino). Reglas de alcance (sede) según MATRIZ_ROLES §4.3; usuarios de recepción asignados a una sola sede cada uno (ver ambiguo A-INV-12)"
+  - "Catálogo: QA-{corrida}-CREMA (venta, costo_promedio 100.00, sin lote), QA-{corrida}-TALCO (venta, costo_promedio 50.00, sin lote)"
+  - "Centenario: CREMA 20 (mín 5, máx 30), TALCO 3 (mín 4, máx 12). Patio Valle de Chalco: CREMA 2 (mín 6, máx 20), TALCO 4 (mín 4, máx 10)"
+datos_creados:
+  prefijo_qa: QA-{corrida}-ESC-INV-10
+  nota_en_registros: QA-{corrida}-ESC-INV-10  (se captura en comentarios del traspaso / nota del movimiento / motivo de la merma)
+  esperado_calculado_a_mano:
+    CEN_CREMA: OK, sugiere 10 (30−20)
+    CEN_TALCO: bajo mínimo, sugiere 9 (12−3)
+    PVC_CREMA: bajo mínimo, sugiere 18 (20−2)
+    PVC_TALCO: en el mínimo (4=4), sugiere 6 (10−4)
+pasos:
+  - "n": 1
+    descripcion: Abrir la vista de existencias con filtro Bajo mínimo
+    esperado: "Aparecen solo los pares producto-sede con existencia < mínimo: CEN-TALCO y PVC-CREMA; PVC-TALCO (4 = 4) aparece como En el mínimo, no como bajo mínimo"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Inventario → filtro Bajo mínimo; luego filtro En el mínimo
+    verificar_ui: Dos filas bajo mínimo; una en el mínimo
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      bajo_minimo: 2
+      en_el_minimo: 1
+    precondicion_critica: true
+  - "n": 2
+    descripcion: Revisar el contador de alertas (productos bajo mínimo por sede)
+    esperado: "Contador = 2 y desglose por sede: Centenario 1, PVC 1"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Tablero / tarjeta de alertas
+    verificar_ui: Cifra igual a la consulta
+    verificar_bd: SELECT i.sede_nombre, count(*) AS bajo_minimo FROM piefirme.prp_inventario i JOIN piefirme.productos pr ON pr.id = i.producto_id WHERE pr.nombre LIKE 'QA-{corrida}-%' AND i.estado = 'bajo_minimo' GROUP BY i.sede_nombre;
+    esperado_bd:
+      Centenario: 1
+      Patio Valle de Chalco: 1
+  - "n": 3
+    descripcion: Pulsar «Sugerir» reposición para cada sede
+    esperado: "La cantidad sugerida completa hasta el máximo configurable: CEN-TALCO 9, PVC-CREMA 18; un producto sin máximo definido no sugiere cantidad (sin máximo no se inventa una cifra)"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Botón Sugerir según mínimos
+    verificar_ui: Cantidades sugeridas = máximo − existencia
+    verificar_bd: SELECT i.sede_nombre, pr.nombre, i.existencia, i.minimo, i.maximo, i.sugerido_comprar FROM piefirme.prp_inventario i JOIN piefirme.productos pr ON pr.id = i.producto_id WHERE pr.nombre LIKE 'QA-{corrida}-%' ORDER BY 1, 2;
+    esperado_bd:
+      sugerido_CEN_TALCO: 9
+      sugerido_PVC_CREMA: 18
+    ambiguo: A-INV-17
+  - "n": 4
+    descripcion: "Producto en el mínimo (PVC-TALCO): ¿se sugiere reponer?"
+    esperado: P-084 define «en el mínimo» como estado aparte; qué hace «Sugerir» con él no está definido
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Observar la sugerencia de PVC-TALCO
+    verificar_ui: Según decisión de negocio
+    verificar_bd: null
+    ambiguo: A-INV-17
+  - "n": 5
+    descripcion: Una venta de CREMA en Centenario baja la existencia a 4 (bajo el mínimo 5) y aparece la alerta
+    esperado: La alerta aparece al cruzar el mínimo sin recargar manualmente; la sugerencia se recalcula
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Vender 16 × CREMA en caja (o conteo autorizado a 4)
+    verificar_ui: CEN-CREMA pasa a Bajo mínimo
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      estado_cen_crema: bajo_minimo
+      sugerido_CEN_CREMA: 26

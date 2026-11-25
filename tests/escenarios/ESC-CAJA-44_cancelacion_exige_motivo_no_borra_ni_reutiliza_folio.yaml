@@ -1,0 +1,107 @@
+# ESC-CAJA-44 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-44"
+nombre: "Un ticket cancelado nunca se borra ni su folio se reutiliza"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-060 (jamás se borra), P-133 (los folios nunca se reutilizan ni reinician); REQUERIMIENTO.md «QUÉ NO PUEDE FALLAR» (2) no perder información"
+prioridad: "alta"
+rol: "recepcion"
+ejecutar_primero: "QUÉ NO PUEDE FALLAR (REQUERIMIENTO.md): ejecutar antes que el resto"
+reglas:
+  - "P-060"
+  - "P-133"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-44'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-44"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-44  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+ambiguo:
+  - id: "A16"
+    pregunta: "Cancelación en el mismo turno (P-060): ¿el motivo es obligatorio también para Recepción? ¿cualquier cajero o solo quien cobró? ¿qué pasa con el dinero ya entregado (el corte descuenta «cancelaciones en efectivo»)?"
+pasos:
+  - n: 1
+    descripcion: "Cobrar un ticket de 116.00 y anotar su folio N"
+    esperado: "Folio con formato CEN-TKT-NNNNNN"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cobrar efectivo 116; nota QA-{corrida}-ESC-CAJA-44"
+    verificar_ui: "Folio visible"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-44%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      folio: "CEN-TKT-N"
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Intentar cancelarlo con motivo vacío"
+    esperado: "Se exige motivo"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cancelar sin motivo"
+    verificar_ui: "Mensaje de motivo requerido"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-44%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cobrada"
+    ambiguo: "A16"
+  - n: 3
+    descripcion: "Cancelarlo con motivo"
+    esperado: "Queda cancelado y visible"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cancelar con motivo"
+    verificar_ui: "Estado Cancelada"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-44%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cancelada"
+  - n: 4
+    descripcion: "Buscar en la interfaz alguna acción de borrar o reactivar el ticket"
+    esperado: "No existe; el ticket cancelado no se puede editar, cobrar ni reabrir"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Revisar el detalle y menús"
+    verificar_ui: "Sin botón borrar/reabrir"
+    verificar_bd: "SELECT count(*) AS existe FROM piefirme.ventas v WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-44%';"
+    esperado_bd:
+      existe: 1
+  - n: 5
+    descripcion: "Crear un nuevo ticket y revisar su folio"
+    esperado: "El folio es N+1 (consecutivo), nunca N"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Nuevo cobro; nota QA-{corrida}-ESC-CAJA-44-B"
+    verificar_ui: "Folio distinto y mayor"
+    verificar_bd: "SELECT v.folio, v.estado FROM piefirme.ventas v WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-44%' ORDER BY v.created_at;"
+    esperado_bd:
+      segundo_folio: "N+1"
+      folios_unicos: true

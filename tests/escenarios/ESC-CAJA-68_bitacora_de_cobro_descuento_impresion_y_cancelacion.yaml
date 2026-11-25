@@ -1,0 +1,73 @@
+# ESC-CAJA-68 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-68"
+nombre: "Bitácora: cobro, descuento, impresión y cancelación quedan registrados y no se editan"
+version: 1
+fuente: "REQUERIMIENTO.md «QUÉ NO PUEDE FALLAR» (2) bitácora de cambios; REGLAS_NEGOCIO.md P-055, P-060, P-127; MATRIZ_ROLES.md §3.4 (bitácora de solo lectura)"
+prioridad: "alta"
+rol: "recepcion"
+ejecutar_primero: "QUÉ NO PUEDE FALLAR (REQUERIMIENTO.md): ejecutar antes que el resto"
+reglas:
+  - "P-055"
+  - "P-060"
+  - "P-127"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-68'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "PIN de m@g.com disponible"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-68"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-68  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+pasos:
+  - n: 1
+    descripcion: "Cobrar QUIROPODIA con descuento 15 % autorizado con PIN, reimprimir y cancelar con motivo"
+    esperado: "Cada acción queda registrada con usuario y fecha"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Ejecutar las cuatro acciones; nota QA-{corrida}-ESC-CAJA-68"
+    verificar_ui: "Ticket cancelado"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-68%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cancelada"
+      copias_impresas: 1
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Consultar la bitácora"
+    esperado: "Existen eventos de creación/cobro, descuento con motivo, impresión (reimpresión) y cancelación con motivo, cada uno con usuario"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Administración → Bitácora"
+    verificar_ui: "Eventos visibles"
+    verificar_bd: |
+      SELECT b.accion, b.entidad, b.entidad_id, b.usuario_id, b.detalle, b.created_at
+      FROM piefirme.bitacora b JOIN piefirme.ventas v ON b.entidad_id = v.id::text
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-68%'
+      ORDER BY b.created_at;
+    esperado_bd:
+      acciones: "insertar/actualizar de la venta, imprimir y cancelación con motivo"
+  - n: 3
+    descripcion: "Intentar editar o borrar un evento de bitácora desde la interfaz"
+    esperado: "No existe: la bitácora es de solo lectura para todos"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Buscar editar/borrar"
+    verificar_ui: "Sin acciones"
+    verificar_bd: null

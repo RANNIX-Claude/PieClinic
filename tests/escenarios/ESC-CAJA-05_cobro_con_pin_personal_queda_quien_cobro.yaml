@@ -1,0 +1,80 @@
+# ESC-CAJA-05 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-05"
+nombre: "Cobro con PIN personal"
+version: 1
+fuente: "tests/escenarios/CAJA_escenarios.md (ESC-CAJA-05); REGLAS_NEGOCIO.md P-078"
+prioridad: "media"
+rol: "recepcion"
+reglas:
+  - "P-078"
+legado_fila:
+  que_se_prueba: "Cobro con PIN personal"
+  resultado_esperado: "Queda quién cobró"
+  verificacion_en_base: "`ventas.vendedor_id` / firma"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-05'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "r@g.com tiene PIN personal definido en tests/datos (no se escribe en este archivo)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-05"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-05  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+ambiguo:
+  - id: "A03"
+    pregunta: "Cobro con PIN personal (ESC-CAJA-05): ninguna regla de negocio lo define (P-078 solo dice que cobra caja y cada línea registra quién vendió). ¿El PIN firma cada cobro? ¿Cómo debe persistir? (la columna ventas.vendedor_id citada en el legado no existe en el esquema; hay ventas.cajero_id y firmas_cobro)."
+pasos:
+  - n: 1
+    descripcion: "Crear venta con QUIROPODIA y pasar a cobrar"
+    esperado: "Se solicita el PIN personal del cobrador"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Nueva venta, agregar servicio, Cobrar; nota QA-{corrida}-ESC-CAJA-05"
+    verificar_ui: "Aparece captura de PIN personal"
+    verificar_bd: null
+    precondicion_critica: true
+    ambiguo: "A03"
+  - n: 2
+    descripcion: "Capturar un PIN incorrecto"
+    esperado: "No cobra; el ticket no cambia"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Teclear PIN incorrecto"
+    verificar_ui: "Mensaje de PIN inválido"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-05%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "por_cobrar"
+      pagado_total: 0
+  - n: 3
+    descripcion: "Capturar el PIN correcto y completar el cobro en efectivo"
+    esperado: "Queda quién cobró"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Teclear PIN correcto, efectivo 400"
+    verificar_ui: "Ticket cobrado y cajero visible"
+    verificar_bd: |
+      SELECT v.folio, v.cajero_id, v.estado, f.perfil_id, f.usada_en
+      FROM piefirme.ventas v LEFT JOIN piefirme.firmas_cobro f ON f.perfil_id = v.cajero_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-05%' ORDER BY f.created_at DESC LIMIT 1;
+    esperado_bd:
+      cajero_id: "id de r@g.com"
+      estado: "cobrada"
+      firma_usada: true
+    ambiguo: "A03"

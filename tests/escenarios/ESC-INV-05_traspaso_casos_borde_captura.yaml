@@ -1,0 +1,153 @@
+# ESC-INV-05 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: ESC-INV-05
+nombre: "Traspaso: cantidad 0, negativa, mayor a la existencia, mismo origen y destino, producto inexistente"
+version: 1
+fuente: REGLAS_NEGOCIO.md P-080, P-085 (existencia negativa solo en ventas); CLAUDE.md (traspasos solo por RPC); MATRIZ_ROLES §4.3
+prioridad: alta
+rol: recepcion
+ambiguo:
+  - id: A-INV-09
+    pregunta: "Traspaso con cantidad mayor a la existencia en origen: ¿se bloquea el envío o se permite dejar el origen en negativo (como la venta, P-085)? Esperado propuesto: bloquear."
+  - id: A-INV-10
+    pregunta: "Cantidades decimales en traspasos (la columna admite 3 decimales; el catálogo no dice qué productos se fraccionan) y partidas repetidas del mismo producto: ¿qué se espera?"
+reglas:
+  - P-080
+  - P-085
+  - P-079
+precondiciones:
+  - Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, m@g.com administrador, p@g.com podólogo; a@g.com superadministrador)
+  - "Dos sedes de la misma clínica: Centenario (origen) y Patio Valle de Chalco (destino). Reglas de alcance (sede) según MATRIZ_ROLES §4.3; usuarios de recepción asignados a una sola sede cada uno (ver ambiguo A-INV-12)"
+  - "Catálogo: QA-{corrida}-CREMA (venta, costo_promedio 100.00, sin lote); producto inexistente: SKU QA-{corrida}-NOEXISTE no está en el catálogo"
+  - Existencia Centenario CREMA 20; Patio Valle de Chalco CREMA 2; r@g.com de Centenario
+datos_creados:
+  prefijo_qa: QA-{corrida}-ESC-INV-05
+  nota_en_registros: QA-{corrida}-ESC-INV-05  (se captura en comentarios del traspaso / nota del movimiento / motivo de la merma)
+  casos:
+    - cantidad 0
+    - cantidad −3
+    - cantidad 25 > existencia 20
+    - cantidad 2.5 (decimal)
+    - origen = destino
+    - sin partidas
+    - producto inexistente
+    - CREMA repetida dos veces en el mismo traspaso
+pasos:
+  - "n": 1
+    descripcion: Capturar una partida con cantidad 0
+    esperado: "Se rechaza: la cantidad debe ser mayor a 0; no se crea la partida"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Nuevo traspaso → CREMA cantidad 0 → Guardar
+    verificar_ui: Mensaje de validación en la cantidad
+    verificar_bd: SELECT count(*) AS traspasos_nuevos FROM piefirme.traspasos t WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-05%';
+    esperado_bd:
+      traspasos_nuevos: 0
+    precondicion_critica: true
+  - "n": 2
+    descripcion: Capturar cantidad negativa (−3)
+    esperado: Se rechaza; no se crea nada
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: CREMA cantidad −3 → Guardar
+    verificar_ui: Mensaje de validación
+    verificar_bd: SELECT count(*) AS lineas FROM piefirme.traspaso_lineas l JOIN piefirme.traspasos t ON t.id = l.traspaso_id WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-05%';
+    esperado_bd:
+      lineas: 0
+  - "n": 3
+    descripcion: Capturar cantidad mayor a la existencia en origen (25 con existencia 20)
+    esperado: "Esperado propuesto: aviso visible de existencia insuficiente en origen y el envío no deja existencia negativa en el origen (a diferencia de la venta, P-085, el traspaso no es una venta al cliente)"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: CREMA cantidad 25 → Guardar borrador → intentar Enviar
+    verificar_ui: Aviso de insuficiencia; envío bloqueado
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      existencia_centenario_crema: 20
+    ambiguo: A-INV-09
+  - "n": 4
+    descripcion: Capturar cantidad decimal (2.5) en un producto que se vende por pieza
+    esperado: "Ninguna regla define el manejo; esperado propuesto: no se aceptan fracciones en productos por pieza"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: CREMA cantidad 2.5
+    verificar_ui: Validación o aceptación documentada
+    verificar_bd: null
+    ambiguo: A-INV-10
+  - "n": 5
+    descripcion: Elegir la misma sede como origen y destino
+    esperado: "Se rechaza: el origen y el destino deben ser distintos"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Nuevo traspaso con origen = destino = Centenario
+    verificar_ui: No permite elegir la misma sede o muestra error
+    verificar_bd: SELECT count(*) AS traspasos_mismo_origen FROM piefirme.traspasos t WHERE t.sede_origen_id = t.sede_destino_id AND t.comentarios LIKE 'QA-{corrida}-ESC-INV-05%';
+    esperado_bd:
+      traspasos_mismo_origen: 0
+  - "n": 6
+    descripcion: Guardar un traspaso sin partidas
+    esperado: "Se rechaza (o no se puede enviar): un traspaso necesita al menos una partida"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Guardar sin productos / Enviar
+    verificar_ui: Mensaje de que faltan productos
+    verificar_bd: null
+  - "n": 7
+    descripcion: Producto inexistente (buscar o enviar por llamada directa el SKU QA-{corrida}-NOEXISTE)
+    esperado: No aparece en el buscador; por llamada directa se rechaza con error, sin traspaso creado
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Buscar el producto; en consola QA enviar la partida con un id inexistente
+    verificar_ui: Sin resultados / error controlado, sin pantalla rota
+    verificar_bd: SELECT count(*) AS lineas FROM piefirme.traspaso_lineas l JOIN piefirme.traspasos t ON t.id = l.traspaso_id WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-05%';
+    esperado_bd:
+      lineas: 0
+  - "n": 8
+    descripcion: Agregar CREMA dos veces en el mismo traspaso (5 + 5)
+    esperado: "Ninguna regla lo define; esperado propuesto: se consolida en una partida de 10 o se avisa del duplicado, nunca dos partidas que sumen más que la existencia sin validar"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Agregar la misma partida dos veces
+    verificar_ui: Consolidación o aviso
+    verificar_bd: null
+    ambiguo: A-INV-10
+  - "n": 9
+    descripcion: Verificar que ningún intento anterior movió existencias ni dejó kardex
+    esperado: "Existencias intactas: Centenario CREMA 20, PVC CREMA 2; sin movimientos de kardex con el prefijo QA"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Existencias por sede
+    verificar_ui: Sin cambios
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      existencia_centenario_crema: 20
+      existencia_pvc_crema: 2

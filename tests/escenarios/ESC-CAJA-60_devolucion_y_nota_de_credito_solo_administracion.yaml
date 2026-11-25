@@ -1,0 +1,91 @@
+# ESC-CAJA-60 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-60"
+nombre: "Devolución con nota de crédito: solo Administración, el dinero sale como retiro de caja"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-065; MODELO_ESTADOS.md S12 (Devolver dinero en caja genera movimiento de caja)"
+prioridad: "alta"
+rol: "administrador"
+reglas:
+  - "P-065"
+  - "P-079"
+  - "P-060"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-60'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "Ticket QA cobrado en efectivo de 232.00 (2 × CREMA-A) y facturado (CFDI vigente simulado)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-60"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-60  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+pasos:
+  - n: 1
+    descripcion: "Como r@g.com intentar devolver 1 pieza"
+    esperado: "Rechazado: solo Administración"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Buscar Devolución; nota QA-{corrida}-ESC-CAJA-60"
+    verificar_ui: "Sin acción"
+    verificar_bd: "SELECT count(*) AS devoluciones FROM piefirme.devoluciones_venta d JOIN piefirme.ventas v ON v.id = d.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-60%';"
+    esperado_bd:
+      devoluciones: 0
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Como m@g.com devolver 1 pieza (116.00) sin motivo"
+    esperado: "Exige motivo"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Devolución sin motivo"
+    verificar_ui: "Mensaje"
+    verificar_bd: "SELECT count(*) AS devoluciones FROM piefirme.devoluciones_venta d JOIN piefirme.ventas v ON v.id = d.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-60%';"
+    esperado_bd:
+      devoluciones: 0
+  - n: 3
+    descripcion: "Devolver 1 pieza con motivo y marcar «Devolver dinero en caja»"
+    esperado: "Se emite nota de crédito relacionando el CFDI original por 116.00 y sale 116.00 de caja con registro"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Confirmar devolución"
+    verificar_ui: "Nota de crédito emitida"
+    verificar_bd: |
+      SELECT n.total, n.estado FROM piefirme.notas_credito n JOIN piefirme.ventas v ON v.id = n.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-60%';
+      SELECT m.tipo, m.monto, m.concepto, m.autorizacion_id
+      FROM piefirme.movimientos_caja m JOIN piefirme.turnos_caja t ON t.id = m.turno_id
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-60%'
+      ORDER BY m.created_at;
+    esperado_bd:
+      nota_credito_total: 116
+      movimiento_caja:
+        tipo: "devolucion"
+        monto: 116
+  - n: 4
+    descripcion: "Verificar inventario y que la cantidad devuelta no supera lo vendido"
+    esperado: "La existencia regresa si se marcó reingreso; intentar devolver 3 piezas rechazado"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Devolver 3 piezas"
+    verificar_ui: "Mensaje"
+    verificar_bd: |
+      SELECT m.tipo, m.cantidad, m.referencia_tipo, m.referencia_folio, m.fecha
+      FROM piefirme.movimientos_inventario m JOIN piefirme.productos pr ON pr.id = m.producto_id
+      WHERE pr.nombre = 'QA-{corrida}-CREMA-A'
+      ORDER BY m.created_at;
+    esperado_bd:
+      tipo_reingreso: "devolucion_cliente +1"

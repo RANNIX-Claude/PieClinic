@@ -1,0 +1,89 @@
+# ESC-CAJA-49 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-49"
+nombre: "Un turno abierto por caja y por cajero"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-058 (un turno por caja y cajero), P-129 (caja por sede)"
+prioridad: "media"
+rol: "recepcion"
+reglas:
+  - "P-058"
+  - "P-129"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Sin turno abierto en Caja 1 Centenario"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-49"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-49  (se captura en la nota del ticket y/o turno; ver A33)"
+ambiguo:
+  - id: "A24"
+    pregunta: "Turno: ¿se permite fondo inicial $0.00? ¿tope? ¿puede un Administrador abrir turno y cobrar? ¿quién fija el fondo?"
+pasos:
+  - n: 1
+    descripcion: "Abrir turno en Caja 1 con fondo 1,000.00 y nombre «QA-{corrida}-ESC-CAJA-49»"
+    esperado: "Turno abierto"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Abrir turno"
+    verificar_ui: "Turno abierto"
+    verificar_bd: |
+      SELECT t.caja, t.estado, t.fondo_inicial, t.efectivo_esperado, t.efectivo_contado, t.diferencia, t.justificacion, t.autorizacion_id, t.cerrado_por, t.revisado_por
+      FROM piefirme.turnos_caja t
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-49%'
+      ORDER BY t.apertura_en;
+    esperado_bd:
+      estado: "abierto"
+      fondo_inicial: 1000
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Intentar abrir un segundo turno en la misma caja con otro cajero"
+    esperado: "No se permite: la caja ya tiene turno abierto"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Login con otro usuario de recepción y abrir en Caja 1"
+    verificar_ui: "Mensaje"
+    verificar_bd: |
+      SELECT t.caja, t.estado, t.fondo_inicial, t.efectivo_esperado, t.efectivo_contado, t.diferencia, t.justificacion, t.autorizacion_id, t.cerrado_por, t.revisado_por
+      FROM piefirme.turnos_caja t
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-49%'
+      ORDER BY t.apertura_en;
+    esperado_bd:
+      numero_de_filas_abiertas: 1
+  - n: 3
+    descripcion: "Intentar que r@g.com abra otro turno en Caja 2"
+    esperado: "No se permite: el cajero ya tiene turno abierto"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Abrir en Caja 2"
+    verificar_ui: "Mensaje"
+    verificar_bd: |
+      SELECT t.caja, t.estado, t.fondo_inicial, t.efectivo_esperado, t.efectivo_contado, t.diferencia, t.justificacion, t.autorizacion_id, t.cerrado_por, t.revisado_por
+      FROM piefirme.turnos_caja t
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-49%'
+      ORDER BY t.apertura_en;
+    esperado_bd:
+      numero_de_filas_abiertas: 1
+  - n: 4
+    descripcion: "Abrir turno con fondo negativo y con fondo 0.00"
+    esperado: "Negativo: rechazado; 0.00: AMBIGUO"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Probar ambos tras cerrar el turno"
+    verificar_ui: "Registrar comportamiento"
+    verificar_bd: |
+      SELECT t.caja, t.estado, t.fondo_inicial, t.efectivo_esperado, t.efectivo_contado, t.diferencia, t.justificacion, t.autorizacion_id, t.cerrado_por, t.revisado_por
+      FROM piefirme.turnos_caja t
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-49%'
+      ORDER BY t.apertura_en;
+    esperado_bd:
+      fondo_negativo: "rechazado"
+    ambiguo: "A24"

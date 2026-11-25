@@ -1,0 +1,134 @@
+# ESC-CAJA-28 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-28"
+nombre: "Descuento mayor a 10 %: exige PIN de Administrador"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-055, P-130 (Autoridad: descuento > 10 % con PIN de Administrador)"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-055"
+  - "P-130"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-28'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "PIN de m@g.com (administrador) en tests/datos; r@g.com tiene PIN propio distinto"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-28"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-28  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+ambiguo:
+  - id: "A15"
+    pregunta: "PIN de Administrador (P-055): ¿vigencia (un ticket, un minuto)?, ¿intentos fallidos antes de bloqueo?, ¿el PIN es de la persona o único de la clínica?"
+pasos:
+  - n: 1
+    descripcion: "QUIROPODIA con 15 % y motivo «QA-{corrida}-ESC-CAJA-28 convenio»"
+    esperado: "Pide PIN de Administrador"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Aplicar 15 %; nota QA-{corrida}-ESC-CAJA-28"
+    verificar_ui: "Ventana de PIN de Administrador"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-28%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      total: "sin descuento aplicado aún"
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Cancelar la ventana de PIN"
+    esperado: "El descuento no se aplica; línea 400.00"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cancelar"
+    verificar_ui: "Total 400.00"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-28%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      descuento: 0
+      importe: 400
+  - n: 3
+    descripcion: "Capturar el PIN de la propia recepcionista"
+    esperado: "No se acepta: no es de Administrador"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "PIN de r@g.com"
+    verificar_ui: "Rechazado"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-28%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      descuento: 0
+    ambiguo: "A15"
+  - n: 4
+    descripcion: "Capturar un PIN incorrecto"
+    esperado: "No se acepta"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "PIN erróneo"
+    verificar_ui: "Rechazado"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-28%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      descuento: 0
+    ambiguo: "A15"
+  - n: 5
+    descripcion: "Capturar el PIN de m@g.com"
+    esperado: "Se aplica: descuento 60.00, línea 340.00; queda autorización con el motivo"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "PIN correcto"
+    verificar_ui: "Total 340.00"
+    verificar_bd: |
+      SELECT a.tipo, a.solicitante_id, a.autorizador_id, a.pct_max, a.motivo, a.vigente_hasta
+      FROM piefirme.autorizaciones_admin a
+      WHERE a.motivo LIKE 'QA-{corrida}-ESC-CAJA-28%'
+      ORDER BY a.created_at;
+    esperado_bd:
+      tipo: "descuento"
+      pct_max: "mayor o igual a 15.00"
+      autorizador: "m@g.com"
+      solicitante: "r@g.com"
+    ambiguo: "A15"
+  - n: 6
+    descripcion: "Cobrar en efectivo 340.00"
+    esperado: "Cobrado; la bitácora registra el descuento autorizado"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Efectivo 340"
+    verificar_ui: "Cobrada"
+    verificar_bd: |
+      SELECT b.accion, b.entidad, b.entidad_id, b.usuario_id, b.detalle, b.created_at
+      FROM piefirme.bitacora b JOIN piefirme.ventas v ON b.entidad_id = v.id::text
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-28%'
+      ORDER BY b.created_at;
+    esperado_bd:
+      accion: "descuento y autorización registrados"

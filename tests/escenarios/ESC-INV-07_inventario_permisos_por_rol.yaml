@@ -1,0 +1,151 @@
+# ESC-INV-07 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: ESC-INV-07
+nombre: "Permisos por rol en inventario y traspasos: recepción, podólogo, administrador (y almacén si existe)"
+version: 1
+fuente: MATRIZ_ROLES.md §4.3 y §2; REGLAS_NEGOCIO.md P-080, P-086, P-084, P-131
+prioridad: alta
+rol: multirol
+ambiguo:
+  - id: A-INV-13
+    pregunta: ¿Existe un rol de almacén / personal de apoyo con permisos propios de inventario (P-131 sin responder)? Hoy solo hay administrador, podólogo y recepción; las personas de apoyo que aparecen en los mockups operan con perfil de recepción.
+  - id: A-INV-14
+    pregunta: "Merma o conteo capturado, antes de autorizarse: ¿ya baja la existencia o la baja ocurre solo al autorizar? P-086 dice «el ajuste lo autoriza Administración»; el esperado propuesto es que baja solo al autorizar."
+  - id: A-INV-12
+    pregunta: ¿Un usuario de recepción puede estar asignado a varias sedes? (perfil con sedes vacío = todas). El escenario necesita usuarios de recepción con una sola sede.
+reglas:
+  - P-080
+  - P-084
+  - P-086
+  - P-131
+precondiciones:
+  - Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, m@g.com administrador, p@g.com podólogo; a@g.com superadministrador)
+  - "Dos sedes de la misma clínica: Centenario (origen) y Patio Valle de Chalco (destino). Reglas de alcance (sede) según MATRIZ_ROLES §4.3; usuarios de recepción asignados a una sola sede cada uno (ver ambiguo A-INV-12)"
+  - "Catálogo: QA-{corrida}-CREMA (venta, costo_promedio 100.00, sin lote)"
+  - Un traspaso Borrador y uno Enviado con prefijo QA; una merma pendiente y un conteo capturado con prefijo QA
+datos_creados:
+  prefijo_qa: QA-{corrida}-ESC-INV-07
+  nota_en_registros: QA-{corrida}-ESC-INV-07  (se captura en comentarios del traspaso / nota del movimiento / motivo de la merma)
+  matriz_esperada:
+    podologo:
+      existencias: ver
+      kardex: ver
+      traspasos: sin acceso
+      conteos_mermas: sin acceso
+      minimos: sin acceso
+    recepcion:
+      existencias: ver/editar
+      traspasos: crear, enviar, recibir
+      conteos_mermas: capturar (no autoriza)
+      minimos: no los captura
+    administrador:
+      traspasos: ver/crear/editar, cancelar
+      conteos_mermas: autoriza
+      minimos: los captura
+    almacen: no existe como rol (A-INV-13)
+pasos:
+  - "n": 1
+    descripcion: Podólogo (p@g.com) abre el menú de Inventario
+    esperado: Ve existencias y kardex de su sede (solo lectura); NO ve traspasos, conteos ni mermas
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Login p@g.com → menú Inventario
+    verificar_ui: Solo Existencias; sin Nuevo traspaso, sin conteo, sin merma
+    verificar_bd: |-
+      SELECT count(*) AS traspasos_visibles FROM piefirme.prp_traspasos WHERE folio IS NOT NULL;
+      -- ejecutar con la sesión de p@g.com (RLS): se espera 0
+    esperado_bd:
+      traspasos_visibles: 0
+    precondicion_critica: true
+  - "n": 2
+    descripcion: Podólogo intenta crear un traspaso por URL directa y por llamada directa
+    esperado: Rechazado; ningún registro nuevo
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Pegar la URL de nuevo traspaso; reenviar el alta desde consola QA
+    verificar_ui: Sin acceso / permiso denegado
+    verificar_bd: SELECT count(*) AS creados FROM piefirme.traspasos t WHERE t.created_at > now() - interval '10 minutes' AND t.solicito_id = (SELECT id FROM piefirme.perfiles WHERE email = 'p@g.com');
+    esperado_bd:
+      creados: 0
+  - "n": 3
+    descripcion: Podólogo intenta editar el stock o el mínimo de un producto
+    esperado: No puede editar existencias ni mínimos
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Intentar editar mínimo / ajuste desde la pantalla de existencias
+    verificar_ui: Campos en solo lectura
+    verificar_bd: SELECT i.minimo FROM piefirme.inventario_sede i JOIN piefirme.productos pr ON pr.id = i.producto_id WHERE pr.nombre = 'QA-{corrida}-CREMA';
+    esperado_bd:
+      minimo: sin cambio
+  - "n": 4
+    descripcion: Recepción (r@g.com, Centenario) crea, envía y recibe traspasos de su sede
+    esperado: Puede crear y enviar desde su sede y recibir en la sede donde está asignada
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: r@g.com → Nuevo traspaso (origen Centenario) → Enviar
+    verificar_ui: Operación exitosa
+    verificar_bd: SELECT t.estado FROM piefirme.traspasos t WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-07%';
+    esperado_bd:
+      estado: enviado
+  - "n": 5
+    descripcion: Recepción captura una merma y un conteo físico
+    esperado: Puede capturar; ambos quedan pendientes de autorización; no se mueve existencia hasta que Administración autorice
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: r@g.com → Mermas → Nueva; Conteo físico → capturar
+    verificar_ui: Estados pendiente / capturado
+    verificar_bd: |-
+      SELECT m.estado, m.registrado_por FROM piefirme.mermas m WHERE m.motivo LIKE 'QA-{corrida}-ESC-INV-07%';
+      SELECT c.estado FROM piefirme.conteos_fisicos c WHERE c.nota LIKE 'QA-{corrida}-ESC-INV-07%';
+    esperado_bd:
+      merma_estado: pendiente
+      conteo_estado: capturado
+    ambiguo: A-INV-14
+  - "n": 6
+    descripcion: Recepción intenta autorizar la merma, autorizar el conteo y fijar un mínimo
+    esperado: "Rechazado en los tres casos: autoriza y fija mínimos solo Administración (P-086, P-084)"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Intentar Autorizar; editar Mínimo
+    verificar_ui: Sin opción o error de permiso
+    verificar_bd: SELECT m.estado, m.autorizado_por FROM piefirme.mermas m WHERE m.motivo LIKE 'QA-{corrida}-ESC-INV-07%';
+    esperado_bd:
+      estado: pendiente
+      autorizado_por: null
+  - "n": 7
+    descripcion: Administrador (m@g.com) autoriza la merma y el conteo, fija un mínimo y cancela un traspaso enviado
+    esperado: Puede todo; queda quién autorizó y cuándo; bitácora
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: m@g.com ejecuta las cuatro acciones
+    verificar_ui: Operaciones exitosas
+    verificar_bd: SELECT m.estado, m.autorizado_por, m.autorizado_en FROM piefirme.mermas m WHERE m.motivo LIKE 'QA-{corrida}-ESC-INV-07%';
+    esperado_bd:
+      estado: autorizada
+      autorizado_por: m@g.com
+  - "n": 8
+    descripcion: Rol de almacén
+    esperado: Los documentos no definen un rol de almacén (personal de apoyo sin definir, P-131); el escenario queda en espera de decisión de negocio
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Ninguna
+    verificar_ui: No aplica
+    verificar_bd: null
+    ambiguo: A-INV-13

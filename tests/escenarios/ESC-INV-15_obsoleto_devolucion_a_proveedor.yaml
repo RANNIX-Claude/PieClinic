@@ -1,0 +1,104 @@
+# ESC-INV-15 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: ESC-INV-15
+nombre: "Salida del obsoleto: devolución a proveedor valuada a costo y con crédito"
+version: 1
+fuente: REGLAS_NEGOCIO.md P-081, P-083 (devoluciones se valúan al costo del momento); MODELO_ESTADOS.md S29 (Recibida → devolución, solo Administrador)
+prioridad: media
+rol: administrador
+ambiguo:
+  - id: A-INV-23
+    pregunta: "Devolución a proveedor: ¿la autoriza alguien más que Administración? ¿El crédito es el costo al que se compró o el costo promedio vigente (P-083 dice costo del momento)? ¿Qué plazo hay para devolver desde la recepción? ¿Cómo afecta la cuenta por pagar?"
+reglas:
+  - P-083
+  - P-081
+  - P-086
+precondiciones:
+  - Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, m@g.com administrador, p@g.com podólogo; a@g.com superadministrador)
+  - "Dos sedes de la misma clínica: Centenario (origen) y Patio Valle de Chalco (destino). Reglas de alcance (sede) según MATRIZ_ROLES §4.3; usuarios de recepción asignados a una sola sede cada uno (ver ambiguo A-INV-12)"
+  - "Catálogo: QA-{corrida}-TALCO (venta, costo_promedio 50.00, sin lote) recibido por una OC recibida de un proveedor QA-{corrida}-PROV"
+  - "TALCO obsoleto en Centenario: existencia 8, costo promedio 50.00"
+datos_creados:
+  prefijo_qa: QA-{corrida}-ESC-INV-15
+  nota_en_registros: QA-{corrida}-ESC-INV-15  (se captura en comentarios del traspaso / nota del movimiento / motivo de la merma)
+  devolucion:
+    cantidad: 8
+    motivo: Obsoleto sin rotación
+    credito_esperado_ref: 400
+pasos:
+  - "n": 1
+    descripcion: Administrador registra la devolución a proveedor de 8 × TALCO ligada a la recepción original
+    esperado: Se crea la devolución con proveedor, producto, cantidad, motivo y crédito; la existencia de Centenario baja en 8; el movimiento se valúa a costo promedio vigente (50.00 → 400.00)
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: m@g.com → Compras → Registrar devolución a proveedor
+    verificar_ui: Devolución registrada; existencia TALCO CEN 0
+    verificar_bd: |-
+      SELECT d.cantidad, d.motivo, d.monto_credito, d.movimiento_id, d.registrado_por FROM piefirme.devoluciones_proveedor d JOIN piefirme.productos pr ON pr.id = d.producto_id WHERE pr.nombre = 'QA-{corrida}-TALCO';
+      SELECT s.nombre AS sede, pr.nombre AS producto, m.tipo, m.cantidad, m.costo_unitario, m.referencia_tipo, m.referencia_folio, m.usuario_id, m.fecha
+      FROM piefirme.movimientos_inventario m
+      JOIN piefirme.sedes s ON s.id = m.sede_id
+      JOIN piefirme.productos pr ON pr.id = m.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-TALCO'
+        AND (m.nota LIKE 'QA-{corrida}-ESC-INV-15%' OR m.referencia_folio IN (SELECT t.folio FROM piefirme.traspasos t WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-15%'))
+      ORDER BY m.created_at, m.id;
+    esperado_bd:
+      cantidad: 8
+      tipo_kardex: devolucion_proveedor
+      cantidad_kardex: -8
+      costo_unitario: 50
+    precondicion_critica: true
+    ambiguo: A-INV-23
+  - "n": 2
+    descripcion: Intentar devolver más de lo que hay en existencia (12 con existencia 8)
+    esperado: Se rechaza (no puede devolverse lo que no se tiene)
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Capturar 12
+    verificar_ui: Validación
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      existencia_cen_talco: sin cambio
+  - "n": 3
+    descripcion: Intentar devolver 0 y negativa
+    esperado: Se rechazan
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Capturar 0 y −2
+    verificar_ui: Validación
+    verificar_bd: null
+  - "n": 4
+    descripcion: Recepción (r@g.com) intenta registrar la devolución a proveedor
+    esperado: Solo Administración (la devolución es acción de Administrador, MODELO S29)
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: r@g.com → Compras
+    verificar_ui: Sin opción
+    verificar_bd: null
+  - "n": 5
+    descripcion: Verificar el crédito y su efecto en cuentas por pagar
+    esperado: El monto de crédito reduce la cuenta por pagar del proveedor o queda como saldo a favor; no se pierde
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Cuentas por pagar del proveedor
+    verificar_ui: Saldo ajustado
+    verificar_bd: SELECT d.monto_credito FROM piefirme.devoluciones_proveedor d JOIN piefirme.productos pr ON pr.id = d.producto_id WHERE pr.nombre = 'QA-{corrida}-TALCO';
+    esperado_bd:
+      monto_credito: definido por negocio
+    ambiguo: A-INV-23

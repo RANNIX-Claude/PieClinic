@@ -1,0 +1,54 @@
+# ESC-CAJA-12 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-12"
+nombre: "Sin sesión no se accede a Caja ni a tickets"
+version: 1
+fuente: "REQUERIMIENTO.md «QUÉ NO PUEDE FALLAR» (1); MATRIZ_ROLES.md §6 (el paciente no accede a pagos ni facturas); REGLAS_NEGOCIO.md P-119, P-128"
+prioridad: "alta"
+rol: "anonimo"
+ejecutar_primero: "QUÉ NO PUEDE FALLAR (REQUERIMIENTO.md): ejecutar antes que el resto"
+reglas:
+  - "P-119"
+  - "P-128"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Navegador sin sesión (ventana privada) y venta QA cobrada con su qr_token"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-12"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-12  (se captura en la nota del ticket y/o turno; ver A33)"
+pasos:
+  - n: 1
+    descripcion: "Abrir /app/caja sin iniciar sesión"
+    esperado: "Redirige al inicio de sesión; no se ve ningún dato"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Navegar a la URL de Caja"
+    verificar_ui: "Pantalla de login"
+    verificar_bd: null
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Abrir por URL directa el detalle de un ticket y la liga de impresión"
+    esperado: "Redirige al login; nada de la venta se muestra"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Navegar a la URL del ticket con su id"
+    verificar_ui: "Pantalla de login"
+    verificar_bd: null
+  - n: 3
+    descripcion: "Consultar las vistas de ventas con la llave pública (anon)"
+    esperado: "Sin filas ni acceso (anon solo ejecuta RPC portal_*)"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Ejecutar npm run test:rls o consulta REST con llave anon"
+    verificar_ui: "Respuesta 401/403 o conjunto vacío"
+    verificar_bd: "SELECT has_table_privilege('anon', 'piefirme.ventas', 'SELECT') AS anon_lee_ventas, has_table_privilege('anon', 'piefirme.pagos', 'SELECT') AS anon_lee_pagos;"
+    esperado_bd:
+      anon_lee_ventas: false
+      anon_lee_pagos: false

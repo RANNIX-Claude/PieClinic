@@ -1,0 +1,96 @@
+# ESC-INV-11 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: ESC-INV-11
+nombre: "Compra centralizada: traspasar lo que sobra en una sucursal antes de comprar"
+version: 1
+fuente: METRICAS.md M-065 (sugerir según mínimos para envío o compra), M-061; MODELO_ESTADOS.md S28/S29; REGLAS_NEGOCIO.md P-081, P-084
+prioridad: media
+rol: administrador
+ambiguo:
+  - id: A-INV-18
+    pregunta: "¿Debe el sistema empujar a traspasar antes de comprar (regla), solo mostrarlo (apoyo), o no hacerlo? ¿Cuánto es «lo que sobra»: lo que excede el máximo, o lo que excede el mínimo de la sede origen? ¿La compra es siempre centralizada o cada sede compra? Ninguna regla (P-079 a P-087) lo define."
+reglas:
+  - P-084
+  - P-080
+  - P-081
+  - P-083
+precondiciones:
+  - Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, m@g.com administrador, p@g.com podólogo; a@g.com superadministrador)
+  - "Dos sedes de la misma clínica: Centenario (origen) y Patio Valle de Chalco (destino). Reglas de alcance (sede) según MATRIZ_ROLES §4.3; usuarios de recepción asignados a una sola sede cada uno (ver ambiguo A-INV-12)"
+  - "Catálogo: QA-{corrida}-CREMA (venta, costo_promedio 100.00, sin lote)"
+  - Centenario CREMA 40 (mín 5, máx 30 → excedente 10 sobre el máximo); Patio Valle de Chalco CREMA 2 (mín 6, máx 20 → necesita 18); sin órdenes de compra abiertas
+datos_creados:
+  prefijo_qa: QA-{corrida}-ESC-INV-11
+  nota_en_registros: QA-{corrida}-ESC-INV-11  (se captura en comentarios del traspaso / nota del movimiento / motivo de la merma)
+  calculo: Necesidad PVC = 18; excedente disponible en CEN sin tocar su mínimo = 40 − 5 = 35 (o 40 − 30 = 10 si solo se mueve lo que pasa el máximo)
+pasos:
+  - "n": 1
+    descripcion: Ver que Centenario tiene sobrante y PVC faltante para el mismo producto
+    esperado: La pantalla de reposición muestra la existencia del producto en todas las sedes, con la sede que excede el máximo y la que está bajo mínimo
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Inventario → Sugerir reposición PVC → ver existencia en otras sedes
+    verificar_ui: Se ve CEN 40 como sobrante potencial
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      cen_existencia: 40
+      pvc_estado: bajo_minimo
+    ambiguo: A-INV-18
+  - "n": 2
+    descripcion: Generar el traspaso sugerido de Centenario a PVC antes de comprar
+    esperado: El traspaso nace en Borrador con las partidas sugeridas y NO deja a Centenario por debajo de su mínimo (5)
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Botón crear traspaso desde la sugerencia
+    verificar_ui: Borrador con cantidad sugerida
+    verificar_bd: |-
+      SELECT pr.nombre, l.cantidad_enviada, l.cantidad_recibida, l.diferencia, l.motivo_diferencia, l.costo_unitario
+      FROM piefirme.traspaso_lineas l
+      JOIN piefirme.traspasos t ON t.id = l.traspaso_id
+      JOIN piefirme.productos pr ON pr.id = l.producto_id
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-11%'
+      ORDER BY pr.nombre;
+    esperado_bd:
+      origen_posterior_minimo: mayor o igual a 5
+      cantidad: según regla A-INV-18
+    ambiguo: A-INV-18
+  - "n": 3
+    descripcion: Enviar y recibir el traspaso
+    esperado: Quedan CEN y PVC conforme a la cantidad traspasada; PVC deja de estar bajo mínimo
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Enviar y recibir
+    verificar_ui: PVC en OK
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      estado_pvc: ok
+  - "n": 4
+    descripcion: Orden de compra solo por lo que aún falta
+    esperado: Si tras el traspaso todavía hay faltante, la sugerencia de compra es solo el residual; no sugiere comprar lo que se cubrió con el traspaso; una OC mayor a 5,000.00 MXN requiere autorización de Administración
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Compras → Sugerir según mínimos
+    verificar_ui: Cantidad sugerida = máximo − existencia total considerada
+    verificar_bd: null
+    esperado_bd:
+      oc_mayor_5000: requiere_autorizacion = true
+    ambiguo: A-INV-18

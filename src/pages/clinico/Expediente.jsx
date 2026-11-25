@@ -168,7 +168,8 @@ function Resumen({ pac, id, clinico, rol }) {
   const ant = useVista('ant-' + id, 'antecedentes_paciente', { sedeCol: false, filtros: { paciente_id: id }, limite: 1 }, { enabled: clinico })
   const alerg = useVista('alerg-' + id, 'alergias_paciente', { sedeCol: false, filtros: { paciente_id: id, vigente: true } }, { enabled: clinico })
   const cons = useVista('cons-' + id, 'prp_consentimientos_vigentes', { sedeCol: false, filtros: { paciente_id: id } })
-  const prox = useVista('prox-' + id, 'prp_agenda', { sedeCol: false, filtros: { paciente_id: id, estado: ['por_confirmar', 'confirmada'], inicio: { gte: new Date().toISOString() } }, orden: { columna: 'inicio' }, limite: 1 })
+  const [desde] = useState(() => new Date().toISOString()) // fijo al abrir: un valor nuevo en cada render cambiaría la clave de la consulta y nunca terminaría de cargar
+  const prox = useVista('prox-' + id, 'prp_agenda', { sedeCol: false, filtros: { paciente_id: id, estado: ['por_confirmar', 'confirmada'], inicio: { gte: desde } }, orden: { columna: 'inicio' }, limite: 1 })
   const [nota, setNota] = useState(null)
   const u = (ult.data ?? []).find(c => c.estado === 'cerrada')
   const a = ant.data?.filas?.[0]

@@ -1,0 +1,170 @@
+# ESC-INV-06 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: ESC-INV-06
+nombre: Doble clic y reintento no duplican el traspaso; recepción parcial dos veces
+version: 1
+fuente: REQUERIMIENTO.md «QUÉ NO PUEDE FALLAR»; REGLAS_NEGOCIO.md P-080 (estados y transiciones)
+prioridad: alta
+rol: recepcion
+ambiguo:
+  - id: A-INV-11
+    pregunta: "Recepción parcial en dos tandas: ¿el traspaso admite recibir la mercancía en varios momentos (como las órdenes de compra, P-081 permite recepción parcial) o la recepción es única y el faltante va a reclamación? MODELO_ESTADOS S28 no tiene estado «Recibido parcial»."
+reglas:
+  - P-080
+  - P-079
+precondiciones:
+  - Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, m@g.com administrador, p@g.com podólogo; a@g.com superadministrador)
+  - "Dos sedes de la misma clínica: Centenario (origen) y Patio Valle de Chalco (destino). Reglas de alcance (sede) según MATRIZ_ROLES §4.3; usuarios de recepción asignados a una sola sede cada uno (ver ambiguo A-INV-12)"
+  - "Catálogo: QA-{corrida}-CREMA (venta, costo_promedio 100.00, sin lote)"
+  - Existencia Centenario CREMA 20; Patio Valle de Chalco CREMA 2
+  - Herramienta capaz de enviar dos clics seguidos o repetir la misma petición (consola QA)
+datos_creados:
+  prefijo_qa: QA-{corrida}-ESC-INV-06
+  nota_en_registros: QA-{corrida}-ESC-INV-06  (se captura en comentarios del traspaso / nota del movimiento / motivo de la merma)
+  traspaso:
+    cantidad: 10
+    producto: QA-{corrida}-CREMA
+pasos:
+  - "n": 1
+    descripcion: Pulsar dos veces seguidas Guardar borrador al crear el traspaso
+    esperado: Se crea un solo traspaso (un folio), no dos
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Doble clic real sobre Guardar borrador
+    verificar_ui: Un solo registro en la lista
+    verificar_bd: SELECT count(*) AS traspasos, count(DISTINCT t.folio) AS folios FROM piefirme.traspasos t WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-06%';
+    esperado_bd:
+      traspasos: 1
+      folios: 1
+    precondicion_critica: true
+  - "n": 2
+    descripcion: Doble clic en Enviar traspaso
+    esperado: "El envío se aplica una sola vez: la existencia de Centenario baja 10 (queda 10), no 20 (que sería 0)"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Doble clic rápido en Enviar
+    verificar_ui: Estado En tránsito; sin error visible o con aviso de ya enviado
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+      SELECT s.nombre AS sede, pr.nombre AS producto, m.tipo, m.cantidad, m.costo_unitario, m.referencia_tipo, m.referencia_folio, m.usuario_id, m.fecha
+      FROM piefirme.movimientos_inventario m
+      JOIN piefirme.sedes s ON s.id = m.sede_id
+      JOIN piefirme.productos pr ON pr.id = m.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+        AND (m.nota LIKE 'QA-{corrida}-ESC-INV-06%' OR m.referencia_folio IN (SELECT t.folio FROM piefirme.traspasos t WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-06%'))
+      ORDER BY m.created_at, m.id;
+    esperado_bd:
+      existencia_centenario_crema: 10
+      movimientos_traspaso_salida: 1
+  - "n": 3
+    descripcion: Repetir la petición de envío con el traspaso ya Enviado (reintento por consola)
+    esperado: Se rechaza porque el traspaso ya no está en Borrador; sin segundo descuento
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Reenviar la acción enviar
+    verificar_ui: Error controlado
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      existencia_centenario_crema: 10
+  - "n": 4
+    descripcion: Doble clic en Confirmar recepción completa
+    esperado: "La recepción se aplica una sola vez: Patio Valle de Chalco queda CREMA 12, no 22"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Doble clic en Confirmar recepción
+    verificar_ui: Estado Recibido completo
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+      SELECT s.nombre AS sede, pr.nombre AS producto, m.tipo, m.cantidad, m.costo_unitario, m.referencia_tipo, m.referencia_folio, m.usuario_id, m.fecha
+      FROM piefirme.movimientos_inventario m
+      JOIN piefirme.sedes s ON s.id = m.sede_id
+      JOIN piefirme.productos pr ON pr.id = m.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+        AND (m.nota LIKE 'QA-{corrida}-ESC-INV-06%' OR m.referencia_folio IN (SELECT t.folio FROM piefirme.traspasos t WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-06%'))
+      ORDER BY m.created_at, m.id;
+    esperado_bd:
+      existencia_pvc_crema: 12
+      movimientos_traspaso_entrada: 1
+  - "n": 5
+    descripcion: Reintentar la recepción sobre un traspaso ya Recibido completo
+    esperado: Se rechaza; el destino no suma otra vez
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Reenviar la acción recibir
+    verificar_ui: Error controlado
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      existencia_pvc_crema: 12
+  - "n": 6
+    descripcion: "Nuevo traspaso Enviado de 10; recepción parcial: confirmar 6 recibidas"
+    esperado: Estado Recibido con diferencias; destino +6; faltante 4 registrado
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Recibir con 6
+    verificar_ui: Estado Recibido con diferencias
+    verificar_bd: |-
+      SELECT pr.nombre, l.cantidad_enviada, l.cantidad_recibida, l.diferencia, l.motivo_diferencia, l.costo_unitario
+      FROM piefirme.traspaso_lineas l
+      JOIN piefirme.traspasos t ON t.id = l.traspaso_id
+      JOIN piefirme.productos pr ON pr.id = l.producto_id
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-06%'
+      ORDER BY pr.nombre;
+    esperado_bd:
+      cantidad_recibida: 6
+      diferencia: 4
+    ambiguo: A-INV-11
+  - "n": 7
+    descripcion: Intentar una segunda recepción del mismo traspaso para «completar» las 4 faltantes
+    esperado: "Esperado propuesto: no se permite (el traspaso ya está en estado final); si llegan después, se resuelve con un ajuste autorizado; el destino no suma 4 sin autorización ni dos veces"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Abrir el traspaso Recibido con diferencias → intentar recibir otra vez
+    verificar_ui: Sin opción de recibir, o rechazo
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+      SELECT pr.nombre, l.cantidad_enviada, l.cantidad_recibida, l.diferencia, l.motivo_diferencia, l.costo_unitario
+      FROM piefirme.traspaso_lineas l
+      JOIN piefirme.traspasos t ON t.id = l.traspaso_id
+      JOIN piefirme.productos pr ON pr.id = l.producto_id
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-06%'
+      ORDER BY pr.nombre;
+    esperado_bd:
+      existencia_pvc_crema: no aumenta por una segunda recepción
+    ambiguo: A-INV-11

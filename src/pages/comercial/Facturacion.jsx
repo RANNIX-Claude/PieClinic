@@ -160,6 +160,11 @@ function FormFactura({ ventaId, onClose, onListo }) {
       if (v.data?.paciente_id) {
         const rs = await leer('cfdi_receptores', { sedeCol: false, filtros: { paciente_id: v.data.paciente_id, activo: true } })
         setReceptores(rs.data); if (rs.data[0]) setRecId(rs.data[0].id)
+        else {   // el paciente guardó sus datos fiscales en su ficha (datos_fiscales_paciente) pero aún no hay receptor CFDI: se precargan para que el RFC no se capture dos veces
+          const df = await leer('datos_fiscales_paciente', { sedeCol: false, filtros: { paciente_id: v.data.paciente_id, activo: true }, orden: { columna: 'predeterminado', asc: false }, limite: 1 })
+          const d = df.data?.[0]
+          if (d) setR(x => ({ ...x, rfc: d.rfc ?? '', razon: d.razon_social ?? '', cp: d.codigo_postal_fiscal ?? '', regimen: d.regimen_fiscal ?? x.regimen, uso: d.uso_cfdi ?? x.uso, correo: d.email_factura ?? '', publico: false }))
+        }
       }
       setCargando(false)
     })()

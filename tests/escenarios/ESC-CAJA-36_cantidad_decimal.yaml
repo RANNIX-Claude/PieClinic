@@ -1,0 +1,86 @@
+# ESC-CAJA-36 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-36"
+nombre: "Cantidad con decimales (1.5 y 0.001)"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-057; caso borde de caja (negocio no define decimales)"
+prioridad: "baja"
+rol: "recepcion"
+reglas:
+  - "P-057"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-36'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-36"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-36  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+ambiguo:
+  - id: "A04"
+    pregunta: "Cantidades decimales: ¿se permiten en productos? ¿en servicios por unidad? ¿cuántos decimales?"
+pasos:
+  - n: 1
+    descripcion: "CREMA-A con cantidad 1.5"
+    esperado: "AMBIGUO: si se permite, importe 174.00 (1.5 × 116.00), base 150.00, IVA 24.00; si no, mensaje claro"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Teclear 1.5; nota QA-{corrida}-ESC-CAJA-36"
+    verificar_ui: "Registrar el comportamiento"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-36%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      si_se_permite:
+        importe: 174
+        base_neta: 150
+        iva_monto: 24
+    precondicion_critica: true
+    ambiguo: "A04"
+  - n: 2
+    descripcion: "CREMA-A con cantidad 0.001"
+    esperado: "AMBIGUO: si se permite, importe 0.12 (0.116 redondeado) y el total jamás es negativo ni 0 por error"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Teclear 0.001"
+    verificar_ui: "Registrar el comportamiento"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-36%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      si_se_permite:
+        importe: 0.12
+    ambiguo: "A04"
+  - n: 3
+    descripcion: "CREMA-A con cantidad 1.0001"
+    esperado: "Se rechaza o se redondea de forma visible; nunca se guarda silenciosamente otro valor"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Teclear 1.0001"
+    verificar_ui: "Valor mostrado = valor guardado"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-36%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      cantidad: "igual a lo mostrado"
+    ambiguo: "A04"

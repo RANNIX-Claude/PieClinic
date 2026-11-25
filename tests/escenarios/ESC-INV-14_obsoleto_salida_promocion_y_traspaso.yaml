@@ -1,0 +1,104 @@
+# ESC-INV-14 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: ESC-INV-14
+nombre: "Salida del obsoleto: promoción y traspaso a otra sucursal que sí lo vende"
+version: 1
+fuente: "Solicitud del usuario (tema 3); REGLAS_NEGOCIO.md P-080, P-083; MODELO_ESTADOS.md S30 (acción sugerida: rematar, mover a sede con más rotación, vigilar)"
+prioridad: media
+rol: administrador
+ambiguo:
+  - id: A-INV-22
+    pregunta: "Promoción como salida del obsoleto: ¿existe en el sistema una «promoción por producto» (P-072/P-074 hablan de paquetes y promociones en general) o se hace con un descuento manual en caja? ¿Se permite vender bajo costo? ¿La acción sugerida del obsoleto es solo informativa o dispara el flujo?"
+reglas:
+  - P-080
+  - P-083
+precondiciones:
+  - Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, m@g.com administrador, p@g.com podólogo; a@g.com superadministrador)
+  - "Dos sedes de la misma clínica: Centenario (origen) y Patio Valle de Chalco (destino). Reglas de alcance (sede) según MATRIZ_ROLES §4.3; usuarios de recepción asignados a una sola sede cada uno (ver ambiguo A-INV-12)"
+  - "Catálogo: QA-{corrida}-TALCO (venta, costo_promedio 50.00, sin lote)"
+  - TALCO obsoleto en Centenario (existencia 8, 91 días sin venta) y con ventas recientes en PVC (existencia 1, mínimo 3)
+  - "Existe una promoción o descuento autorizable en caja (P-056/descuentos: más de 10 % pide PIN de administrador)"
+datos_creados:
+  prefijo_qa: QA-{corrida}-ESC-INV-14
+  nota_en_registros: QA-{corrida}-ESC-INV-14  (se captura en comentarios del traspaso / nota del movimiento / motivo de la merma)
+  opciones:
+    - promoción
+    - traspaso a otra sede
+    - devolución a proveedor (ESC-INV-15)
+    - merma (ESC-INV-16)
+pasos:
+  - "n": 1
+    descripcion: Ver la acción sugerida para el producto obsoleto
+    esperado: El sistema ofrece las salidas posibles (rematar/promoción, mover a otra sede, devolver, mermar); la sugerencia «mover a otra sede» aparece cuando otra sede tiene el producto bajo mínimo
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Abrir el producto obsoleto
+    verificar_ui: "Acción sugerida: mover a PVC"
+    verificar_bd: null
+    ambiguo: A-INV-22
+    precondicion_critica: true
+  - "n": 2
+    descripcion: Elegir «traspasar a otra sucursal» desde el obsoleto
+    esperado: Se crea un traspaso Borrador CEN → PVC con TALCO; PVC es la sede bajo mínimo; flujo idéntico a ESC-INV-01
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Botón Traspasar desde la lista de obsoletos
+    verificar_ui: Borrador creado con la cantidad propuesta
+    verificar_bd: |-
+      SELECT pr.nombre, l.cantidad_enviada, l.cantidad_recibida, l.diferencia, l.motivo_diferencia, l.costo_unitario
+      FROM piefirme.traspaso_lineas l
+      JOIN piefirme.traspasos t ON t.id = l.traspaso_id
+      JOIN piefirme.productos pr ON pr.id = l.producto_id
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-14%'
+      ORDER BY pr.nombre;
+    esperado_bd:
+      estado: borrador
+  - "n": 3
+    descripcion: Enviar y recibir; verificar que lo que se movió ya no cuenta como obsoleto en CEN ni suma dinero parado
+    esperado: Dinero parado de CEN baja por el valor traspasado (a costo); el total de la clínica no cambia
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Enviar, recibir, recargar el reporte
+    verificar_ui: Valor parado actualizado
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      existencia_cen_talco: baja por lo traspasado
+      valor_clinica: sin cambio
+    ambiguo: A-INV-21
+  - "n": 4
+    descripcion: "Elegir «promoción» para el remanente: precio promocional con descuento autorizado"
+    esperado: La promoción queda ligada al producto con vigencia y motivo; descuentos mayores a 10 % piden PIN de administrador en caja; el costo no cambia
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Catálogo → promoción para TALCO; vender en caja con descuento
+    verificar_ui: Venta con descuento autorizado
+    verificar_bd: SELECT l.descripcion, l.cantidad, l.precio_unitario, l.descuento FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-INV-14%';
+    esperado_bd:
+      descuento: según la promoción
+      costo_promedio: sin cambio
+    ambiguo: A-INV-22
+  - "n": 5
+    descripcion: Vender la promoción por debajo del costo
+    esperado: Ninguna regla dice si se permite vender bajo costo; se debe avisar el margen negativo
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Venta con descuento mayor al margen
+    verificar_ui: Aviso o bloqueo
+    verificar_bd: null
+    ambiguo: A-INV-22

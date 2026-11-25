@@ -1,0 +1,94 @@
+# ESC-CAJA-38 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-38"
+nombre: "Precio cero: producto sin precio y sesión de plan a $0"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-027 (curaciones incluidas a $0), P-098 (citas de $0), P-069"
+prioridad: "media"
+rol: "recepcion"
+reglas:
+  - "P-027"
+  - "P-098"
+  - "P-069"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-38'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "Plan adquirido QA con una curación pendiente para el paciente QA-{corrida}-PAC-1"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-38"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-38  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_cero:
+      tipo: "producto"
+      nombre: "QA-{corrida}-PRECIO-CERO"
+      precio_lista_iva_incluido: 0
+      iva: "16 %"
+      existencia_centenario: 10
+    sesion_plan:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-CURACION-PLAN"
+      precio: 0
+      iva: "exento"
+      nota: "sesión incluida en un plan adquirido (P-027)"
+    pac1:
+      tipo: "paciente"
+      nombre: "QA-{corrida}-PAC-1"
+ambiguo:
+  - id: "A06"
+    pregunta: "Producto con precio 0 (no es sesión de plan): ¿se puede vender? Ticket con total $0.00: ¿requiere pago, entra al corte, consume folio?"
+pasos:
+  - n: 1
+    descripcion: "Agregar el producto PRECIO-CERO (precio de lista 0.00)"
+    esperado: "AMBIGUO: avisar que no tiene precio; no cobrar silenciosamente a 0"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Agregar producto; nota QA-{corrida}-ESC-CAJA-38"
+    verificar_ui: "Registrar el comportamiento"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-38%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      importe: 0
+    precondicion_critica: true
+    ambiguo: "A06"
+  - n: 2
+    descripcion: "Cobrar la curación incluida en el plan (sesión a $0)"
+    esperado: "Válida: línea a 0.00 que consume saldo del plan; cuenta como cita atendida pero no entra al divisor del ticket promedio"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Nueva venta desde la cita; nota QA-{corrida}-ESC-CAJA-38-B"
+    verificar_ui: "Ticket de 0.00"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-38%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      tipo_precio: "saldo_plan"
+      importe: 0
+    ambiguo: "A06"
+  - n: 3
+    descripcion: "Verificar que el ticket de $0 consume folio y aparece en el corte"
+    esperado: "AMBIGUO"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Revisar folio y corte"
+    verificar_ui: "Registrar el comportamiento"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-38%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      total: 0
+    ambiguo: "A06"

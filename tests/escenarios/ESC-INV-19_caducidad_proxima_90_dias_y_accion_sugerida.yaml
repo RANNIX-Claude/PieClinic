@@ -1,0 +1,91 @@
+# ESC-INV-19 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: ESC-INV-19
+nombre: "Lotes próximos a caducar (90 días): valor en riesgo y acción sugerida"
+version: 1
+fuente: METRICAS.md M-063; MODELO_ESTADOS.md S30; REGLAS_NEGOCIO.md P-079
+prioridad: media
+rol: administrador
+ambiguo:
+  - id: A-INV-26
+    pregunta: "Ventana de caducidad: METRICAS M-063 dice ≤ 90 días y el mockup cuenta 3 lotes por $1,420 pero el valor real de los listados es ≈ $3,696 y el tercero está a 98 días. ¿El umbral es 90 o más? ¿El vencido entra al valor en riesgo? (Ver observación de M-063.)"
+reglas:
+  - P-079
+  - P-083
+precondiciones:
+  - Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, m@g.com administrador, p@g.com podólogo; a@g.com superadministrador)
+  - "Dos sedes de la misma clínica: Centenario (origen) y Patio Valle de Chalco (destino). Reglas de alcance (sede) según MATRIZ_ROLES §4.3; usuarios de recepción asignados a una sola sede cada uno (ver ambiguo A-INV-12)"
+  - "Catálogo: QA-{corrida}-ANTIMICOTICO (venta, costo_promedio 62.00, maneja_lote y maneja_caducidad)"
+  - "Lotes en Centenario: L1 caduca en 30 días (existencia 4), L2 en 90 días exactos (3), L3 en 98 días (2), L4 vencido ayer (1). PVC: existencia 1 con mínimo 6 (bajo mínimo)"
+datos_creados:
+  prefijo_qa: QA-{corrida}-ESC-INV-19
+  nota_en_registros: QA-{corrida}-ESC-INV-19  (se captura en comentarios del traspaso / nota del movimiento / motivo de la merma)
+  calculo: "Próximos a caducar (≤ 90 d, no vencidos): L1 y L2 = 7 piezas × 62 = 434.00; L3 fuera; L4 vencido"
+pasos:
+  - "n": 1
+    descripcion: Abrir el reporte de próximos a caducar (90 días)
+    esperado: Aparecen L1 y L2 (≤ 90) y no L3 (98 días); L4 aparece como vencido; los días = caducidad − hoy
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Inventario → Caducidades
+    verificar_ui: Lista con días restantes
+    verificar_bd: SELECT l.numero_lote, l.existencia, l.dias_para_caducar, l.accion_sugerida FROM piefirme.prp_lotes l JOIN piefirme.productos pr ON pr.id = l.producto_id WHERE pr.nombre = 'QA-{corrida}-ANTIMICOTICO' ORDER BY l.caducidad;
+    esperado_bd:
+      L1: dentro
+      L2: dentro (borde 90)
+      L3: fuera
+      L4: vencido
+    precondicion_critica: true
+    ambiguo: A-INV-26
+  - "n": 2
+    descripcion: Acción sugerida por lote
+    esperado: Con otra sede bajo mínimo → «mover a otra sede»; sin ella → «rematar/mermar»; fuera de ventana → «vigilar»; vencido → «rematar o mermar»
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Revisar la columna Acción
+    verificar_ui: Acciones esperadas
+    verificar_bd: null
+    esperado_bd:
+      L1: mover_a_otra_sede
+      L4: rematar_o_mermar
+      L3: vigilar
+  - "n": 3
+    descripcion: Valor en riesgo a costo
+    esperado: Σ existencia × costo promedio de los lotes en ventana
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Tarjeta de valor por caducar
+    verificar_ui: Cifra igual a la mano
+    verificar_bd: null
+    esperado_bd:
+      valor: 434
+    ambiguo: A-INV-26
+  - "n": 4
+    descripcion: Mover el lote próximo de Centenario a PVC (traspaso con lote)
+    esperado: La partida del traspaso conserva el lote y su caducidad en el destino
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Traspaso con lote L1
+    verificar_ui: Lote visible en destino
+    verificar_bd: SELECT l.numero_lote, l.caducidad, l.existencia, s.nombre FROM piefirme.lotes_producto l JOIN piefirme.sedes s ON s.id = l.sede_id JOIN piefirme.productos pr ON pr.id = l.producto_id WHERE pr.nombre = 'QA-{corrida}-ANTIMICOTICO';
+    esperado_bd:
+      lote_destino: L1 con su caducidad
+  - "n": 5
+    descripcion: "Producto que declara lote: traspaso sin elegir lote"
+    esperado: Se exige el lote (el lote y la caducidad se piden donde el producto lo declara)
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Crear partida sin lote
+    verificar_ui: Validación
+    verificar_bd: null

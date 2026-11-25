@@ -1,0 +1,78 @@
+# ESC-CAJA-70 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-70"
+nombre: "Venta de un plan: precio prorrateado por sesión y sesiones a $0"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-027, P-070 (vigencia 12 meses), P-071 (precio prorrateado = precio total / sesiones), P-098"
+prioridad: "media"
+rol: "recepcion"
+reglas:
+  - "P-027"
+  - "P-070"
+  - "P-071"
+  - "P-098"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-70'"
+  - "Plan QA-{corrida}-PLAN-LASER: 6 sesiones, precio total 3,000.00, vigencia 12 meses; paciente QA-{corrida}-PAC-1"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-70"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-70  (se captura en la nota del ticket y/o turno; ver A33)"
+  plan:
+    nombre: "QA-{corrida}-PLAN-LASER"
+    sesiones: 6
+    precio_total: 3000
+    precio_prorrateado_por_sesion: 500
+  paciente:
+    tipo: "paciente"
+    nombre: "QA-{corrida}-PAC-1"
+pasos:
+  - n: 1
+    descripcion: "Vender el plan a PAC-1 y cobrar 3,000.00 en efectivo"
+    esperado: "Ticket cobrado por 3,000.00; plan adquirido con 6 sesiones y vigencia a 12 meses"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Agregar plan; efectivo 3000; nota QA-{corrida}-ESC-CAJA-70"
+    verificar_ui: "Plan activo en el paciente"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-70%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cobrada"
+      total: 3000
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Consumir una sesión en una venta de 0.00"
+    esperado: "La línea de la sesión va a 0.00; el plan baja a 5 sesiones; la sesión se valúa a 500.00 para reconocimiento por sede y podólogo (no se cobra de nuevo)"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cobrar la cita del plan; nota QA-{corrida}-ESC-CAJA-70-S"
+    verificar_ui: "Ticket de 0.00 con la sesión"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-70%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      tipo_precio: "saldo_plan"
+      importe: 0
+  - n: 3
+    descripcion: "Verificar sesiones restantes y vigencia"
+    esperado: "5 sesiones; vigencia a 12 meses; aviso 30 días antes"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Consultar plan"
+    verificar_ui: "Saldo 5"
+    verificar_bd: "SELECT (pa.sesiones_total - pa.sesiones_usadas) AS sesiones_restantes, pa.precio_sesion, pa.estado, pa.caduca_el FROM piefirme.planes_adquiridos pa JOIN piefirme.pacientes p ON p.id = pa.paciente_id WHERE p.nombre LIKE 'QA-{corrida}-PAC-1%';"
+    esperado_bd:
+      sesiones_restantes: 5
+      precio_sesion: 500

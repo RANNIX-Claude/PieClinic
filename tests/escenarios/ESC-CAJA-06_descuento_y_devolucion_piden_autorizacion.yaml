@@ -1,0 +1,89 @@
+# ESC-CAJA-06 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-06"
+nombre: "Descuento y devolución"
+version: 1
+fuente: "tests/escenarios/CAJA_escenarios.md (ESC-CAJA-06); REGLAS_NEGOCIO.md P-055, P-065"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-055"
+  - "P-065"
+legado_fila:
+  que_se_prueba: "Descuento y devolución"
+  resultado_esperado: "Piden autorización de los dueños"
+  verificacion_en_base: "`autorizaciones`"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-06'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "PIN de administrador de m@g.com disponible en tests/datos"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-06"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-06  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+ambiguo:
+  - id: "A15"
+    pregunta: "PIN de Administrador (P-055): ¿vigencia (un ticket, un minuto)?, ¿intentos fallidos antes de bloqueo?, ¿el PIN es de la persona o único de la clínica?"
+pasos:
+  - n: 1
+    descripcion: "Venta de QUIROPODIA con descuento de 20 % y motivo «QA-{corrida}-ESC-CAJA-06 convenio»"
+    esperado: "Pide autorización (PIN de Administrador) porque excede 10 %"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Aplicar 20 % a la línea con motivo"
+    verificar_ui: "Ventana de PIN de Administrador"
+    verificar_bd: null
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Capturar el PIN de m@g.com"
+    esperado: "Se acepta; total 320.00; queda registrada la autorización"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Teclear PIN de administrador"
+    verificar_ui: "Total 320.00"
+    verificar_bd: |
+      SELECT a.tipo, a.solicitante_id, a.autorizador_id, a.pct_max, a.motivo, a.vigente_hasta
+      FROM piefirme.autorizaciones_admin a
+      WHERE a.motivo LIKE 'QA-{corrida}-ESC-CAJA-06%'
+      ORDER BY a.created_at;
+    esperado_bd:
+      tipo: "descuento"
+      pct_max: "mayor o igual a 20.00"
+      autorizador: "m@g.com"
+      solicitante: "r@g.com"
+    ambiguo: "A15"
+  - n: 3
+    descripcion: "Cobrar en efectivo 320.00 y luego intentar devolución (nota de crédito) desde Recepción"
+    esperado: "La devolución pide autorización de Administración; Recepción no la ejecuta sola"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cobrar; en el ticket pulsar Devolución"
+    verificar_ui: "La acción exige PIN/autorización o no está disponible para Recepción"
+    verificar_bd: "SELECT count(*) AS devoluciones FROM piefirme.devoluciones_venta d JOIN piefirme.ventas v ON v.id = d.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-06%';"
+    esperado_bd:
+      devoluciones: 0
+  - n: 4
+    descripcion: "Repetir la devolución con PIN de m@g.com y motivo"
+    esperado: "Se registra la devolución con su autorización y sale de caja como retiro"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Autorizar con PIN de administrador, motivo, monto 320.00"
+    verificar_ui: "Devolución registrada"
+    verificar_bd: "SELECT d.monto, d.motivo, d.reingresa_inventario FROM piefirme.devoluciones_venta d JOIN piefirme.ventas v ON v.id = d.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-06%';"
+    esperado_bd:
+      monto: 320

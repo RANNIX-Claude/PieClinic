@@ -1,0 +1,101 @@
+# ESC-CAJA-57 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-57"
+nombre: "Podólogo: «Enviar a caja» crea venta por cobrar; no cobra ni descuenta"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-078 (el podólogo usa «Enviar a caja»), P-055, P-130; MATRIZ_ROLES.md §4.2; MODELO_ESTADOS.md (Enviar a caja genera venta pendiente)"
+prioridad: "alta"
+rol: "podologo"
+reglas:
+  - "P-078"
+  - "P-055"
+  - "P-130"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-57'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "Consulta QA de p@g.com con nota firmada del paciente QA-{corrida}-PAC-1"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-57"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-57  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+    pac1:
+      tipo: "paciente"
+      nombre: "QA-{corrida}-PAC-1"
+ambiguo:
+  - id: "A02"
+    pregunta: "Podólogo y Caja: MATRIZ_ROLES §4.2 le da V (ver) en venta/ticket; ESC-CAJA-09 dice «Sin acceso (o solo lo que tenga habilitado)». ¿Ve el módulo Caja en solo lectura o solo tiene «Enviar a caja»?"
+pasos:
+  - n: 1
+    descripcion: "Como p@g.com, en la consulta pulsar «Enviar a caja»"
+    esperado: "Se genera una venta por cobrar con el servicio y el podólogo como quien atendió; no cobra"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Enviar a caja; nota QA-{corrida}-ESC-CAJA-57"
+    verificar_ui: "Confirmación de envío"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-57%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "por_cobrar"
+      pagado_total: 0
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Buscar acciones de Cobrar, Descuento, Cancelar en la venta"
+    esperado: "No existen para el podólogo"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Abrir la venta enviada"
+    verificar_ui: "Sin botones"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-57%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "por_cobrar"
+    ambiguo: "A02"
+  - n: 3
+    descripcion: "Como r@g.com ver la venta en Caja y cobrarla"
+    esperado: "Aparece como por cobrar; la recepcionista cobra"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Login r@g.com, cobrar en efectivo 400"
+    verificar_ui: "Cobrada"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-57%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      atendio_id: "id de p@g.com"
+  - n: 4
+    descripcion: "Intentar que p@g.com aplique descuento de 5 % desde cualquier pantalla"
+    esperado: "No puede aplicar descuentos"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Buscar la opción"
+    verificar_ui: "Ausente"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-57%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      descuento: 0

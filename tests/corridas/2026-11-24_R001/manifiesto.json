@@ -1,0 +1,28 @@
+{
+  "corrida": "R001",
+  "modulo": "Caja",
+  "fecha": "2026-11-24",
+  "url": "https://pieclinic.netlify.app/app/caja",
+  "version_visible_pie": "V_261124_1843",
+  "commit_repo_local": "d8a342226a281701cbefec000833a27ca8536565 (HEAD local del repo; no se confirma que sea el desplegado, el despliegue se identifica por la version visible)",
+  "ambiente": "QA (datos de prueba)",
+  "usuario": "Superadmin Prueba (perfil administrador + rannix_staff), sesion ya iniciada; sucursal Centenario (matriz), Caja 1, turno abierto 24/11/2026 17:52, fondo $1,000.00",
+  "navegador": "Claude in Chrome, tabs 1595698778 (bloqueada por dialogo nativo de impresion) y 1595698784",
+  "escenarios_ejecutados": ["ESC-CAJA-01", "ESC-CAJA-02", "ESC-CAJA-03", "ESC-CAJA-04", "venta mixta", "ESC-CAJA-06 (parcial: descuentos)", "validaciones negativas", "impresion / tickets del dia / cancelar venta"],
+  "escenarios_no_ejecutados": {
+    "ESC-CAJA-05": "no hay PIN personal disponible; no se inventan PIN",
+    "ESC-CAJA-06 devolucion": "no ejecutada",
+    "ESC-CAJA-07": "no verificable: el ticket solo se muestra en el dialogo nativo de impresion que bloquea la automatizacion",
+    "ESC-CAJA-08": "fuera de esta corrida por instruccion",
+    "ESC-CAJA-09": "requiere cuenta de podologo; prohibido cambiar de cuenta",
+    "ESC-CAJA-10": "requiere cuenta de supervisor; prohibido cambiar de cuenta"
+  },
+  "limitaciones": [
+    "SIN ACCESO A BASE DE DATOS: ningun paso que exija consulta a BD puede ser CUMPLE; se marcan VERIFICAR. La persistencia se probo solo como proxy de UI (recarga y pestana Tickets del dia).",
+    "La acciones Cobrar e imprimir ticket y Reimprimir abren el dialogo nativo de impresion de Chrome, que congela la pestana para la automatizacion; el contenido del ticket (folio, logo, QR, IVA, 'copia') no se pudo capturar.",
+    "Consola/red: el rastreo del navegador se inicio solo despues de cargar la pagina y no se pudo leer tras los cobros (las pestanas quedaron bloqueadas o sin entradas); no hay evidencia de 4xx/5xx ni de su ausencia.",
+    "Se opera como Administrador/Superadmin: no se puede probar el limite de descuento de Recepcion."
+  ],
+  "ventas_creadas_para_limpieza": ["CEN-TKT-000001 ($800.00 efectivo, impresion)", "CEN-TKT-000002 ($400.00 tarjeta sin voucher)", "CEN-TKT-000003 ($800.00 mixto efectivo 500 + tarjeta 300, aut QA-R001-AUT1)", "CEN-TKT-000004 ($380.00, desc 5% Promocion)", "CEN-TKT-000005 ($340.00, desc 15% Promocion)"],
+  "efectos_pendientes": "Turno Caja 1 sigue abierto (no se cerro). Dos pestanas del navegador con dialogo de impresion abierto requieren cierre manual."
+}

@@ -1,0 +1,110 @@
+# ESC-INV-17 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: ESC-INV-17
+nombre: "Merma: cantidad 0, negativa, mayor a la existencia, producto inexistente, otra sede"
+version: 1
+fuente: REGLAS_NEGOCIO.md P-086, P-085; MATRIZ_ROLES.md §4.3
+prioridad: media
+rol: recepcion
+ambiguo:
+  - id: A-INV-25
+    pregunta: "Merma mayor a la existencia: a diferencia de la venta (P-085 permite negativa con aviso), ¿puede una merma dejar la existencia negativa? Esperado propuesto: no."
+reglas:
+  - P-086
+  - P-085
+  - P-128
+precondiciones:
+  - Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, m@g.com administrador, p@g.com podólogo; a@g.com superadministrador)
+  - "Dos sedes de la misma clínica: Centenario (origen) y Patio Valle de Chalco (destino). Reglas de alcance (sede) según MATRIZ_ROLES §4.3; usuarios de recepción asignados a una sola sede cada uno (ver ambiguo A-INV-12)"
+  - "Catálogo: QA-{corrida}-TALCO (venta, costo_promedio 50.00, sin lote)"
+  - Existencia Centenario TALCO 8; PVC 4
+datos_creados:
+  prefijo_qa: QA-{corrida}-ESC-INV-17
+  nota_en_registros: QA-{corrida}-ESC-INV-17  (se captura en comentarios del traspaso / nota del movimiento / motivo de la merma)
+  casos:
+    - "0"
+    - −1
+    - 9 con existencia 8
+    - producto inexistente
+    - merma de una sede distinta a la propia
+pasos:
+  - "n": 1
+    descripcion: Merma con cantidad 0
+    esperado: Se rechaza (cantidad mayor a 0)
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Capturar 0
+    verificar_ui: Validación
+    verificar_bd: SELECT count(*) AS mermas FROM piefirme.mermas m WHERE m.motivo LIKE 'QA-{corrida}-ESC-INV-17%';
+    esperado_bd:
+      mermas: 0
+    precondicion_critica: true
+  - "n": 2
+    descripcion: Merma con cantidad negativa
+    esperado: Se rechaza
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Capturar −1
+    verificar_ui: Validación
+    verificar_bd: null
+    esperado_bd:
+      mermas: 0
+  - "n": 3
+    descripcion: Merma de 9 con existencia 8
+    esperado: "Esperado propuesto: no se permite dar de baja más de lo que hay (la merma no debe crear existencia negativa); se avisa"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Capturar 9
+    verificar_ui: Aviso o rechazo
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      existencia_cen_talco: 8
+    ambiguo: A-INV-25
+  - "n": 4
+    descripcion: Merma de producto inexistente por llamada directa
+    esperado: Rechazada, sin registro
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Consola QA
+    verificar_ui: Error controlado
+    verificar_bd: null
+    esperado_bd:
+      mermas: 0
+  - "n": 5
+    descripcion: Recepción de Centenario intenta dar de baja producto de Patio Valle de Chalco
+    esperado: "No puede: el alcance es su sede"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Capturar merma indicando la sede PVC por llamada directa
+    verificar_ui: Permiso denegado
+    verificar_bd: SELECT count(*) AS mermas_pvc FROM piefirme.mermas m WHERE m.sede_id <> (SELECT id FROM piefirme.sedes WHERE nombre = 'Centenario') AND m.motivo LIKE 'QA-{corrida}-ESC-INV-17%';
+    esperado_bd:
+      mermas_pvc: 0
+  - "n": 6
+    descripcion: Doble clic en Guardar merma válida (2 piezas)
+    esperado: Se crea una sola merma
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Doble clic
+    verificar_ui: Un registro
+    verificar_bd: SELECT count(*) AS mermas FROM piefirme.mermas m WHERE m.motivo LIKE 'QA-{corrida}-ESC-INV-17%';
+    esperado_bd:
+      mermas: 1

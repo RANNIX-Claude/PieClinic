@@ -28,7 +28,8 @@ export default function Horarios() {
   const refrescar = () => qc.invalidateQueries({ queryKey: ['comercial'] })
   const podQ = usePodologos()
   const hor = useLeer('horarios', 'prp_horarios_atencion', { filtros: { activo: true }, orden: [{ columna: 'sede_nombre' }, { columna: 'dia_semana' }], limite: 500 })
-  const blq = useLeer('bloqueos-lista', 'prp_bloqueos_agenda', { filtros: { fin: { gte: new Date(Date.now() - 30 * 86400000).toISOString() } }, orden: { columna: 'inicio', asc: false }, limite: 300 })
+  const [desdeBloqueos] = useState(() => new Date(Date.now() - 30 * 86400000).toISOString()) // fijo: un valor nuevo por render cambia la clave de la consulta y nunca termina de cargar
+  const blq = useLeer('bloqueos-lista', 'prp_bloqueos_agenda', { filtros: { fin: { gte: desdeBloqueos } }, orden: { columna: 'inicio', asc: false }, limite: 300 })
   const fes = useLeer('festivos-lista', 'festivos', { sedeCol: false, orden: { columna: 'fecha' }, limite: 300 })
   const puedeHorario = esAdmin || rol === 'podologo'
   const editaFila = h => esAdmin || h.podologo_id === perfil?.id

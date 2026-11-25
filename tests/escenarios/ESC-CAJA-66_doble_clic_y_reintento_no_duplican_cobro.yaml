@@ -1,0 +1,78 @@
+# ESC-CAJA-66 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-66"
+nombre: "Doble clic, reintento o recarga no duplican el cobro ni el folio"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-133 (folios únicos), P-059; REQUERIMIENTO.md «QUÉ NO PUEDE FALLAR» (cálculos de dinero y no duplicar)"
+prioridad: "alta"
+rol: "recepcion"
+ejecutar_primero: "QUÉ NO PUEDE FALLAR (REQUERIMIENTO.md): ejecutar antes que el resto"
+reglas:
+  - "P-133"
+  - "P-059"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-66'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-66"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-66  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+pasos:
+  - n: 1
+    descripcion: "Preparar ticket de 400.00 y dar doble clic rápido en Cobrar (efectivo 400)"
+    esperado: "Solo se registra un pago y un folio"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Doble clic real sobre Cobrar; nota QA-{corrida}-ESC-CAJA-66"
+    verificar_ui: "Un solo ticket cobrado"
+    verificar_bd: |
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-66%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      numero_de_filas: 1
+      monto: 400
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Recargar la página justo después de cobrar y reenviar el formulario"
+    esperado: "No se duplica el pago"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "F5 y reenviar"
+    verificar_ui: "Ticket sigue con un pago"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-66%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      pagado_total: 400
+      saldo: 0
+  - n: 3
+    descripcion: "Pagar con dos pestañas del mismo ticket por el mismo saldo"
+    esperado: "Una de las dos es rechazada; no se paga de más"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cobrar en pestaña 1 y 2"
+    verificar_ui: "Mensaje en la segunda"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-66%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      pagado_total: 400

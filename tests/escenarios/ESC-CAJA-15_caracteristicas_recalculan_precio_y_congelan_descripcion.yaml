@@ -1,0 +1,98 @@
+# ESC-CAJA-15 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-15"
+nombre: "Características: el precio se recalcula al agregar o quitar y la descripción queda congelada"
+version: 1
+fuente: "tests/escenarios/CAJA_escenarios.md (ESC-CAJA-04); REGLAS_NEGOCIO.md P-067, P-068"
+prioridad: "media"
+rol: "recepcion"
+reglas:
+  - "P-067"
+  - "P-068"
+  - "P-057"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-15'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-15"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-15  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    plantilla:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-PLANTILLA-ESPECIAL"
+      precio_base: 1500
+      iva: "exento"
+      admite_caracteristicas:
+        - "molde de yeso"
+        - "mayor altura 3 mm"
+      precio_total_esperado_con_caracteristicas: 3000
+      nota: "ESC-CAJA-04: 1,500 + 1,500; desglose por característica AMBIGUO (A27)"
+ambiguo:
+  - id: "A27"
+    pregunta: "Características (ESC-CAJA-04): ¿cuánto suma cada característica del 1,500 adicional (molde de yeso vs mayor altura 3 mm)? ¿«mayor altura» cobra por mm? ¿qué pasa al quitar una?"
+pasos:
+  - n: 1
+    descripcion: "Agregar PLANTILLA-ESPECIAL sin características"
+    esperado: "Precio base 1,500.00"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Agregar servicio y Aceptar sin marcar nada; nota QA-{corrida}-ESC-CAJA-15"
+    verificar_ui: "Línea 1,500.00"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-15%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      precio_unitario: 1500
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Editar la línea: marcar molde de yeso y mayor altura 3 mm"
+    esperado: "Precio 3,000.00 y descripción transcrita"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Editar línea → características"
+    verificar_ui: "Total 3,000.00"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-15%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      precio_unitario: 3000
+    ambiguo: "A27"
+  - n: 3
+    descripcion: "Editar la línea: quitar ambas características"
+    esperado: "El precio vuelve a 1,500.00 y la descripción ya no las contiene"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Desmarcar ambas"
+    verificar_ui: "Total 1,500.00"
+    verificar_bd: "SELECT count(*) AS caracteristicas FROM piefirme.venta_linea_caracteristicas c JOIN piefirme.venta_lineas l ON l.id = c.venta_linea_id JOIN piefirme.ventas v ON v.id = l.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-15%';"
+    esperado_bd:
+      caracteristicas: 0
+    ambiguo: "A27"
+  - n: 4
+    descripcion: "Volver a marcar ambas, cobrar y luego cambiar el importe de la característica en catálogo (como Administrador)"
+    esperado: "El ticket cobrado conserva la descripción y el importe que tenía"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cobrar efectivo 3000; admin edita monto de la característica; recargar ticket"
+    verificar_ui: "Ticket sin cambios (P-068, Historia §3)"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-15%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      importe: 3000

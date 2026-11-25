@@ -1,0 +1,91 @@
+# ESC-CAJA-31 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-31"
+nombre: "Descuento en el límite: 10.00 % pasa, 10.01 % pide PIN, mayor al importe se rechaza"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-055 («hasta 10 %»)"
+prioridad: "media"
+rol: "recepcion"
+reglas:
+  - "P-055"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-31'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-31"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-31  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+pasos:
+  - n: 1
+    descripcion: "QUIROPODIA con descuento de monto 40.00 (10.00 %)"
+    esperado: "Se aplica sin PIN; línea 360.00"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Descuento monto 40 con motivo; nota QA-{corrida}-ESC-CAJA-31"
+    verificar_ui: "Total 360.00"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-31%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      descuento: 40
+      importe: 360
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Cambiar el descuento a 40.04 (10.01 %)"
+    esperado: "Pide PIN de Administrador"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Descuento monto 40.04"
+    verificar_ui: "Ventana de PIN"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-31%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      descuento: 40
+  - n: 3
+    descripcion: "Descuento de monto 500.00 sobre una línea de 400.00"
+    esperado: "Se rechaza: el descuento no puede exceder el importe"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Descuento monto 500"
+    verificar_ui: "Mensaje de descuento inválido"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-31%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      importe: "nunca negativo"
+  - n: 4
+    descripcion: "Descuento de 100 % con motivo y sin PIN"
+    esperado: "Pide PIN de Administrador"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Descuento 100 %"
+    verificar_ui: "Ventana de PIN"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-31%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      descuento: 40

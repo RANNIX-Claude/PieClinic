@@ -1,0 +1,86 @@
+# ESC-CAJA-59 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-59"
+nombre: "Administrador: acciones de autoridad en caja con bitácora"
+version: 1
+fuente: "REGLAS_NEGOCIO.md Autoridad (resumen), P-055, P-058, P-060, P-065; MATRIZ_ROLES.md §4.2"
+prioridad: "alta"
+rol: "administrador"
+reglas:
+  - "P-055"
+  - "P-058"
+  - "P-060"
+  - "P-065"
+  - "P-130"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Ticket cobrado de turno cerrado, turno cerrado sin revisar, parámetro de descuento sin PIN en 10 %"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-59"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-59  (se captura en la nota del ticket y/o turno; ver A33)"
+ambiguo:
+  - id: "A24"
+    pregunta: "Turno: ¿se permite fondo inicial $0.00? ¿tope? ¿puede un Administrador abrir turno y cobrar? ¿quién fija el fondo?"
+pasos:
+  - n: 1
+    descripcion: "Cancelar el ticket de turno cerrado con motivo"
+    esperado: "Permitido con motivo y bitácora"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cancelar venta; nota QA-{corrida}-ESC-CAJA-59"
+    verificar_ui: "Cancelada"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-59%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cancelada"
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Autorizar un descuento mayor a 10 % con PIN"
+    esperado: "Permitido con motivo"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Descuento 20 % con PIN propio"
+    verificar_ui: "Aplicado"
+    verificar_bd: |
+      SELECT a.tipo, a.solicitante_id, a.autorizador_id, a.pct_max, a.motivo, a.vigente_hasta
+      FROM piefirme.autorizaciones_admin a
+      WHERE a.motivo LIKE 'QA-{corrida}-ESC-CAJA-59%'
+      ORDER BY a.created_at;
+    esperado_bd:
+      autorizador: "m@g.com"
+  - n: 3
+    descripcion: "Revisar un turno cerrado"
+    esperado: "Queda revisado"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Revisar"
+    verificar_ui: "Estado Revisado"
+    verificar_bd: |
+      SELECT t.caja, t.estado, t.fondo_inicial, t.efectivo_esperado, t.efectivo_contado, t.diferencia, t.justificacion, t.autorizacion_id, t.cerrado_por, t.revisado_por
+      FROM piefirme.turnos_caja t
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-59%'
+      ORDER BY t.apertura_en;
+    esperado_bd:
+      estado: "revisado"
+  - n: 4
+    descripcion: "Cambiar la tolerancia del corte de 50.00 a 30.00 y verificar que no es retroactiva"
+    esperado: "Parámetro editable con bitácora; los cortes ya cerrados no cambian"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Configuración → Caja"
+    verificar_ui: "Valor guardado; cortes anteriores intactos"
+    verificar_bd: "SELECT b.accion, b.entidad, b.detalle FROM piefirme.bitacora b WHERE b.entidad ILIKE '%parametro%' ORDER BY b.created_at DESC LIMIT 1;"
+    esperado_bd:
+      accion: "registrada"

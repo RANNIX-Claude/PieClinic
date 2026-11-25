@@ -1,0 +1,70 @@
+# ESC-CAJA-07 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-07"
+nombre: "Ticket completo (logo, datos de la sucursal, QR) y solicitud de factura"
+version: 1
+fuente: "tests/escenarios/CAJA_escenarios.md (ESC-CAJA-07); REGLAS_NEGOCIO.md P-061, P-064, P-133"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-061"
+  - "P-064"
+  - "P-133"
+legado_fila:
+  que_se_prueba: "Ticket completo (logo, datos de la sucursal, QR) y solicitud de factura"
+  resultado_esperado: "Ticket completo; solicitud a oficina central"
+  verificacion_en_base: "— (se espera que falte: etapa 1)"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-07'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "Logo y datos de la sede Centenario cargados en la configuración de la clínica (N-06); sin llave de PAC: facturación en modo simulado"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-07"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-07  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+ambiguo:
+  - id: "A23"
+    pregunta: "Plazo para facturar (P-064): ¿Administración puede facturar fuera de plazo? ¿corte del último día en zona de la sede (23:59:59)? ¿se imprime la fecha límite en el ticket?"
+pasos:
+  - n: 1
+    descripcion: "Cobrar una QUIROPODIA en efectivo y abrir la vista de impresión del ticket"
+    esperado: "Ticket completo: logo, datos de la sucursal, QR"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cobrar e imprimir ticket; nota QA-{corrida}-ESC-CAJA-07"
+    verificar_ui: "Vista previa del ticket con logo de la clínica, nombre y datos de la sede, folio y código QR"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-07%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cobrada"
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Marcar solicitud de factura desde el ticket"
+    esperado: "Solicitud a oficina central (Administración) registrada"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Pulsar Solicitar factura y capturar datos fiscales de prueba QA"
+    verificar_ui: "Confirmación de solicitud"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-07%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      requiere_factura: true
+      estado: "por_facturar"
+    ambiguo: "A23"

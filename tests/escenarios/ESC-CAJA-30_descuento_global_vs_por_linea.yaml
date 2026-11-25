@@ -1,0 +1,106 @@
+# ESC-CAJA-30 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-30"
+nombre: "Descuento global contra descuento por línea"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-055 (hasta 10 % por línea o global), P-057"
+prioridad: "media"
+rol: "recepcion"
+reglas:
+  - "P-055"
+  - "P-057"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-30'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "Ticket base: 1 × CREMA-A (116.00) + 1 × QUIROPODIA (400.00) = 516.00"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-30"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-30  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+ambiguo:
+  - id: "A14"
+    pregunta: "Descuento global: P-057 solo define IVA por línea. ¿Cómo se prorratea el descuento global entre líneas e IVA? ¿Cómo se aplica el tope del 10 % si se combinan descuento de línea y global (¿acumulado o cada uno?)?"
+pasos:
+  - n: 1
+    descripcion: "Aplicar 10 % por línea en cada renglón con motivo"
+    esperado: "Líneas 104.40 y 360.00; total 464.40"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Descuento 10 % en cada línea; nota QA-{corrida}-ESC-CAJA-30"
+    verificar_ui: "Total 464.40"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-30%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      total: 464.4
+      descuento_total: 51.6
+    precondicion_critica: true
+  - n: 2
+    descripcion: "En un ticket igual, aplicar 10 % global con motivo"
+    esperado: "Total 464.40 (el mismo); IVA incluido 14.40 si el descuento se prorratea por línea"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Descuento global 10 %; nota QA-{corrida}-ESC-CAJA-30-B"
+    verificar_ui: "Total 464.40"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-30%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      ultimo_total: 464.4
+      ultimo_iva_total: 14.4
+    ambiguo: "A14"
+  - n: 3
+    descripcion: "En otro ticket, descuento global de 11 %"
+    esperado: "Pide PIN de Administrador (excede 10 %)"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Global 11 %"
+    verificar_ui: "Ventana de PIN"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-30%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      sin_autorizacion: "no se aplica"
+  - n: 4
+    descripcion: "En otro ticket, 6 % por línea más 6 % global"
+    esperado: "Comportamiento por definir (¿tope acumulado?)"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Aplicar ambos"
+    verificar_ui: "Registrar qué hace el sistema"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-30%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      resultado: "AMBIGUO: marcar VERIFICAR"
+    ambiguo: "A14"

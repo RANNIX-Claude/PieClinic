@@ -1,0 +1,87 @@
+# ESC-CAJA-08 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-08"
+nombre: "Cierre del turno con efectivo contado"
+version: 1
+fuente: "tests/escenarios/CAJA_escenarios.md (ESC-CAJA-08); REGLAS_NEGOCIO.md P-058, P-059; METRICAS.md M-042"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-058"
+  - "P-059"
+legado_fila:
+  que_se_prueba: "Cierre del turno con efectivo contado"
+  resultado_esperado: "Diferencia calculada y justificada"
+  verificacion_en_base: "`turnos_caja`, `cortes_caja`"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-08'"
+  - "El turno contiene un ticket cobrado en efectivo de 632.00 (2 × CREMA-A + QUIROPODIA) y ningún otro movimiento; efectivo esperado = 1,000.00 + 632.00 = 1,632.00 (P-059)"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-08"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-08  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+ambiguo:
+  - id: "A20"
+    pregunta: "Tolerancia de $50.00 (P-058): ¿es absoluta (sobrante y faltante)? ¿$50.00 exactos está dentro? ¿una diferencia de $0.00 exige justificación? ¿longitud mínima de la justificación?"
+pasos:
+  - n: 1
+    descripcion: "Abrir Cierre de turno"
+    esperado: "Se muestra el efectivo esperado 1,632.00 y se pide efectivo contado"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Pulsar Cerrar turno"
+    verificar_ui: "Efectivo esperado 1,632.00 visible antes de capturar lo contado"
+    verificar_bd: null
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Capturar efectivo contado 1,622.00"
+    esperado: "Diferencia calculada −10.00 (contado − esperado); pide justificación"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Teclear 1622"
+    verificar_ui: "Diferencia −10.00"
+    verificar_bd: null
+  - n: 3
+    descripcion: "Capturar justificación «QA faltante por cambio» y cerrar"
+    esperado: "Turno cerrado con diferencia calculada y justificada"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Teclear justificación, Cerrar turno"
+    verificar_ui: "Turno cerrado; corte generado"
+    verificar_bd: |
+      SELECT t.caja, t.estado, t.fondo_inicial, t.efectivo_esperado, t.efectivo_contado, t.diferencia, t.justificacion, t.autorizacion_id, t.cerrado_por, t.revisado_por
+      FROM piefirme.turnos_caja t
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-08%'
+      ORDER BY t.apertura_en;
+      -- y el corte:
+      SELECT c.ventas_total, c.cobros_total, c.ventas_efectivo, c.ventas_tarjeta, c.ventas_transferencia, c.ventas_clip, c.ventas_gift_card, c.anticipos_aplicados, c.cortesias, c.retiros, c.cancelaciones_efectivo, c.cancelaciones_total, c.numero_cancelaciones, c.fondo_inicial, c.efectivo_esperado, c.efectivo_contado, c.diferencia, c.justificacion, c.autorizacion_id
+      FROM piefirme.cortes_caja c JOIN piefirme.turnos_caja t ON t.id = c.turno_id
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-08%';
+    esperado_bd:
+      estado: "cerrado"
+      efectivo_esperado: 1632
+      efectivo_contado: 1622
+      diferencia: -10
+      justificacion: "QA faltante por cambio"
+    ambiguo: "A20"

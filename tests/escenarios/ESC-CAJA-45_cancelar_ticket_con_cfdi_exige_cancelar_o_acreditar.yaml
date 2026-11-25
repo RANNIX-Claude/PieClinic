@@ -1,0 +1,89 @@
+# ESC-CAJA-45 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-45"
+nombre: "Cancelar un ticket facturado exige cancelar o acreditar el CFDI"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-060, P-063 (CFDI solo Administración, motivo SAT 01-04), P-065"
+prioridad: "media"
+rol: "administrador"
+reglas:
+  - "P-060"
+  - "P-063"
+  - "P-065"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-45'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "Ticket QA cobrado y facturado (CFDI vigente en modo simulado) por 400.00"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-45"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-45  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+pasos:
+  - n: 1
+    descripcion: "Como r@g.com intentar cancelar el ticket facturado"
+    esperado: "No se puede: Recepción no cancela CFDI y el ticket tiene factura vigente"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cancelar venta; nota QA-{corrida}-ESC-CAJA-45"
+    verificar_ui: "Mensaje de CFDI vigente"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-45%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "facturada"
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Como m@g.com intentar cancelar el ticket sin tocar el CFDI"
+    esperado: "Exige cancelar o acreditar el CFDI primero"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cancelar venta"
+    verificar_ui: "Mensaje de CFDI"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-45%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "facturada"
+  - n: 3
+    descripcion: "Cancelar el CFDI con motivo SAT 02 y comentario interno"
+    esperado: "CFDI cancelado (o en proceso) según SAT"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Facturación → Cancelar CFDI"
+    verificar_ui: "Estado de la factura"
+    verificar_bd: "SELECT f.estado FROM piefirme.facturas f JOIN piefirme.ventas v ON v.id = f.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-45%';"
+    esperado_bd:
+      estado: "cancelada o cancelacion_en_proceso"
+  - n: 4
+    descripcion: "Cancelar el ticket con motivo"
+    esperado: "Se cancela el ticket"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cancelar venta"
+    verificar_ui: "Estado Cancelada"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-45%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cancelada"

@@ -1,0 +1,105 @@
+# ESC-CAJA-65 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-65"
+nombre: "Retiro de efectivo de caja: concepto obligatorio y efecto en el corte"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-059 (efectivo a depositar = fondo + efectivo − retiros …), P-065; METRICAS.md M-042"
+prioridad: "media"
+rol: "recepcion"
+reglas:
+  - "P-059"
+  - "P-065"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-65'"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-65"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-65  (se captura en la nota del ticket y/o turno; ver A33)"
+ambiguo:
+  - id: "A25"
+    pregunta: "Retiros de caja: ¿tope o autorización? ¿puede un retiro exceder el efectivo disponible?"
+pasos:
+  - n: 1
+    descripcion: "Registrar retiro de 300.00 con concepto «QA-{corrida}-ESC-CAJA-65 depósito a banco»"
+    esperado: "Se registra; el efectivo esperado baja 300.00"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Caja → Retiro"
+    verificar_ui: "Retiro visible"
+    verificar_bd: |
+      SELECT m.tipo, m.monto, m.concepto, m.autorizacion_id
+      FROM piefirme.movimientos_caja m JOIN piefirme.turnos_caja t ON t.id = m.turno_id
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-65%'
+      ORDER BY m.created_at;
+    esperado_bd:
+      tipo: "retiro"
+      monto: 300
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Retiro sin concepto"
+    esperado: "Rechazado"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Dejar concepto vacío"
+    verificar_ui: "Mensaje"
+    verificar_bd: |
+      SELECT m.tipo, m.monto, m.concepto, m.autorizacion_id
+      FROM piefirme.movimientos_caja m JOIN piefirme.turnos_caja t ON t.id = m.turno_id
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-65%'
+      ORDER BY m.created_at;
+    esperado_bd:
+      numero_de_filas: 1
+  - n: 3
+    descripcion: "Retiro de 0.00 y de −50.00"
+    esperado: "Rechazados: el monto debe ser positivo"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Teclear 0 y −50"
+    verificar_ui: "Mensaje"
+    verificar_bd: |
+      SELECT m.tipo, m.monto, m.concepto, m.autorizacion_id
+      FROM piefirme.movimientos_caja m JOIN piefirme.turnos_caja t ON t.id = m.turno_id
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-65%'
+      ORDER BY m.created_at;
+    esperado_bd:
+      numero_de_filas: 1
+  - n: 4
+    descripcion: "Retiro mayor al efectivo disponible"
+    esperado: "AMBIGUO"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Teclear 99999"
+    verificar_ui: "Registrar comportamiento"
+    verificar_bd: |
+      SELECT m.tipo, m.monto, m.concepto, m.autorizacion_id
+      FROM piefirme.movimientos_caja m JOIN piefirme.turnos_caja t ON t.id = m.turno_id
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-65%'
+      ORDER BY m.created_at;
+    esperado_bd:
+      resultado: "AMBIGUO"
+    ambiguo: "A25"
+  - n: 5
+    descripcion: "Revisar efectivo esperado en la vista previa del corte"
+    esperado: "1,000.00 − 300.00 = 700.00 (sin otros movimientos)"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Vista previa del corte"
+    verificar_ui: "Efectivo esperado 700.00"
+    verificar_bd: |
+      SELECT t.caja, t.estado, t.fondo_inicial, t.efectivo_esperado, t.efectivo_contado, t.diferencia, t.justificacion, t.autorizacion_id, t.cerrado_por, t.revisado_por
+      FROM piefirme.turnos_caja t
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-65%'
+      ORDER BY t.apertura_en;
+    esperado_bd:
+      efectivo_esperado: 700

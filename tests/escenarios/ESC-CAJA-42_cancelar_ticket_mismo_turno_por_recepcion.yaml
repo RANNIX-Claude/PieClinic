@@ -1,0 +1,129 @@
+# ESC-CAJA-42 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-42"
+nombre: "Cancelación en el mismo turno por Recepción: revierte inventario, comisión y corte"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-060, P-059, P-107, P-108; Autoridad (resumen)"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-060"
+  - "P-059"
+  - "P-107"
+  - "P-108"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-42'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "Ticket QA cobrado en efectivo de 232.00 (2 × CREMA-A, atendió p@g.com) en el turno actual"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-42"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-42  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+ambiguo:
+  - id: "A16"
+    pregunta: "Cancelación en el mismo turno (P-060): ¿el motivo es obligatorio también para Recepción? ¿cualquier cajero o solo quien cobró? ¿qué pasa con el dinero ya entregado (el corte descuenta «cancelaciones en efectivo»)?"
+  - id: "A19"
+    pregunta: "Fórmula de corte P-059 («fondo + efectivo − retiros − cancelaciones en efectivo»): ¿«efectivo» incluye lo cobrado en tickets que luego se cancelan? Se asume neto físico (el efectivo en cajón es el mismo en ambas lecturas)."
+  - id: "A30"
+    pregunta: "Cancelación e inventario (P-060): ¿qué tipo de movimiento regresa la existencia (devolución de cliente)? ¿regresa al mismo lote?"
+  - id: "A31"
+    pregunta: "Cancelación y comisiones (P-060, P-108): en periodo abierto se asume que la comisión desaparece del cálculo; en periodo cerrado, ajuste negativo con referencia. ¿Confirmar?"
+pasos:
+  - n: 1
+    descripcion: "Cancelar el ticket cobrado indicando motivo «QA-{corrida}-ESC-CAJA-42 error de captura»"
+    esperado: "Se cancela; no se borra; el ticket sigue visible con estado cancelado"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Ventas → ticket → Cancelar venta; nota QA-{corrida}-ESC-CAJA-42"
+    verificar_ui: "Estado Cancelada con motivo"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-42%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cancelada"
+      motivo_cancelacion: "QA-{corrida}-ESC-CAJA-42 error de captura"
+      cancelada_por: "id de r@g.com"
+    precondicion_critica: true
+    ambiguo: "A16"
+  - n: 2
+    descripcion: "Verificar inventario"
+    esperado: "La existencia regresa (+2) por la cancelación"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Consultar kardex"
+    verificar_ui: "Existencia igual a la inicial"
+    verificar_bd: |
+      SELECT m.tipo, m.cantidad, m.referencia_tipo, m.referencia_folio, m.fecha
+      FROM piefirme.movimientos_inventario m JOIN piefirme.productos pr ON pr.id = m.producto_id
+      WHERE pr.nombre = 'QA-{corrida}-CREMA-A'
+      ORDER BY m.created_at;
+    esperado_bd:
+      movimientos: "venta −2 y reversa +2; suma 0"
+    ambiguo: "A30"
+  - n: 3
+    descripcion: "Verificar que no se perdió el pago ni la línea"
+    esperado: "El ticket cancelado conserva líneas y pagos como evidencia"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Consultar"
+    verificar_ui: "Líneas visibles"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-42%'
+      ORDER BY v.created_at, l.orden;
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-42%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      numero_de_filas_lineas: 1
+      numero_de_filas_pagos: 1
+  - n: 4
+    descripcion: "Verificar el corte previo del turno"
+    esperado: "Cancelaciones: 1 ticket, 232.00 en efectivo; el efectivo esperado no incluye ese cobro"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Abrir vista previa del corte"
+    verificar_ui: "Cancelaciones (1 ticket) 232.00"
+    verificar_bd: |
+      SELECT t.caja, t.estado, t.fondo_inicial, t.efectivo_esperado, t.efectivo_contado, t.diferencia, t.justificacion, t.autorizacion_id, t.cerrado_por, t.revisado_por
+      FROM piefirme.turnos_caja t
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-42%'
+      ORDER BY t.apertura_en;
+    esperado_bd:
+      numero_cancelaciones: 1
+      cancelaciones_efectivo: 232
+    ambiguo: "A19"
+  - n: 5
+    descripcion: "Verificar comisión"
+    esperado: "No hay comisión pagable por ese ticket"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Calcular comisión del periodo de p@g.com"
+    verificar_ui: "Sin renglón del ticket cancelado"
+    verificar_bd: "SELECT cd.base, cd.comision FROM piefirme.comision_detalle cd JOIN piefirme.ventas v ON v.id = cd.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-42%';"
+    esperado_bd:
+      filas_con_comision_positiva: 0
+    ambiguo: "A31"

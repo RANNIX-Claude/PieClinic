@@ -1,0 +1,101 @@
+# ESC-CAJA-24 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-24"
+nombre: "Cortesía: motivo obligatorio, autorización y efecto en el corte"
+version: 1
+fuente: "MATRIZ_ROLES.md §4.2 (descuento/cortesía); REGLAS_NEGOCIO.md P-055, P-022, P-059"
+prioridad: "media"
+rol: "recepcion"
+reglas:
+  - "P-055"
+  - "P-022"
+  - "P-059"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-24'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "PIN de administrador de m@g.com disponible"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-24"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-24  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+ambiguo:
+  - id: "A07"
+    pregunta: "Cortesía: ¿es descuento del 100 % (y por tanto exige PIN de Administrador por exceder 10 %) o es un método de pago? ¿Cuenta como venta devengada en el corte? ¿Genera comisión?"
+pasos:
+  - n: 1
+    descripcion: "Aplicar cortesía total a QUIROPODIA sin motivo"
+    esperado: "No se permite sin motivo"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cortesía 100 % sin motivo; nota QA-{corrida}-ESC-CAJA-24"
+    verificar_ui: "Mensaje de motivo requerido"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-24%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "por_cobrar"
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Aplicar cortesía con motivo «QA-{corrida}-ESC-CAJA-24 cortesía de cumpleaños» sin PIN"
+    esperado: "Exige autorización de Administración (equivale a más de 10 %)"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cortesía con motivo"
+    verificar_ui: "Solicita PIN"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-24%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "por_cobrar"
+    ambiguo: "A07"
+  - n: 3
+    descripcion: "Capturar el PIN de m@g.com y confirmar"
+    esperado: "Ticket en total 0.00 cobrado como cortesía con su motivo"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "PIN administrador, confirmar"
+    verificar_ui: "Cobrado"
+    verificar_bd: |
+      SELECT a.tipo, a.solicitante_id, a.autorizador_id, a.pct_max, a.motivo, a.vigente_hasta
+      FROM piefirme.autorizaciones_admin a
+      WHERE a.motivo LIKE 'QA-{corrida}-ESC-CAJA-24%'
+      ORDER BY a.created_at;
+    esperado_bd:
+      tipo: "descuento"
+      autorizador: "m@g.com"
+    ambiguo: "A07"
+  - n: 4
+    descripcion: "Verificar que la cortesía no es dinero del turno"
+    esperado: "En el corte aparece en cortesías y no en cobros"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Revisar corte previo"
+    verificar_ui: "Cortesías 400.00; cobros 0.00"
+    verificar_bd: |
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-24%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      metodo: "cortesia"
+      monto: 400
+    ambiguo: "A07"

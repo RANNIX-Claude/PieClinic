@@ -1,0 +1,105 @@
+# ESC-CAJA-22 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-22"
+nombre: "Gift card: canje total, parcial y saldo restante"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-073; METRICAS.md M-043; MODELO_ESTADOS.md (gift card)"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-073"
+  - "P-059"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-22'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-22"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-22  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+    gift500:
+      tipo: "gift_card"
+      codigo: "QA-{corrida}-GC500"
+      saldo: 500
+      caduca_el: "dentro de 6 meses"
+      estado: "activa"
+ambiguo:
+  - id: "A21"
+    pregunta: "Gift card en el corte: ¿cuenta como «dinero recibido en el turno» (cobros_total) o como instrumento aparte, igual que el anticipo? METRICAS M-043 la suma a las ventas del turno."
+pasos:
+  - n: 1
+    descripcion: "Ticket de 632.00; pagar con gift card QA-{corrida}-GC500"
+    esperado: "La caja muestra código y saldo 500.00; se aplica 500.00"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Método gift card, código GC500, monto 500; nota QA-{corrida}-ESC-CAJA-22"
+    verificar_ui: "Saldo del ticket 132.00"
+    verificar_bd: |
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-22%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      metodo: "gift_card"
+      monto: 500
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Completar con efectivo 132.00"
+    esperado: "Ticket cobrado"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Efectivo 132"
+    verificar_ui: "Cobrada"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-22%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cobrada"
+      total: 632
+      pagado_total: 632
+  - n: 3
+    descripcion: "Verificar la gift card agotada"
+    esperado: "Saldo 0.00; estado canjeada"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Consultar la gift card"
+    verificar_ui: "Saldo 0.00"
+    verificar_bd: "SELECT g.saldo, g.estado FROM piefirme.gift_cards g WHERE g.codigo = 'QA-{corrida}-GC500';"
+    esperado_bd:
+      saldo: 0
+      estado: "canjeada"
+    ambiguo: "A21"
+  - n: 4
+    descripcion: "Usar una segunda gift card de 500.00 en un ticket de 400.00"
+    esperado: "Se consumen solo 400.00; saldo 100.00; sigue activa"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Crear gift card QA-{corrida}-GC500B vía semilla; pagar 400"
+    verificar_ui: "Ticket cobrado"
+    verificar_bd: "SELECT g.saldo, g.estado FROM piefirme.gift_cards g WHERE g.codigo = 'QA-{corrida}-GC500B';"
+    esperado_bd:
+      saldo: 100
+      estado: "activa"

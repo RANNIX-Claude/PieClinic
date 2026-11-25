@@ -1,5 +1,9 @@
 # Pie Firme — RANNIX (producto propio)
 
+## Producto e implementación
+**Pie Firme** es el sistema de administración de clínicas de podología (producto RANNIX). Cada clínica cliente es una **implementación** del mismo sistema, aislada por `organizacion_id`.
+**Implementación en curso: Pie Clinic** (cliente fundador). Es la única que se aborda aquí; sus formatos reales, flujos, perfiles y documentos viven en `work/PieClinic`. Cuando Pie Clinic quede terminada y probada, se usará como **modelo para replicar** el sistema en otras clínicas: por eso todo lo propio de Pie Clinic (marca, sedes, precios, formatos en papel, catálogos) debe quedar como configuración o datos de la organización, nunca fijo en el código.
+
 SaaS multi-clínica para clínicas de podología: expediente clínico 100 % digital (con impresión fiel a los formatos en papel de Pie Clinic), agenda y citas multi-sede, portal público de reserva y pago sin cuenta, historial, importación de datos con IA, inventario por sucursal, facturación CFDI, y toda la parte administrativa clonada de IRP (gastos, ingresos, estado de resultados, conciliación, fondo revolvente, RH, bitácora, reportes). Lo usan podólogos, recepción y administradores de cada clínica; el paciente no tiene cuenta.
 
 Reglas de negocio: [`REGLAS_NEGOCIO.md`](REGLAS_NEGOCIO.md) (157 reglas; las no confirmadas por el dueño están marcadas «decidido por defecto, revisable»). Requerimiento: [`REQUERIMIENTO.md`](REQUERIMIENTO.md). Esquema: [`docs/CONVENCIONES_ESQUEMA.md`](docs/CONVENCIONES_ESQUEMA.md) y `docs/esquema/*_resumen.md`. Frontend: [`docs/FRONTEND_ARQUITECTURA.md`](docs/FRONTEND_ARQUITECTURA.md) y `docs/frontend/*.md`. Accesos: [`docs/ACCESOS.md`](docs/ACCESOS.md). Pruebas: [`docs/METODOLOGIA_QA.md`](docs/METODOLOGIA_QA.md).

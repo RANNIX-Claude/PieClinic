@@ -1,0 +1,85 @@
+# ESC-CAJA-69 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-69"
+nombre: "Venta de gift card: pasivo, caducidad de 12 meses y canje en cualquier sede"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-073 (la venta registra pasivo; ingreso al canjear; caduca 12 meses; usable en todas las sedes); MODELO_ESTADOS.md (gift card)"
+prioridad: "media"
+rol: "recepcion"
+reglas:
+  - "P-073"
+  - "P-091"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-69'"
+  - "Oferta de gift card QA-{corrida}-GC1000 de 1,000.00 en el catálogo"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-69"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-69  (se captura en la nota del ticket y/o turno; ver A33)"
+  oferta:
+    tipo: "gift_card"
+    nombre: "QA-{corrida}-GC1000"
+    monto: 1000
+ambiguo:
+  - id: "A35"
+    pregunta: "Gift card vendida: P-073 dice que la venta registra pasivo y el ingreso se reconoce al canjear, pero no se define cómo se ve en ingresos/EDR ni cuál es el IVA de la venta de una gift card."
+pasos:
+  - n: 1
+    descripcion: "Vender la gift card GC1000 y cobrar en efectivo 1,000.00"
+    esperado: "Ticket cobrado por 1,000.00; se crea la gift card con código y saldo 1,000.00"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Agregar gift card; efectivo 1000; nota QA-{corrida}-ESC-CAJA-69"
+    verificar_ui: "Código de la gift card en el ticket"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-69%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cobrada"
+      total: 1000
+    precondicion_critica: true
+    ambiguo: "A35"
+  - n: 2
+    descripcion: "Verificar la gift card"
+    esperado: "Saldo 1,000.00; activa; caduca 12 meses después de la fecha de venta"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Consultar"
+    verificar_ui: "Caducidad visible"
+    verificar_bd: "SELECT g.monto_inicial, g.saldo, g.estado, g.fecha_venta, g.caduca_el, (g.caduca_el = (g.fecha_venta + interval '12 months')::date) AS caduca_en_12_meses FROM piefirme.gift_cards g JOIN piefirme.ventas v ON v.id = g.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-69%';"
+    esperado_bd:
+      monto_inicial: 1000
+      saldo: 1000
+      estado: "activa"
+      caduca_en_12_meses: true
+  - n: 3
+    descripcion: "Revisar el ingreso reconocido"
+    esperado: "El ingreso se reconoce al canjear, no al vender (queda como pasivo)"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Ingresos del periodo"
+    verificar_ui: "La venta de la gift card no suma ingreso reconocido"
+    verificar_bd: null
+    ambiguo: "A35"
+  - n: 4
+    descripcion: "Canjear 400.00 de la gift card en la sede Patio (usuario de Patio)"
+    esperado: "Se permite en cualquier sede; saldo 600.00"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Pagar un ticket de 400.00 con la gift card"
+    verificar_ui: "Saldo 600.00"
+    verificar_bd: "SELECT g.saldo, g.estado FROM piefirme.gift_cards g JOIN piefirme.ventas v ON v.id = g.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-69%';"
+    esperado_bd:
+      saldo: 600
+      estado: "activa"

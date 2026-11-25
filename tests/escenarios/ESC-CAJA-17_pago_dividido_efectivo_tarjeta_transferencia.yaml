@@ -1,0 +1,111 @@
+# ESC-CAJA-17 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-17"
+nombre: "Pago dividido en tres métodos"
+version: 1
+fuente: "MODELO_ESTADOS.md S12 (pago dividido en varios métodos); REGLAS_NEGOCIO.md P-059; METRICAS.md M-043"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-059"
+  - "P-078"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-17'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "Ticket de 632.00 (2 × CREMA-A + QUIROPODIA)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-17"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-17  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+ambiguo:
+  - id: "A29"
+    pregunta: "Pago dividido: ¿puede repetirse el mismo método (dos tarjetas)? ¿límite de renglones de pago? ¿un pago parcial deja el ticket «por cobrar»?"
+pasos:
+  - n: 1
+    descripcion: "Preparar el ticket de 632.00 y pagar 200.00 en efectivo"
+    esperado: "Saldo pendiente 432.00; ticket sigue por cobrar"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Agregar líneas; pago 1 efectivo 200; nota QA-{corrida}-ESC-CAJA-17"
+    verificar_ui: "Saldo 432.00; botón Cobrar deshabilitado"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-17%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "por_cobrar"
+      pagado_total: 200
+      saldo: 432
+    precondicion_critica: true
+    ambiguo: "A29"
+  - n: 2
+    descripcion: "Agregar pago 2 con tarjeta 232.00 y voucher QA-VCH-0017"
+    esperado: "Saldo pendiente 200.00"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Método tarjeta, 232, voucher"
+    verificar_ui: "Saldo 200.00"
+    verificar_bd: |
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-17%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      numero_de_filas: 2
+  - n: 3
+    descripcion: "Agregar pago 3 con transferencia 200.00 referencia QA-SPEI-0017"
+    esperado: "Saldo 0.00; el ticket se cobra"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Método transferencia, 200, referencia"
+    verificar_ui: "Ticket cobrado; los tres métodos en el ticket"
+    verificar_bd: |
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-17%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      efectivo: 200
+      tarjeta: 232
+      transferencia: 200
+      suma: 632
+  - n: 4
+    descripcion: "Verificar totales de la venta"
+    esperado: "Pagado 632.00 = total; saldo 0"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Consultar venta"
+    verificar_ui: "Cobrada"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-17%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cobrada"
+      total: 632
+      pagado_total: 632
+      saldo: 0

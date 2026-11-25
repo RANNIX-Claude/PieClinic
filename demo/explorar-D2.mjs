@@ -1,0 +1,17 @@
+import { chromium } from '@playwright/test'
+const b = await chromium.launch({ channel: 'chrome', headless: true })
+const p = await b.newPage({ viewport: { width: 1366, height: 768 } })
+const T = process.env.TEMP
+await p.goto('http://localhost:5184/app/login', { timeout: 150000, waitUntil: 'domcontentloaded' })
+await p.locator('#pf-email').waitFor({ timeout: 150000 })
+await p.locator('#pf-email').fill('m@g.com'); await p.locator('#pf-pass').fill('123456')
+await p.getByRole('button', { name: 'Iniciar sesión' }).click()
+await p.locator('header').waitFor({ timeout: 90000 }); await p.waitForTimeout(2500)
+console.log('sedes:', await p.locator('header select option').allInnerTexts())
+console.log('menu:', (await p.locator('nav a, aside a').allInnerTexts()).join(' | '))
+await p.goto('http://localhost:5184/app/comisiones'.replace('comisiones','comisiones'), { waitUntil: 'domcontentloaded' })
+await p.waitForTimeout(5000)
+console.log(p.url())
+console.log((await p.locator('main, .pagina').first().innerText()).slice(0, 2500))
+await p.screenshot({ path: T + '/d2_a.png' })
+await b.close()

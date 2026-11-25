@@ -1,0 +1,114 @@
+# ESC-CAJA-02 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-02"
+nombre: "Venta de mostrador sin paciente: 1 producto del catálogo, efectivo"
+version: 1
+fuente: "tests/escenarios/CAJA_escenarios.md (ESC-CAJA-02); REGLAS_NEGOCIO.md P-056, P-057, P-133"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-056"
+  - "P-057"
+  - "P-079"
+  - "P-129"
+  - "P-133"
+legado_fila:
+  que_se_prueba: "Venta de mostrador sin paciente: 1 producto del catálogo, efectivo"
+  resultado_esperado: "Cobra, folio de venta, ticket"
+  verificacion_en_base: "`ventas` + `pagos` + `venta_lineas`; movimiento de inventario"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-02'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "No se selecciona paciente (público en general)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-02"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-02  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+pasos:
+  - n: 1
+    descripcion: "Abrir una venta de mostrador sin elegir paciente y agregar 1 × QA-{corrida}-CREMA-A"
+    esperado: "La venta no exige paciente; la línea muestra 1 × 116.00; total 116.00"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Nueva venta → Agregar producto → buscar CREMA-A → cantidad 1; capturar nota QA-{corrida}-ESC-CAJA-02"
+    verificar_ui: "Total 116.00 con IVA incluido 16.00; sin paciente"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-02%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      cantidad: 1
+      precio_unitario: 116
+      importe: 116
+      base_neta: 100
+      iva_monto: 16
+      iva_tipo: "16"
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Cobrar en efectivo recibiendo 200.00"
+    esperado: "Cobra; cambio 84.00; se genera folio de venta y ticket"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Método efectivo, recibido 200.00, Cobrar e imprimir ticket"
+    verificar_ui: "Se muestra cambio 84.00 y el ticket con folio CEN-TKT-NNNNNN"
+    verificar_bd: |
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-02%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      metodo: "efectivo"
+      monto: 116
+      efectivo_recibido: 200
+      cambio: 84
+  - n: 3
+    descripcion: "Verificar venta cobrada, sin paciente y con folio"
+    esperado: "Cobra, folio de venta, ticket"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Consultar la venta"
+    verificar_ui: "Estado cobrada"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-02%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cobrada"
+      total: 116
+      iva_total: 16
+      pagado_total: 116
+      saldo: 0
+  - n: 4
+    descripcion: "Verificar el movimiento de inventario"
+    esperado: "La existencia baja 1 (P-079)"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Consultar kardex del producto"
+    verificar_ui: "Existencia 19"
+    verificar_bd: |
+      SELECT m.tipo, m.cantidad, m.referencia_tipo, m.referencia_folio, m.fecha
+      FROM piefirme.movimientos_inventario m JOIN piefirme.productos pr ON pr.id = m.producto_id
+      WHERE pr.nombre = 'QA-{corrida}-CREMA-A'
+      ORDER BY m.created_at;
+    esperado_bd:
+      tipo: "venta"
+      cantidad: -1

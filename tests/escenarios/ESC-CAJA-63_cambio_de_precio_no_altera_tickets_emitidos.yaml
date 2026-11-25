@@ -1,0 +1,100 @@
+# ESC-CAJA-63 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-63"
+nombre: "Un cambio de precio no altera tickets ya emitidos"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-068, §3 Historia (se congela lo ya emitido)"
+prioridad: "alta"
+rol: "administrador"
+reglas:
+  - "P-068"
+  - "P-057"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-63'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-63"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-63  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_e:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-E"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "se usa para probar cambio de precio"
+pasos:
+  - n: 1
+    descripcion: "Cobrar 1 × CREMA-E a 116.00 y anotar folio"
+    esperado: "Ticket A cobrado a 116.00"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cobrar; nota QA-{corrida}-ESC-CAJA-63"
+    verificar_ui: "Total 116.00"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-63%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      total: 116
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Como m@g.com cambiar el precio de CREMA-E a 130.00 con vigencia desde hoy"
+    esperado: "Cambio guardado con histórico (vigencia, sede, quién lo cambió)"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Catálogo y precios → editar precio"
+    verificar_ui: "Nueva vigencia"
+    verificar_bd: "SELECT pr.precio, pr.vigente_desde, pr.vigente_hasta FROM piefirme.precios pr JOIN piefirme.productos p ON p.id = pr.producto_id WHERE p.nombre = 'QA-{corrida}-CREMA-E' ORDER BY pr.vigente_desde;"
+    esperado_bd:
+      numero_de_filas: "al menos 2"
+      precio_vigente: 130
+  - n: 3
+    descripcion: "Reimprimir el ticket A"
+    esperado: "Sigue en 116.00, marcado copia"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Reimprimir"
+    verificar_ui: "Importes originales"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-63%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      total: 116
+  - n: 4
+    descripcion: "Cobrar un ticket B de CREMA-E"
+    esperado: "Ticket B a 130.00"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cobrar; nota QA-{corrida}-ESC-CAJA-63-B"
+    verificar_ui: "Total 130.00"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-63%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      ultimo_precio_unitario: 130
+  - n: 5
+    descripcion: "Restaurar el precio a 116.00"
+    esperado: "Catálogo vuelve a su valor para las siguientes corridas"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Editar precio"
+    verificar_ui: "Precio 116.00"
+    verificar_bd: null

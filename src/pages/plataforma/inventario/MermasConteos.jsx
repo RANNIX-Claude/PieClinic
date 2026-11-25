@@ -67,7 +67,7 @@ function Mermas({ sp }) {
         columnas={[
           { key: 'folio', label: 'Folio', render: x => <b>{x.folio}</b> }, { key: 'created_at', label: 'Fecha', render: x => fechaHora(x.created_at) },
           { key: 'producto', label: 'Producto' }, { key: 'sede_nombre', label: 'Sede', filtro: true }, { key: 'cantidad', label: 'Cant.', align: 'right', render: x => qty(x.cantidad) },
-          { key: 'tipoTxt', label: 'Tipo', filtro: true }, { key: 'motivo', label: 'Motivo' }, { key: 'valor_estimado', label: 'Valor est.', align: 'right', render: x => moneda(x.valor_estimado) },
+          { key: 'tipoTxt', label: 'Tipo', filtro: true }, { key: 'traspaso_folio', label: 'Traspaso', render: x => x.traspaso_folio ?? '—' }, { key: 'motivo', label: 'Motivo' }, { key: 'valor_estimado', label: 'Valor est.', align: 'right', render: x => moneda(x.valor_estimado) },
           { key: 'estadoTxt', label: 'Estado', filtro: true, render: x => <StatusBadge estado={x.estado} label={ESTADO_MERMA[x.estado]} variante={x.estado === 'pendiente' ? 'a' : undefined} /> },
           ...(esAdmin ? [{ key: 'acc', label: '', sortable: false, exportar: false, render: x => x.estado === 'pendiente' && (
             <div style={{ display: 'flex', gap: 4 }}><button className="btn sm" disabled={ocupado} onClick={() => resolver(x, true)}>Autorizar</button><button className="btn o sm" disabled={ocupado} onClick={() => resolver(x, false)}>Rechazar</button></div>) }] : []),

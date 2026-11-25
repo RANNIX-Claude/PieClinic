@@ -1,0 +1,105 @@
+# ESC-CAJA-58 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-58"
+nombre: "Recepción: lo que NO puede hacer en caja y alrededores"
+version: 1
+fuente: "MATRIZ_ROLES.md §4.2 y §4.4; REGLAS_NEGOCIO.md P-130 (Recepción sin finanzas consolidadas, nómina ni comisiones ajenas), P-055, P-058, P-060, P-063, P-065; Autoridad (resumen)"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-130"
+  - "P-055"
+  - "P-058"
+  - "P-060"
+  - "P-063"
+  - "P-065"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-58'"
+  - "Ticket cobrado de turno cerrado, ticket facturado con CFDI vigente y turno cerrado sin revisar, todos QA"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-58"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-58  (se captura en la nota del ticket y/o turno; ver A33)"
+pasos:
+  - n: 1
+    descripcion: "Descuento de 11 % sin PIN de Administrador"
+    esperado: "Rechazado: pide PIN"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Aplicar 11 %"
+    verificar_ui: "Ventana de PIN"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-58%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      descuento_total: 0
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Cancelar un ticket de turno cerrado"
+    esperado: "Rechazado: solo Administración"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Intentar cancelar"
+    verificar_ui: "Sin acción o mensaje"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-58%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cobrada"
+  - n: 3
+    descripcion: "Cancelar un CFDI y emitir una nota de crédito"
+    esperado: "Rechazado: solo Administración"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Buscar Cancelar CFDI y Nota de crédito"
+    verificar_ui: "Sin acción"
+    verificar_bd: "SELECT count(*) AS notas FROM piefirme.notas_credito n JOIN piefirme.ventas v ON v.id = n.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-58%';"
+    esperado_bd:
+      notas: 0
+  - n: 4
+    descripcion: "Marcar un turno cerrado como revisado"
+    esperado: "Rechazado"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Buscar Revisar"
+    verificar_ui: "Sin acción"
+    verificar_bd: |
+      SELECT t.caja, t.estado, t.fondo_inicial, t.efectivo_esperado, t.efectivo_contado, t.diferencia, t.justificacion, t.autorizacion_id, t.cerrado_por, t.revisado_por
+      FROM piefirme.turnos_caja t
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-58%'
+      ORDER BY t.apertura_en;
+    esperado_bd:
+      revisado_por: null
+  - n: 5
+    descripcion: "Abrir por URL directa ingresos, estado de resultados, nómina, comisiones de otros y usuarios"
+    esperado: "Sin acceso a finanzas consolidadas, nómina ni comisiones ajenas ni usuarios"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Navegar a cada ruta"
+    verificar_ui: "Redirige o muestra sin acceso"
+    verificar_bd: null
+  - n: 6
+    descripcion: "Editar un precio del catálogo y los parámetros de caja (tolerancia, % de descuento)"
+    esperado: "Recepción solo ve el catálogo; no edita precios ni parámetros"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Buscar editar"
+    verificar_ui: "Solo lectura"
+    verificar_bd: null

@@ -1,0 +1,97 @@
+# ESC-CAJA-13 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-13"
+nombre: "Camino feliz: producto con IVA incluido, efectivo con cambio"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-056, P-057, P-079; METRICAS.md M-041"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-056"
+  - "P-057"
+  - "P-079"
+  - "P-133"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-13'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-13"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-13  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+pasos:
+  - n: 1
+    descripcion: "Agregar 2 × QA-{corrida}-CREMA-A a una venta"
+    esperado: "Total 232.00 con IVA incluido de 32.00 (232 × 16 / 116); base 200.00"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Nueva venta → producto CREMA-A → cantidad 2; nota QA-{corrida}-ESC-CAJA-13"
+    verificar_ui: "Subtotal 232.00, IVA 32.00, total 232.00"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-13%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      cantidad: 2
+      precio_unitario: 116
+      importe: 232
+      base_neta: 200
+      iva_monto: 32
+      iva_tipo: "16"
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Cobrar en efectivo recibiendo 250.00"
+    esperado: "Cambio 18.00; ticket con folio"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Efectivo 250 → Cobrar e imprimir"
+    verificar_ui: "Cambio 18.00 visible"
+    verificar_bd: |
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-13%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      metodo: "efectivo"
+      monto: 232
+      efectivo_recibido: 250
+      cambio: 18
+  - n: 3
+    descripcion: "Verificar el ticket y el inventario"
+    esperado: "Venta cobrada; existencia baja 2"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Consultar venta y kardex"
+    verificar_ui: "Estado cobrada"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-13%'
+      ORDER BY v.created_at;
+      SELECT m.tipo, m.cantidad, m.referencia_tipo, m.referencia_folio, m.fecha
+      FROM piefirme.movimientos_inventario m JOIN piefirme.productos pr ON pr.id = m.producto_id
+      WHERE pr.nombre = 'QA-{corrida}-CREMA-A'
+      ORDER BY m.created_at;
+    esperado_bd:
+      estado: "cobrada"
+      total: 232
+      iva_total: 32
+      saldo: 0
+      movimiento_inventario:
+        tipo: "venta"
+        cantidad: -2

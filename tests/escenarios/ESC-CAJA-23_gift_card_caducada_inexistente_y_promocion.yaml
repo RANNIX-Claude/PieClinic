@@ -1,0 +1,99 @@
+# ESC-CAJA-23 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-23"
+nombre: "Gift card caducada, inexistente o combinada con promoción"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-073 (caduca 12 meses; no se combina con promociones), P-074"
+prioridad: "media"
+rol: "recepcion"
+reglas:
+  - "P-073"
+  - "P-074"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-23'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "Promoción vigente QA-{corrida}-PROMO-10 aplicable a CREMA-A"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-23"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-23  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+    gift500:
+      tipo: "gift_card"
+      codigo: "QA-{corrida}-GC500"
+      saldo: 500
+      caduca_el: "dentro de 6 meses"
+      estado: "activa"
+    gift_cad:
+      tipo: "gift_card"
+      codigo: "QA-{corrida}-GCCAD"
+      saldo: 300
+      caduca_el: "ayer"
+      estado: "caducada"
+ambiguo:
+  - id: "A28"
+    pregunta: "Promociones en caja: no hay regla de cómputo (P-074 solo dice una por línea y prioridad de paquetes); el caso gift card + promoción (P-073) requiere definir una promoción de prueba."
+pasos:
+  - n: 1
+    descripcion: "Pagar con la gift card caducada QA-{corrida}-GCCAD"
+    esperado: "Rechazada: caducada"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Código GCCAD; nota QA-{corrida}-ESC-CAJA-23"
+    verificar_ui: "Mensaje de gift card caducada"
+    verificar_bd: |
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-23%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      numero_de_filas: 0
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Pagar con un código inexistente QA-{corrida}-NOEXISTE"
+    esperado: "Rechazada: no existe"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Capturar código"
+    verificar_ui: "Mensaje de código inválido"
+    verificar_bd: |
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-23%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      numero_de_filas: 0
+  - n: 3
+    descripcion: "Línea con promoción PROMO-10 y pago con gift card"
+    esperado: "No se combinan: se bloquea el pago con gift card o la promoción"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Agregar CREMA-A con promoción; pagar con GC500"
+    verificar_ui: "Aviso de que no se combinan"
+    verificar_bd: |
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-23%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      numero_de_filas: 0
+    ambiguo: "A28"

@@ -1,0 +1,51 @@
+# ESC-CAJA-10 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-10"
+nombre: "Supervisor ve ventas y cortes de su sucursal"
+version: 1
+fuente: "tests/escenarios/CAJA_escenarios.md (ESC-CAJA-10); MATRIZ_ROLES.md; REGLAS_NEGOCIO.md P-129, P-130"
+prioridad: "alta"
+rol: "supervisor"
+reglas:
+  - "P-130"
+  - "P-129"
+legado_fila:
+  que_se_prueba: "Ver ventas y cortes de su sucursal"
+  resultado_esperado: "Solo lectura"
+  verificacion_en_base: "RLS"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Existen ventas y cortes QA en Centenario y en Patio (otra sede)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-10"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-10  (se captura en la nota del ticket y/o turno; ver A33)"
+ambiguo:
+  - id: "A01"
+    pregunta: "Rol Supervisor (s@g.com): MATRIZ_ROLES.md y P-131 solo definen 3 perfiles con sesión (podólogo, recepción, administrador). ¿Qué puede ver y hacer un supervisor en Caja? ¿Existe como perfil de negocio?"
+pasos:
+  - n: 1
+    descripcion: "Iniciar sesión como s@g.com y abrir ventas y cortes"
+    esperado: "Ve ventas y cortes de su sucursal"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Login s@g.com; abrir Caja / Ventas y Cortes"
+    verificar_ui: "Listas visibles de su sede (Centenario) únicamente"
+    verificar_bd: "SELECT count(*) AS ventas_otra_sede FROM piefirme.prp_ventas WHERE sede_id <> (SELECT sede_id FROM piefirme.perfiles WHERE id = auth.uid());"
+    esperado_bd:
+      ventas_otra_sede: 0
+    precondicion_critica: true
+    ambiguo: "A01"
+  - n: 2
+    descripcion: "Buscar acciones de escritura (Cobrar, Cancelar, Descuento, Cerrar turno)"
+    esperado: "Solo lectura: ninguna acción de escritura disponible"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Intentar cada acción"
+    verificar_ui: "Botones ausentes o deshabilitados; intento directo rechazado"
+    verificar_bd: null
+    ambiguo: "A01"

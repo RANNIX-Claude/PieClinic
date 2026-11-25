@@ -1,0 +1,51 @@
+# ESC-CAJA-53 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-53"
+nombre: "Corte con faltante exacto de $50.00: lo justifica el cajero"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-058 (diferencia de hasta $50.00 la justifica el cajero)"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-058"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno con el mismo juego de movimientos de ESC-CAJA-51: fondo 1,000.00; efectivo esperado 1,332.00 (1,000.00 + 632.00 + 232.00 − 300.00 retiro − 232.00 cancelación en efectivo); nombre_turno 'QA-{corrida}-ESC-CAJA-53'"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-53"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-53  (se captura en la nota del ticket y/o turno; ver A33)"
+ambiguo:
+  - id: "A20"
+    pregunta: "Tolerancia de $50.00 (P-058): ¿es absoluta (sobrante y faltante)? ¿$50.00 exactos está dentro? ¿una diferencia de $0.00 exige justificación? ¿longitud mínima de la justificación?"
+pasos:
+  - n: 1
+    descripcion: "Capturar efectivo contado 1,282.00"
+    esperado: "Diferencia −50.00; pide justificación; no pide Administrador (está dentro de la tolerancia)"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Teclear 1282"
+    verificar_ui: "Diferencia −50.00 sin solicitud de PIN de Administrador"
+    verificar_bd: null
+    precondicion_critica: true
+    ambiguo: "A20"
+  - n: 2
+    descripcion: "Justificar «QA-{corrida}-ESC-CAJA-53 faltante de cambio» y cerrar"
+    esperado: "Cierra con la diferencia justificada, sin autorización de Administrador"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Justificación y cerrar"
+    verificar_ui: "Turno cerrado"
+    verificar_bd: |
+      SELECT c.ventas_total, c.cobros_total, c.ventas_efectivo, c.ventas_tarjeta, c.ventas_transferencia, c.ventas_clip, c.ventas_gift_card, c.anticipos_aplicados, c.cortesias, c.retiros, c.cancelaciones_efectivo, c.cancelaciones_total, c.numero_cancelaciones, c.fondo_inicial, c.efectivo_esperado, c.efectivo_contado, c.diferencia, c.justificacion, c.autorizacion_id
+      FROM piefirme.cortes_caja c JOIN piefirme.turnos_caja t ON t.id = c.turno_id
+      WHERE t.nombre_turno LIKE 'QA-{corrida}-ESC-CAJA-53%';
+    esperado_bd:
+      diferencia: -50
+      justificacion: "QA-{corrida}-ESC-CAJA-53 faltante de cambio"
+      autorizacion_id: null
+    ambiguo: "A20"

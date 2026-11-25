@@ -1,0 +1,118 @@
+# ESC-INV-12 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: ESC-INV-12
+nombre: Conservación de unidades y de valor a costo promedio a lo largo de un traspaso (incluido el tránsito)
+version: 1
+fuente: REGLAS_NEGOCIO.md P-083, P-080; METRICAS.md M-006, M-062, M-064
+prioridad: alta
+rol: administrador
+ambiguo:
+  - id: A-INV-19
+    pregunta: "Costo del traspaso: P-080 dice «a costo promedio» y P-083 «ponderado por clínica». ¿Se valúa con el costo vigente al ENVIAR o al RECIBIR si cambió en el tránsito? El esperado propuesto es el del envío. El mockup 22 muestra 1,533 contra 1,722 con costos de 21 (METRICAS M-064)."
+reglas:
+  - P-083
+  - P-080
+  - P-079
+precondiciones:
+  - Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, m@g.com administrador, p@g.com podólogo; a@g.com superadministrador)
+  - "Dos sedes de la misma clínica: Centenario (origen) y Patio Valle de Chalco (destino). Reglas de alcance (sede) según MATRIZ_ROLES §4.3; usuarios de recepción asignados a una sola sede cada uno (ver ambiguo A-INV-12)"
+  - "Catálogo: QA-{corrida}-CREMA (venta, costo_promedio 100.00, sin lote) con costo_promedio 100.00"
+  - Centenario CREMA 20; PVC CREMA 2
+  - Compra posterior de 10 × CREMA a 130.00 (para probar costo promedio ponderado)
+datos_creados:
+  prefijo_qa: QA-{corrida}-ESC-INV-12
+  nota_en_registros: QA-{corrida}-ESC-INV-12  (se captura en comentarios del traspaso / nota del movimiento / motivo de la merma)
+  traspaso: 10 × CREMA CEN → PVC
+  calculo: "Valor total antes: 22 × 100 = 2,200.00. Tras compra de 10 a 130: costo promedio = (22×100 + 10×130)/32 = 106.25; valor = 32 × 106.25 = 3,400.00"
+pasos:
+  - "n": 1
+    descripcion: Registrar el valor de inventario y las unidades totales antes del traspaso
+    esperado: Unidades 22; valor 2,200.00; valor por sede CEN 2,000.00 y PVC 200.00
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Existencias y tarjeta de valor
+    verificar_ui: Cifras coinciden con el cálculo a mano
+    verificar_bd: |-
+      SELECT i.sede_nombre, pr.nombre AS producto, i.existencia, i.minimo, i.maximo, i.estado, i.existencia_negativa, i.valor
+      FROM piefirme.prp_inventario i
+      JOIN piefirme.productos pr ON pr.id = i.producto_id
+      WHERE pr.nombre LIKE 'QA-{corrida}-%'
+      ORDER BY pr.nombre, i.sede_nombre;
+    esperado_bd:
+      unidades: 22
+      valor_total: 2200
+      valor_cen: 2000
+      valor_pvc: 200
+    precondicion_critica: true
+  - "n": 2
+    descripcion: Enviar el traspaso de 10 × CREMA
+    esperado: "Unidades en origen 10, en tránsito 10, en destino 2: total 22 en cada instante; el valor del traspaso congela el costo al enviar (10 × 100.00 = 1,000.00)"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Enviar
+    verificar_ui: Traspaso En tránsito con valor 1,000.00
+    verificar_bd: |-
+      SELECT t.folio, t.estado, t.sede_origen_id, t.sede_destino_id, t.partidas, t.unidades, t.valor_total, t.enviado_en, t.recibido_en, t.recibio_por, t.cancelado_motivo
+      FROM piefirme.traspasos t
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-12%';
+      SELECT pr.nombre, l.cantidad_enviada, l.cantidad_recibida, l.diferencia, l.motivo_diferencia, l.costo_unitario
+      FROM piefirme.traspaso_lineas l
+      JOIN piefirme.traspasos t ON t.id = l.traspaso_id
+      JOIN piefirme.productos pr ON pr.id = l.producto_id
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-12%'
+      ORDER BY pr.nombre;
+    esperado_bd:
+      valor_total_traspaso: 1000
+      costo_unitario: 100
+      unidades_total_incl_transito: 22
+  - "n": 3
+    descripcion: Cambiar el costo promedio con una compra DURANTE el tránsito (10 × 130.00) y luego recibir el traspaso
+    esperado: "La recepción no revalúa el traspaso: sigue a 100.00 (costo congelado al envío); el costo promedio de la clínica pasa a 106.25 por la compra, no por el traspaso"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Registrar recepción de compra de 10 a 130.00; después recibir el traspaso
+    verificar_ui: Traspaso valuado a 100.00; producto con costo promedio 106.25
+    verificar_bd: |-
+      SELECT pr.costo_promedio FROM piefirme.productos pr WHERE pr.nombre = 'QA-{corrida}-CREMA';
+      SELECT pr.nombre, l.cantidad_enviada, l.cantidad_recibida, l.diferencia, l.motivo_diferencia, l.costo_unitario
+      FROM piefirme.traspaso_lineas l
+      JOIN piefirme.traspasos t ON t.id = l.traspaso_id
+      JOIN piefirme.productos pr ON pr.id = l.producto_id
+      WHERE t.comentarios LIKE 'QA-{corrida}-ESC-INV-12%'
+      ORDER BY pr.nombre;
+    esperado_bd:
+      costo_promedio: 106.25
+      costo_unitario_traspaso: 100
+    ambiguo: A-INV-19
+  - "n": 4
+    descripcion: Verificar valor total final
+    esperado: Unidades 32; valor = 32 × 106.25 = 3,400.00; el traspaso por sí solo no cambió el valor de la clínica
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Tarjeta de valor
+    verificar_ui: Valor 3,400.00
+    verificar_bd: SELECT sum(i.existencia) AS unidades, sum(i.valor) AS valor FROM piefirme.prp_inventario i JOIN piefirme.productos pr ON pr.id = i.producto_id WHERE pr.nombre = 'QA-{corrida}-CREMA';
+    esperado_bd:
+      unidades: 32
+      valor: 3400
+  - "n": 5
+    descripcion: Cuadre del kardex contra la existencia
+    esperado: "Para cada sede: suma de movimientos del kardex = existencia mostrada (M-006)"
+    legado:
+      resultado: sin corrida previa
+      observacion: ""
+      correccion: ""
+    accion: Kardex por sede
+    verificar_ui: Coincide
+    verificar_bd: SELECT s.nombre, sum(m.cantidad) AS saldo_kardex, i.existencia FROM piefirme.movimientos_inventario m JOIN piefirme.sedes s ON s.id = m.sede_id JOIN piefirme.productos pr ON pr.id = m.producto_id JOIN piefirme.inventario_sede i ON i.sede_id = m.sede_id AND i.producto_id = m.producto_id WHERE pr.nombre = 'QA-{corrida}-CREMA' GROUP BY s.nombre, i.existencia;
+    esperado_bd:
+      saldo_kardex: igual a existencia en cada sede

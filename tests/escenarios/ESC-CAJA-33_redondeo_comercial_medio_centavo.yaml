@@ -1,0 +1,95 @@
+# ESC-CAJA-33 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-33"
+nombre: "Redondeo comercial: 0.005 sube"
+version: 1
+fuente: "REGLAS_NEGOCIO.md §2 y P-057 (redondeo comercial: ≥ 0.005 sube)"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-057"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-33'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-33"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-33  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_d:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-D"
+      precio_lista_iva_incluido: 10.05
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "10 % de 10.05 = 1.005 (medio centavo)"
+    crema_c:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-C"
+      precio_lista_iva_incluido: 99.99
+      iva: "16 %"
+      existencia_centenario: 20
+ambiguo:
+  - id: "A26"
+    pregunta: "Redondeo (P-057): se asume que «línea» es el renglón completo (cantidad × precio) y que el redondeo comercial (≥ 0.005 sube) aplica a descuento, base e IVA. ¿Confirmar? (hay escenarios cuyo resultado depende de ello)."
+pasos:
+  - n: 1
+    descripcion: "CREMA-D (10.05) sin descuento"
+    esperado: "Base 8.66; IVA 1.39; importe 10.05"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Agregar CREMA-D; nota QA-{corrida}-ESC-CAJA-33"
+    verificar_ui: "Total 10.05"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-33%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      importe: 10.05
+      base_neta: 8.66
+      iva_monto: 1.39
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Aplicar 10 % con motivo (10 % de 10.05 = 1.005)"
+    esperado: "El descuento se redondea a 1.01 (no 1.00); importe 9.04; base 7.79; IVA 1.25"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Descuento 10 % con motivo"
+    verificar_ui: "Total 9.04"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-33%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      descuento: 1.01
+      importe: 9.04
+      base_neta: 7.79
+      iva_monto: 1.25
+    ambiguo: "A26"
+  - n: 3
+    descripcion: "CREMA-C (99.99) con 10 %"
+    esperado: "Descuento 9.999 → 10.00; importe 89.99; base 77.58; IVA 12.41"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Descuento 10 % con motivo; nota QA-{corrida}-ESC-CAJA-33-B"
+    verificar_ui: "Total 89.99"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-33%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      descuento: 10
+      importe: 89.99
+      base_neta: 77.58
+      iva_monto: 12.41
+    ambiguo: "A26"

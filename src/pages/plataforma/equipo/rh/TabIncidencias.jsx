@@ -18,7 +18,8 @@ export default function TabIncidencias() {
   const { ejecutar, ocupado } = useEscribir()
   const { confirmar, dialogo } = useConfirmacion()
   const [mes, setMes] = useState(hoy().slice(0, 7))
-  const desde = `${mes}-01`, hasta = `${mes}-31`
+  const desde = `${mes}-01`
+  const hasta = `${mes}-${String(new Date(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 0).getDate()).padStart(2, '0')}` // último día real del mes (noviembre = 30)
   const q = useVista(['incidencias', mes], 'prp_incidencias_rh', { filtros: { fecha: { gte: desde, lte: hasta } }, orden: [{ columna: 'fecha', asc: false }], limite: 1000 })
   const qt = useVista('tipos-incidencia', 'prp_tipos_incidencia', { orden: [{ columna: 'orden' }] }, { conSede: false })
   const qe = useVista('empleados-activos', 'prp_empleados', { filtros: { estado: 'activo' }, orden: [{ columna: 'nombre_completo' }], limite: 500 })

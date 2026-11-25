@@ -1,0 +1,82 @@
+# ESC-CAJA-39 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-39"
+nombre: "Producto sin existencia: avisa, permite y deja existencia negativa"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-085 (se permite con aviso y marca existencia negativa que Administración regulariza con conteo)"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-085"
+  - "P-086"
+  - "P-079"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-39'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "Existencia del producto SINEXIST en Centenario: 0"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-39"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-39  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_sin:
+      tipo: "producto"
+      nombre: "QA-{corrida}-SINEXIST"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 0
+pasos:
+  - n: 1
+    descripcion: "Agregar 1 × SINEXIST"
+    esperado: "Se permite con aviso visible de falta de existencia"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Agregar producto; nota QA-{corrida}-ESC-CAJA-39"
+    verificar_ui: "Aviso de existencia insuficiente, no un error bloqueante"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-39%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      cantidad: 1
+      importe: 116
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Cobrar en efectivo 116.00"
+    esperado: "Cobra"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Efectivo 116"
+    verificar_ui: "Cobrada"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-39%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      estado: "cobrada"
+      total: 116
+  - n: 3
+    descripcion: "Verificar la existencia negativa"
+    esperado: "Existencia −1 marcada como negativa para que Administración la regularice"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Consultar kardex e inventario"
+    verificar_ui: "Marca de existencia negativa"
+    verificar_bd: |
+      SELECT m.tipo, m.cantidad, m.referencia_tipo, m.referencia_folio, m.fecha
+      FROM piefirme.movimientos_inventario m JOIN piefirme.productos pr ON pr.id = m.producto_id
+      WHERE pr.nombre = 'QA-{corrida}-SINEXIST'
+      ORDER BY m.created_at;
+    esperado_bd:
+      tipo: "venta"
+      cantidad: -1
+      existencia_resultante: -1

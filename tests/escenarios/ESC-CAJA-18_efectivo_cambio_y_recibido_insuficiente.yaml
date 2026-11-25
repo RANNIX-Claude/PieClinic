@@ -1,0 +1,107 @@
+# ESC-CAJA-18 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-18"
+nombre: "Efectivo: cambio correcto y recibido menor al monto"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-059 (efectivo del turno); METRICAS.md M-042"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-059"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-18'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-18"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-18  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+ambiguo:
+  - id: "A11"
+    pregunta: "Pago mayor al saldo con método distinto de efectivo (tarjeta, SPEI, gift card): ¿se rechaza, se registra saldo a favor o propina? No hay regla de propinas."
+pasos:
+  - n: 1
+    descripcion: "Ticket de 632.00; capturar efectivo recibido 700.00"
+    esperado: "Cambio 68.00; en el corte el efectivo del ticket cuenta 632.00 y no 700.00"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Efectivo recibido 700 → Cobrar; nota QA-{corrida}-ESC-CAJA-18"
+    verificar_ui: "Cambio 68.00"
+    verificar_bd: |
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-18%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      monto: 632
+      efectivo_recibido: 700
+      cambio: 68
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Segundo ticket de 632.00; capturar efectivo recibido 500.00 como único pago por 632.00"
+    esperado: "No permite aplicar 632.00 con solo 500.00 recibidos"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Monto 632 con recibido 500"
+    verificar_ui: "Mensaje de recibido insuficiente; no se cobra"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-18%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      numero_de_filas: 2
+      ultimo_estado: "por_cobrar"
+      ultimo_pagado_total: 0
+  - n: 3
+    descripcion: "Capturar el pago como parcial de 500.00"
+    esperado: "Saldo pendiente 132.00; sigue por cobrar"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cambiar monto a 500"
+    verificar_ui: "Saldo 132.00"
+    verificar_bd: |
+      SELECT v.folio, v.estado, v.subtotal, v.descuento_total, v.iva_total, v.total, v.anticipo_aplicado, v.pagado_total, v.saldo, v.requiere_factura, v.copias_impresas, v.cancelada_por, v.motivo_cancelacion
+      FROM piefirme.ventas v
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-18%'
+      ORDER BY v.created_at;
+    esperado_bd:
+      ultimo_estado: "por_cobrar"
+      ultimo_pagado_total: 500
+      ultimo_saldo: 132
+  - n: 4
+    descripcion: "Tercer ticket de 632.00: capturar tarjeta por 700.00 (más que el saldo)"
+    esperado: "AMBIGUO: no hay regla de propinas ni saldo a favor; se registra el comportamiento y no debe cobrarse de más sin aviso"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Método tarjeta, monto 700, voucher QA-VCH-0018"
+    verificar_ui: "Registrar comportamiento"
+    verificar_bd: |
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-18%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      resultado: "AMBIGUO"
+    ambiguo: "A11"

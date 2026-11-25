@@ -1,0 +1,113 @@
+# ESC-CAJA-32 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-32"
+nombre: "Redondeo: total del ticket = suma de líneas = CFDI"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-057; METRICAS.md M-045"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-057"
+  - "P-061"
+  - "P-064"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-32'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+  - "PAC en modo simulado; datos fiscales de prueba QA del receptor"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-32"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-32  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    crema_r:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-R"
+      precio_lista_iva_incluido: 5.05
+      iva: "16 %"
+      existencia_centenario: 50
+      nota: "precio de redondeo: 5.05/1.16 = 4.3534"
+    crema_a:
+      tipo: "producto"
+      nombre: "QA-{corrida}-CREMA-A"
+      precio_lista_iva_incluido: 116
+      iva: "16 %"
+      existencia_centenario: 20
+      nota: "base 100.00 + IVA 16.00"
+ambiguo:
+  - id: "A26"
+    pregunta: "Redondeo (P-057): se asume que «línea» es el renglón completo (cantidad × precio) y que el redondeo comercial (≥ 0.005 sube) aplica a descuento, base e IVA. ¿Confirmar? (hay escenarios cuyo resultado depende de ello)."
+pasos:
+  - n: 1
+    descripcion: "Ticket A: 3 líneas separadas de CREMA-R (5.05 c/u)"
+    esperado: "Cada línea: base 4.35, IVA 0.70; total ticket 15.15; suma de bases 13.05; suma de IVA 2.10"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Agregar CREMA-R tres veces como renglones distintos; nota QA-{corrida}-ESC-CAJA-32"
+    verificar_ui: "Total 15.15; IVA 2.10"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-32%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      por_linea:
+        base_neta: 4.35
+        iva_monto: 0.7
+        importe: 5.05
+      suma_base_neta: 13.05
+      suma_iva_monto: 2.1
+      suma_importe: 15.15
+    precondicion_critica: true
+    ambiguo: "A26"
+  - n: 2
+    descripcion: "Ticket B: una línea de CREMA-R con cantidad 3"
+    esperado: "La línea (importe 15.15) tiene base 13.06 e IVA 2.09: el cálculo es por línea"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Una línea cantidad 3; nota QA-{corrida}-ESC-CAJA-32-B"
+    verificar_ui: "Total 15.15; IVA 2.09"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-32%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      importe: 15.15
+      base_neta: 13.06
+      iva_monto: 2.09
+    ambiguo: "A26"
+  - n: 3
+    descripcion: "Cobrar A en efectivo 15.15 y solicitar factura"
+    esperado: "Se genera factura en el mismo total"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Cobrar; Facturar este ticket; datos fiscales QA"
+    verificar_ui: "Factura en borrador/simulada"
+    verificar_bd: "SELECT f.subtotal, f.descuento, f.iva_trasladado, f.total FROM piefirme.facturas f JOIN piefirme.ventas v ON v.id = f.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-32%';"
+    esperado_bd:
+      subtotal: 13.05
+      iva_trasladado: 2.1
+      total: 15.15
+  - n: 4
+    descripcion: "Ticket C: CREMA-A × 1 con descuento 10 % y su factura"
+    esperado: "Ticket 104.40; CFDI: subtotal 100.00 − descuento 10.00 + IVA 14.40 = 104.40"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Descuento 10 %; cobrar; facturar; nota QA-{corrida}-ESC-CAJA-32-C"
+    verificar_ui: "Totales iguales en ticket y factura"
+    verificar_bd: "SELECT f.subtotal, f.descuento, f.iva_trasladado, f.total FROM piefirme.facturas f JOIN piefirme.ventas v ON v.id = f.venta_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-32-C%';"
+    esperado_bd:
+      subtotal: 100
+      descuento: 10
+      iva_trasladado: 14.4
+      total: 104.4
+    ambiguo: "A26"

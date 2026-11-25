@@ -12,7 +12,7 @@ import Modal from '../../../components/ui/Modal'
 import FormField from '../../../components/ui/FormField'
 import StatusBadge from '../../../components/ui/StatusBadge'
 import EmptyState from '../../../components/ui/EmptyState'
-import { useProveedores, useAccion, msgError, CATEGORIAS_PROVEEDOR } from './comun'
+import { useProveedores, useAccion, msgError, CATEGORIAS_PROVEEDOR, condicionPago } from './comun'
 
 export const RFC_RE = /^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$/
 const CONDICIONES = [{ value: 'contado', label: 'Contado' }, { value: 'credito', label: 'Crédito' }, { value: 'anticipo', label: 'Anticipo' }]
@@ -86,7 +86,7 @@ export function ModalProveedor({ proveedor, onClose, onCreado, onGuardar }) {
   const { correr, ocupado } = useAccion()
   const [f, setF] = useState({
     clave: '', nombre: '', razon_social: '', rfc: '', categoria: 'insumos', es_laboratorio: false, activo: true, telefono: '', email: '', contacto: '',
-    condiciones_pago: 'contado', dias_credito: 0, dias_entrega: '', notas: '', ...(proveedor ? Object.fromEntries(Object.entries(proveedor).map(([k, v]) => [k, v ?? (typeof v === 'boolean' ? v : '')])) : {}),
+    condiciones_pago: 'contado', dias_credito: 0, dias_entrega: '', notas: '', ...(proveedor ? Object.fromEntries(Object.entries(proveedor).map(([k, v]) => [k, v ?? (typeof v === 'boolean' ? v : '')])) : {}), ...(proveedor ? { condiciones_pago: condicionPago(proveedor.condiciones_pago) } : {}),
   })
   const set = (k, v) => setF(x => ({ ...x, [k]: v }))
   const rfc = f.rfc.trim().toUpperCase()

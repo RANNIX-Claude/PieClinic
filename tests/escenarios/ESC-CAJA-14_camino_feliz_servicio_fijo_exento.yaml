@@ -1,0 +1,95 @@
+# ESC-CAJA-14 · generado por qa-arquitecto (docs/METODOLOGIA_QA.md §4 Fase 1, §5, §13)
+# El esperado sale de los documentos de negocio (reglas citadas), no del código.
+# Prefijo de datos de la corrida: QA-{corrida}-. Pasos marcados «ambiguo» NO se juzgan hasta que negocio responda (registrar VERIFICAR).
+id: "ESC-CAJA-14"
+nombre: "Camino feliz: servicio de precio fijo exento de IVA y cobro sin ticket"
+version: 1
+fuente: "REGLAS_NEGOCIO.md P-056 (servicios clínicos exentos), P-067; MODELO_ESTADOS.md S12"
+prioridad: "alta"
+rol: "recepcion"
+reglas:
+  - "P-056"
+  - "P-067"
+  - "P-133"
+precondiciones:
+  - "Ambiente QA (nunca producción); BD restaurada de tests/datos/semilla.sql; cuentas de prueba según docs/ACCESOS.md (r@g.com recepción, s@g.com supervisor, m@g.com administrador, p@g.com podólogo)"
+  - "Turno abierto: Caja 1, sede Centenario, cajero r@g.com, fondo inicial 1000.00, nombre_turno 'QA-{corrida}-ESC-CAJA-14'"
+  - "Catálogo QA de la corrida cargado con precios de lista de datos_creados (productos y servicios con prefijo QA-{corrida}-)"
+datos_creados:
+  prefijo_qa: "QA-{corrida}-ESC-CAJA-14"
+  nota_en_tickets: "QA-{corrida}-ESC-CAJA-14  (se captura en la nota del ticket y/o turno; ver A33)"
+  catalogo:
+    quiro:
+      tipo: "servicio"
+      nombre: "QA-{corrida}-QUIROPODIA"
+      precio_fijo_iva_incluido: 400
+      iva: "exento"
+ambiguo:
+  - id: "A32"
+    pregunta: "Cobrar «sin ticket» (MODELO_ESTADOS S12): ¿consume folio igualmente y puede imprimirse después como copia?"
+pasos:
+  - n: 1
+    descripcion: "Agregar QA-{corrida}-QUIROPODIA a una venta"
+    esperado: "Total 400.00; IVA 0.00 (exento)"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Nueva venta → servicio; nota QA-{corrida}-ESC-CAJA-14"
+    verificar_ui: "IVA 0.00"
+    verificar_bd: |
+      SELECT l.orden, l.tipo, l.descripcion, l.cantidad, l.precio_unitario, l.descuento, l.importe, l.iva_tipo, l.base_neta, l.iva_monto, l.atendio_id
+      FROM piefirme.venta_lineas l JOIN piefirme.ventas v ON v.id = l.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-14%'
+      ORDER BY v.created_at, l.orden;
+    esperado_bd:
+      precio_unitario: 400
+      importe: 400
+      iva_tipo: "exento"
+      iva_monto: 0
+    precondicion_critica: true
+  - n: 2
+    descripcion: "Cobrar en efectivo con 500.00 usando Cobrar e imprimir ticket"
+    esperado: "Cambio 100.00; ticket impreso"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Efectivo 500"
+    verificar_ui: "Cambio 100.00"
+    verificar_bd: |
+      SELECT v.folio, p.metodo, p.monto, p.referencia, p.ultimos4, p.efectivo_recibido, p.cambio
+      FROM piefirme.pagos p JOIN piefirme.ventas v ON v.id = p.venta_id
+      WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-14%'
+      ORDER BY v.created_at, p.created_at;
+    esperado_bd:
+      metodo: "efectivo"
+      monto: 400
+      efectivo_recibido: 500
+      cambio: 100
+  - n: 3
+    descripcion: "Servicio sin movimiento de inventario"
+    esperado: "Un servicio no mueve inventario"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Consultar kardex"
+    verificar_ui: "Sin movimientos asociados al folio"
+    verificar_bd: "SELECT count(*) AS movimientos FROM piefirme.movimientos_inventario m JOIN piefirme.ventas v ON v.id = m.referencia_id WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-14%';"
+    esperado_bd:
+      movimientos: 0
+  - n: 4
+    descripcion: "Segundo ticket de 400.00 usando Cobrar sin ticket"
+    esperado: "Se cobra; el ticket queda cobrado y recuperable para impresión posterior"
+    legado:
+      resultado: "sin corrida previa"
+      observacion: ""
+      correccion: ""
+    accion: "Nueva venta, efectivo 400, Cobrar sin ticket; nota QA-{corrida}-ESC-CAJA-14-B"
+    verificar_ui: "Venta cobrada sin impresión"
+    verificar_bd: "SELECT v.folio, v.estado, v.copias_impresas FROM piefirme.ventas v WHERE v.nota LIKE 'QA-{corrida}-ESC-CAJA-14%' ORDER BY v.created_at;"
+    esperado_bd:
+      numero_de_filas: 2
+      estado: "cobrada"
+    ambiguo: "A32"
