@@ -92,11 +92,26 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
     if (q.length < 2) return []
     const m = (...xs) => xs.some(x => String(x ?? '').toLowerCase().includes(q))
     return [
-      ...servQ.filas.filter(s => m(s.nombre, s.codigo, ...(s.alias ?? []))).slice(0, 6).map(s => ({ t: 'servicio', id: s.id, nombre: s.nombre, extra: s.codigo, item: s })),
-      ...prodQ.filas.filter(p => m(p.nombre, p.sku, p.codigo_barras)).slice(0, 6).map(p => ({ t: 'producto', id: p.id, nombre: p.nombre, extra: p.sku, item: p })),
+      ...servQ.filas.filter(s => m(s.nombre, s.codigo, s.folio, s.codigo_barras, ...(s.alias ?? []))).slice(0, 6).map(s => ({ t: 'servicio', id: s.id, nombre: s.nombre, extra: s.folio ?? s.codigo, item: s })),
+      ...prodQ.filas.filter(p => m(p.nombre, p.sku, p.codigo_barras, p.folio, p.clave_alterna)).slice(0, 6).map(p => ({ t: 'producto', id: p.id, nombre: p.nombre, extra: p.sku, item: p })),
       ...ofQ.filas.filter(o => o.tipo !== 'promocion' && m(o.nombre, o.codigo)).slice(0, 5).map(o => ({ t: 'oferta', id: o.id, nombre: o.nombre, extra: `${o.tipo.replace('_', ' ')} · ${o.codigo}`, item: o })),
     ]
   }, [busca, servQ.filas, prodQ.filas, ofQ.filas])
+
+  // Lector de código de barras o QR (teclado): al llegar el Enter, un folio/código EXACTO de servicio o producto se agrega solo, con su precio vigente.
+  function leerCodigo(e) {
+    if (e.key !== 'Enter') return
+    e.preventDefault()
+    const q = busca.trim().toLowerCase()
+    if (!q) return
+    const eq = (...xs) => xs.some(x => x != null && String(x).trim().toLowerCase() === q)
+    const s = servQ.filas.find(x => eq(x.folio, x.codigo_barras, x.codigo))
+    if (s) return agregar({ t: 'servicio', id: s.id, nombre: s.nombre, extra: s.folio ?? s.codigo, item: s })
+    const p = prodQ.filas.find(x => eq(x.codigo_barras, x.sku, x.folio, x.clave_alterna))
+    if (p) return agregar({ t: 'producto', id: p.id, nombre: p.nombre, extra: p.sku, item: p })
+    if (resultados.length === 1) return agregar(resultados[0])
+    toast.error(resultados.length ? 'Hay varios resultados: elige uno de la lista.' : 'Ese código no existe en el catálogo.')
+  }
 
   async function agregar(r) {
     setBusca('')
@@ -273,7 +288,7 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
         <h3 style={{ marginBottom: 8 }}>Conceptos de la venta</h3>
         <div style={{ position: 'relative', marginBottom: 8 }}>
           <Search size={14} style={{ position: 'absolute', left: 9, top: 10, color: 'var(--muted)' }} />
-          <input style={{ width: '100%', paddingLeft: 28 }} placeholder="Buscar servicio, producto, paquete, plan o gift card (nombre, código, SKU o código de barras)…" value={busca} onChange={e => setBusca(e.target.value)} />
+          <input style={{ width: '100%', paddingLeft: 28 }} placeholder="Buscar servicio, producto, paquete, plan o gift card (nombre, código, SKU o código de barras)…" value={busca} onChange={e => setBusca(e.target.value)} onKeyDown={leerCodigo} />
           {resultados.length > 0 && (
             <div className="card" style={{ position: 'absolute', zIndex: 30, left: 0, right: 0, top: '100%', padding: 4, maxHeight: 300, overflow: 'auto' }}>
               {resultados.map(r => <button type="button" key={r.t + r.id} onClick={() => agregar(r)} style={{ display: 'flex', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: '7px 10px', cursor: 'pointer', fontSize: 13, color: 'var(--text)' }}>

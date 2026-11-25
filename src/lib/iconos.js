@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Sparkles, CalendarDays, Clock, Users, ClipboardList, Stethoscope, Camera, Footprints, ShieldCheck,
   HeartPulse, FileText, Upload, MessageSquareWarning, Megaphone, Receipt, Package, ArrowRightLeft, ShoppingCart, Truck,
   Tags, Gift, Wallet, Landmark, PiggyBank, TrendingUp, TrendingDown, Scale, CalendarRange, FileBarChart2, BarChart3,
-  UserCheck, Percent, Wrench, ClipboardCheck, UserCog, Building2, Settings, CreditCard, History, Video, Mic, FileSignature,
+  UserCheck, Percent, Wrench, ClipboardCheck, ScanLine, PackageSearch, QrCode, UserCog, Building2, Settings, CreditCard, History, Video, Mic, FileSignature,
   Home, Bell, Search, Plus, Printer, Download, Activity, Briefcase, Store, LifeBuoy, Gauge, Folder, BookOpen,
 } from 'lucide-react'
 
@@ -13,7 +13,7 @@ export const ICONOS = {
   LayoutDashboard, Sparkles, CalendarDays, Clock, Users, ClipboardList, Stethoscope, Camera, Footprints, ShieldCheck,
   HeartPulse, FileText, Upload, MessageSquareWarning, Megaphone, Receipt, Package, ArrowRightLeft, ShoppingCart, Truck,
   Tags, Gift, Wallet, Landmark, PiggyBank, TrendingUp, TrendingDown, Scale, CalendarRange, FileBarChart2, BarChart3,
-  UserCheck, Percent, Wrench, ClipboardCheck, UserCog, Building2, Settings, CreditCard, History, Video, Mic, FileSignature,
+  UserCheck, Percent, Wrench, ClipboardCheck, ScanLine, PackageSearch, QrCode, UserCog, Building2, Settings, CreditCard, History, Video, Mic, FileSignature,
   Home, Bell, Search, Plus, Printer, Download, Activity, Briefcase, Store, LifeBuoy, Gauge, Folder, BookOpen,
 }
 

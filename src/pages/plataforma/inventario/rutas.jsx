@@ -10,4 +10,7 @@ export default [
   { path: '/proveedores', element: lazy(() => import('./Proveedores.jsx')), roles: rolesCon('proveedores.ver'), titulo: 'Proveedores', cap: 'proveedores.ver' },
   { path: '/proveedores/:id', element: lazy(() => import('./ExpedienteProveedor.jsx')), roles: rolesCon('proveedores.ver'), titulo: 'Expediente de proveedor', cap: 'proveedores.ver' },
   { path: '/mermas-conteos', element: lazy(() => import('./MermasConteos.jsx')), roles: rolesCon('inventario.operar'), titulo: 'Mermas y conteos', cap: 'inventario.operar' },
+  { path: '/conteo-inicial', element: lazy(() => import('./ConteoInicial.jsx')), roles: rolesCon('conteo.operar'), titulo: 'Conteo inicial', cap: 'conteo.operar' },
+  { path: '/productos-provisionales', element: lazy(() => import('./ProductosProvisionales.jsx')), roles: rolesCon('conteo.provisionales'), titulo: 'Productos provisionales', cap: 'conteo.provisionales' },
+  { path: '/catalogo/codigos', element: lazy(() => import('./HojaCodigos.jsx')), roles: rolesCon('catalogo.ver'), titulo: 'Códigos de servicios', cap: 'catalogo.ver' },
 ]

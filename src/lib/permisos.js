@@ -19,10 +19,11 @@ export const FUNCIONES = { caja: 'Caja (cobrar)', recepcion_mercancia: 'Recepci�
 // No cambia precios, catálogo ni configuración. La autoridad real es el RLS (073).
 export const CAPS_SUPERVISOR = new Set([
   'agenda.ver', 'ventas.ver', 'inventario.ver', 'compras.ver', 'catalogo.ver', 'dashboard.ver', 'reportes.ver', 'mantenimiento.solicitar',
+  'conteo.operar', 'conteo.iniciar', 'conteo.provisionales',
 ])
 export const RUTAS_SUPERVISOR = [
   '/dashboard', '/resumen-semanal', '/analisis/ejecutivo', '/reportes', '/agenda', '/catalogo',
-  '/inventario', '/traspasos', '/compras', '/mermas-conteos', '/mi-pin',
+  '/inventario', '/traspasos', '/compras', '/mermas-conteos', '/conteo-inicial', '/productos-provisionales', '/catalogo/codigos', '/mi-pin',
 ]
 export const TODOS_LOS_ROLES = ['administrador', 'podologo', 'recepcion', 'supervisor', 'rannix']
 
@@ -71,6 +72,10 @@ export const CAPACIDADES = {
   'inventario.ver':           cap([A, P, R]),
   'inventario.operar':        cap([A, R], true),
   'inventario.autorizar':     cap([A], true),
+  // Conteo inicial (078): cuenta quien opera inventario; inicia y reabre Administración o la supervisión; los provisionales los completa Administración o la supervisión
+  'conteo.operar':            cap([A, R], true),
+  'conteo.iniciar':           cap([A], true),
+  'conteo.provisionales':     cap([A], true),
   'compras.ver':              cap([A, R]),
   'compras.editar':           cap([A], true),
   'proveedores.ver':          cap([A, R]),
