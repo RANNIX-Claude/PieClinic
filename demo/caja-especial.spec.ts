@@ -14,8 +14,21 @@ test('Caja: ticket con producto especial a la medida y producto de catálogo', a
   await page.waitForTimeout(4000)
   const abrir = page.getByRole('button', { name: 'Abrir turno' })
   if (await abrir.isVisible().catch(() => false)) { await page.getByLabel('Fondo inicial').fill('1000'); await abrir.click(); await page.waitForTimeout(3500) }
-  await expect(page.locator('.cj-buscar-in')).toBeVisible({ timeout: 30_000 })
-  await v.narrar(page, 'Una paciente pide unas plantillas ortopédicas hechas a la medida, que no existen en el catálogo con un precio fijo, y además se lleva una crema.', 0)
+  await expect(page.locator('.cj-buscar-in')).toBeVisible({ timeout: 180_000 })
+  // 0. Cliente obligatorio: se busca y elige a la paciente por nombre
+  const buscador = page.getByPlaceholder(/Buscar paciente/)
+  await page.locator('.cj-tile', { hasText: 'Paciente' }).click()
+  await expect(buscador).toBeVisible({ timeout: 90_000 })
+  await buscador.pressSequentially('mar', { delay: 120 })
+  const op = page.locator('button:not(.cj-tile)', { hasText: /· .*·/ }).filter({ has: page.locator('b') }).first()
+  await expect(op).toBeVisible({ timeout: 20_000 })
+  const cliente = (await op.locator('b').innerText()).trim()
+  await page.waitForTimeout(1000)
+  await op.click()
+  await v.narrar(page, `Llega ${cliente} y pide unas plantillas ortopédicas hechas a la medida, que no existen en el catálogo con un precio fijo, y además se lleva una crema. En la caja el cliente es obligatorio: se busca a la paciente por su nombre y se elige.`, 0)
+  await expect(page.locator('.cj-sub', { hasText: `Ticket · ${cliente}` })).toBeVisible()
+  await page.locator('.cj-tile', { hasText: 'Paciente' }).click()
+  await page.waitForTimeout(800)
 
   // 1. Producto especial
   await page.keyboard.press('F2')
@@ -96,8 +109,13 @@ test('Caja: ticket con producto especial a la medida y producto de catálogo', a
     }, html)
   }
   expect(ticketTexto).toMatch(/piel/i)
-  await v.narrar(page, `Se cobró el ticket ${folio.replace(/-/g, ' ')}. En el ticket impreso, el producto especial sale con todas sus características en la descripción: material, altura, adaptaciones y lado. Y abajo, el total.`)
+  // El ticket imprime el nombre y el apellido paterno (vista prp_ventas_*): debe ser el cliente elegido, no «Cliente general».
+  const clienteTicket = (ticketTexto.split(String.fromCharCode(10)).find(l => l.startsWith('Cliente:')) ?? '').replace('Cliente:', '').trim()
+  expect(clienteTicket).not.toMatch(/general/i)
+  expect(clienteTicket.length).toBeGreaterThan(2)
+  expect(cliente.startsWith(clienteTicket)).toBe(true)
+  await v.narrar(page, `Se cobró el ticket ${folio.replace(/-/g, ' ')}. En el ticket impreso, arriba se lee Cliente: ${clienteTicket}, la paciente elegida, y no Cliente general. El producto especial sale con todas sus características en la descripción: material, altura, adaptaciones y lado. Y abajo, el total.`)
   await page.evaluate(() => document.getElementById('vista-ticket')?.remove())
   await v.narrar(page, 'Así se mezclan productos de catálogo con productos especiales a la medida en un mismo ticket. Fin del caso.')
-  await v.terminar(page, { folio, total, suma, importes, descripcion, ticketTexto: ticketTexto.slice(0, 900) })
+  await v.terminar(page, { folio, cliente, clienteTicket, total, suma, importes, descripcion, ticketTexto: ticketTexto.slice(0, 900) })
 })

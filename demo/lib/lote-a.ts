@@ -39,7 +39,9 @@ export async function trazarFirma(page: Page, canvas?: ReturnType<Page['locator'
 export async function verTicket(page: Page, pop: Page | null, titulo = 'Ticket enviado a la impresora (vista previa, 80 mm)') {
   if (!pop) return false
   await pop.waitForLoadState('domcontentloaded').catch(() => {})
-  await pop.waitForTimeout(600)
+  // el HTML del ticket se escribe en la ventana al abrirla: se espera a que tenga texto (con el equipo lento llegaba en blanco)
+  await pop.waitForFunction(() => (document.body?.innerText ?? '').trim().length > 40, null, { timeout: 30_000 }).catch(() => {})
+  await pop.waitForTimeout(1500)
   const html = await pop.content()
   await pop.close().catch(() => {})
   await page.evaluate(([h, t]) => {
@@ -56,3 +58,37 @@ export async function verTicket(page: Page, pop: Page | null, titulo = 'Ticket e
 }
 export const quitarTicket = (page: Page) => page.evaluate(() => document.getElementById('vista-ticket')?.remove())
 export type { BrowserContext }
+
+// ───────── Variante de crearVideo del lote A: guion más ágil (≈13.5 caracteres por segundo) y registra finMs en marcas.json ─────────
+import fs from 'fs'
+import path from 'path'
+export function crearVideoA(carpeta: string) {
+  const SALIDA = path.join(process.cwd(), 'demo', 'video', carpeta)
+  fs.mkdirSync(SALIDA, { recursive: true })
+  const marcas: { t: number; texto: string }[] = []
+  let t0 = 0
+  const duraciones: Record<string, number> = fs.existsSync(path.join(SALIDA, 'duraciones.json')) ? JSON.parse(fs.readFileSync(path.join(SALIDA, 'duraciones.json'), 'utf8')) : {}
+  async function narrar(page: Page, texto: string, extraMs = 600) {
+    marcas.push({ t: Date.now() - t0, texto })
+    const medida = duraciones[String(marcas.length - 1)]
+    const ms = medida ? medida * 1000 + 500 : (texto.length / 13.5) * 1000 + 900
+    await page.waitForTimeout(ms + extraMs)
+  }
+  async function empezar(context: BrowserContext) {
+    await context.addInitScript(() => { const abrir = window.open; window.open = (...a: any[]) => { const w = (abrir as any).apply(window, a); if (w) { try { (w as any).print = () => {} } catch {} } return w } })
+    t0 = Date.now()
+  }
+  async function irA(page: Page, enlace: RegExp) {
+    await page.getByRole('link', { name: enlace }).first().click()
+    await page.waitForLoadState('networkidle').catch(() => {})
+    await page.waitForTimeout(2500)
+  }
+  async function terminar(page: Page, extra: Record<string, unknown> = {}) {
+    await page.waitForTimeout(1500)
+    fs.writeFileSync(path.join(SALIDA, 'marcas.json'), JSON.stringify({ ...extra, finMs: Date.now() - t0, marcas }, null, 2))
+    await page.close()
+    const v = page.video()
+    if (v) fs.copyFileSync(await v.path(), path.join(SALIDA, `${carpeta}.webm`))
+  }
+  return { SALIDA, narrar, empezar, irA, terminar }
+}

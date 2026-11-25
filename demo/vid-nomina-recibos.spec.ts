@@ -1,13 +1,18 @@
 // Video Nómina y recibos: calcular la prenómina de un periodo, revisar totales y abrir el recibo de un empleado.
 // Correr: PW_LOTE=E BASE_URL=http://localhost:5174 npx playwright test -c playwright.caja.config.ts vid-nomina-recibos
 import { test, expect } from '@playwright/test'
+import path from 'path'
+import { iniciarGrabacion } from './lib/video-c'
 import { crearVideo, escribir } from './lib/video'
 
+test.use({ launchOptions: { slowMo: 250 }, video: 'off' })   // video propio por pantallazos: el webm de Playwright sale truncado con la máquina cargada
 const v = crearVideo('vid-nomina-recibos')
 const EMPLEADO = 'Karen Montes Lira'
 
 test('Nómina: calcular periodo y ver recibo', async ({ page, context }) => {
+  test.setTimeout(1_500_000)
   await v.empezar(context)
+  const grab = await iniciarGrabacion(page, v.SALIDA)
   await v.firmar(page, 'Todas las sedes', 'Prueba de nómina y recibos de Pie Clinic: calcular la nómina de un periodo y consultar el recibo de un empleado.', 'm@g.com', 'la persona de administración')
   await v.irA(page, /RH y nómina/)
   await page.getByRole('tab', { name: 'Nómina', exact: true }).click()
@@ -16,15 +21,18 @@ test('Nómina: calcular periodo y ver recibo', async ({ page, context }) => {
   const dato = async (re: RegExp) => { await expect.poll(async () => (await cuerpo()).match(re)?.[1], { timeout: 45_000 }).toBeTruthy(); return (await cuerpo()).match(re)![1] }
   await v.narrar(page, 'En la pestaña de nómina se trabaja por periodos: semanal, quincenal o mensual. El periodo pasa por los estados creado, calculado, autorizado y pagado.')
 
-  // Elegir el periodo creado (sin calcular) 16–31 de octubre
+  // Crear el periodo de la quincena en curso
   const selPeriodo = page.getByLabel('Periodo', { exact: true })
-  const ops = await selPeriodo.locator('option').allInnerTexts()
-  const creado = ops.find(o => /creado/.test(o))
-  expect(creado, `Periodo creado entre ${ops}`).toBeTruthy()
-  await selPeriodo.selectOption({ label: creado! })
-  await page.waitForTimeout(2000)
-  await expect(page.getByText(/Prenómina vacía/)).toBeVisible()
-  await v.narrar(page, `El periodo ${creado!.replace(' · creado', '')} está creado pero todavía sin calcular: la prenómina aparece vacía y los totales en cero.`, 0)
+  const antes = await selPeriodo.locator('option').allInnerTexts()
+  await v.narrar(page, `Hay ${antes.filter(o => /pagada/.test(o)).length} periodos pagados y uno autorizado. Se crea el periodo de la quincena en curso con el botón crear periodo.`, 0)
+  await page.getByRole('button', { name: /Crear periodo/ }).click()
+  const modal = page.getByRole('dialog').last()
+  const desde = await modal.getByLabel('Desde').inputValue(), hasta = await modal.getByLabel('Hasta').inputValue()
+  await v.narrar(page, 'El sistema propone las fechas de la quincena de hoy, con la fecha de pago al cierre del periodo. Se crea.', 0)
+  await modal.getByRole('button', { name: 'Crear', exact: true }).click()
+  await expect(page.getByText(/Prenómina vacía/)).toBeVisible({ timeout: 45_000 })
+  const creado = (await selPeriodo.locator('option:checked').innerText()).trim()
+  await v.narrar(page, `El periodo ${creado.replace(' · creado', '')} está creado pero todavía sin calcular: la prenómina aparece vacía y los totales en cero.`, 0)
   await v.narrar(page, 'Al pulsar calcular, el sistema toma el salario de cada empleado, las comisiones de los periodos cerrados, la asistencia y las incidencias que descuentan.', 0)
   await page.getByRole('button', { name: /Calcular/ }).click()
   await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 90_000 })
@@ -42,7 +50,7 @@ test('Nómina: calcular periodo y ver recibo', async ({ page, context }) => {
   // Recibos de un periodo autorizado
   await page.getByRole('tab', { name: 'Recibos firmados', exact: true }).click()
   await page.waitForTimeout(3500)
-  const rec = await dato(/Reciboss*(d+)/), sin = await dato(/Sin firmars*(d+)/), fir = await dato(/Firmadoss*(d+)/)
+  const rec = await dato(/Recibos\s*(\d+)/), sin = await dato(/Sin firmar\s*(\d+)/), fir = await dato(/Firmados\s*(\d+)/)
   await v.narrar(page, `Los recibos se generan cuando la nómina de un periodo se autoriza. Aquí administración ve ${rec} recibos: ${sin} sin firmar y ${fir} firmados. Cada empleado firma el suyo de conformidad desde su cuenta.`)
   await page.getByPlaceholder('Buscar…').fill('Karen')
   await page.waitForTimeout(1500)
@@ -75,5 +83,7 @@ test('Nómina: calcular periodo y ver recibo', async ({ page, context }) => {
   await v.irA(page, /Mis recibos/)
   await expect(page.getByText(/Aún no tienes recibos/)).toBeVisible()
   await v.narrar(page, 'La pantalla de mis recibos muestra solo los recibos propios, con el RLS de la base de datos. En esta prueba aparece vacía, porque la cuenta de prueba de podólogo no está ligada a un expediente de empleado. Limitación de los datos de prueba: para ver y firmar un recibo, el usuario debe estar ligado a su empleado. Fin del recorrido.')
+  await grab.detener()
   await v.terminar(page, { periodo: creado, empleados, percep, deduc, neto, recibo: resumen, netoRec })
+  grab.construir(path.join(v.SALIDA, 'pantalla.mp4'))
 })

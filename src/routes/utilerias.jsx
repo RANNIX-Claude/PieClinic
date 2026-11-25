@@ -14,6 +14,7 @@ export default [
   { path: '/utilerias/asistente', element: lazy(() => import('../pages/utilerias/ConsultaAsistente.jsx')), roles, titulo: 'Consulta del asistente', cap: 'utilerias.usar' },
   { path: '/utilerias/salud', element: lazy(() => import('../pages/utilerias/Salud.jsx')), roles, titulo: 'Salud del sistema y errores', cap: 'utilerias.usar' },
   { path: '/utilerias/datos-prueba', element: lazy(() => import('../pages/utilerias/DatosPrueba.jsx')), roles, titulo: 'Datos de prueba', cap: 'utilerias.usar' },
+  { path: '/utilerias/simulador-jornada', element: lazy(() => import('../pages/utilerias/SimuladorJornada.jsx')), roles, titulo: 'Simulador de jornada', cap: 'utilerias.usar' },
   { path: '/utilerias/warehouse', element: lazy(() => import('../pages/utilerias/Warehouse.jsx')), roles, titulo: 'Data warehouse', cap: 'utilerias.usar' },
   { path: '/utilerias/documentacion', element: lazy(() => import('../pages/utilerias/Documentacion.jsx')), roles, titulo: 'Documentación', cap: 'utilerias.usar' },
 ]

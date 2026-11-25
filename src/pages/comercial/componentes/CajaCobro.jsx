@@ -40,6 +40,7 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
   const [ventaId, setVentaId] = useState(null)
   const [cita, setCita] = useState(null)
   const [paciente, setPaciente] = useState(null)
+  const [clienteGeneral, setClienteGeneral] = useState(false) // el cliente no quiere dar su nombre (regla del dueño 2026-11-25)
   const [podologoId, setPodologoId] = useState('')
   const [lineas, setLineas] = useState([])
   const [global, setGlobal] = useState({ tipo: 'pct', valor: '', motivo: '', aut: null })
@@ -190,6 +191,7 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
     if (lineas.some(pinNecesarioLinea) || pinNecesarioGlobal) return `Descuentos de más de ${maxPct} % requieren PIN de Administrador`
     if (['plan', 'membresia'].some(t => lineas.some(l => l.tipo === t)) && !paciente) return 'Los planes y membresías se venden a un paciente'
     if (requiereFactura && !paciente) return 'Para facturar elige al paciente'
+    if (!paciente && !clienteGeneral) return 'Elige al cliente o marca «Cliente general» si no quiere dar su nombre'
     if (anticipoExcede) return 'El anticipo seleccionado excede el total del ticket'
     if (cobrar) {
       if (!turno) return 'Abre tu turno de caja para cobrar'
@@ -296,7 +298,7 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
     setOcupado(false)
   }
   function limpiar() {
-    setVentaId(null); setCita(null); setPaciente(null); setLineas([]); setPagos([]); setAnticiposSel([]); setGlobal({ tipo: 'pct', valor: '', motivo: '', aut: null }); setRequiereFactura(false); setHecho(null); setPodologoId('')
+    setVentaId(null); setCita(null); setPaciente(null); setClienteGeneral(false); setLineas([]); setPagos([]); setAnticiposSel([]); setGlobal({ tipo: 'pct', valor: '', motivo: '', aut: null }); setRequiereFactura(false); setHecho(null); setPodologoId('')
     const n = new URLSearchParams(sp); n.delete('cita'); n.delete('venta'); setSp(n, { replace: true })
   }
 
@@ -389,8 +391,9 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
           <div className="card cj-panel">
             <div className="grid2" style={{ gap: 12 }}>
               <div>
-                <h3 style={{ marginBottom: 6 }}>Paciente</h3>
-                <PacienteBuscador valor={paciente} onElegir={setPaciente} />
+                <h3 style={{ marginBottom: 6 }}>Cliente <span className="text-muted" style={{ fontSize: 12, fontWeight: 400 }}>(obligatorio)</span></h3>
+                <PacienteBuscador valor={paciente} onElegir={p => { setPaciente(p); if (p) setClienteGeneral(false) }} />
+                {!paciente && <label style={{ fontSize: 14, display: 'block', margin: '6px 0' }}><input type="checkbox" checked={clienteGeneral} onChange={e => setClienteGeneral(e.target.checked)} /> Cliente general (no quiere dar su nombre)</label>}
                 <FormField label="Podólogo que atendió" as="select" value={podologoId} onChange={e => { const nuevo = e.target.value, previo = podologoId || perfil?.id; setLineas(ls => ls.map(l => (l.atendio_id === previo ? { ...l, atendio_id: nuevo || perfil?.id } : l))); setPodologoId(nuevo) }} placeholder="—" options={podQ.filas.map(p => ({ value: p.id, label: nombrePerfil(p) }))} />
                 <label style={{ fontSize: 14 }}><input type="checkbox" checked={requiereFactura} onChange={e => setRequiereFactura(e.target.checked)} /> ¿Requiere factura?{paciente?.tiene_datos_fiscales ? ' (datos fiscales ✓)' : ''}</label>
                 {cita && <div style={{ fontSize: 12.5, marginTop: 6 }}>Cita <b>{cita.folio}</b> · {cita.sede_nombre}</div>}
@@ -427,7 +430,7 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
       {/* ───────── columna derecha: ticket y cobro ───────── */}
       <div className="cj-der">
         <div className="cj-ticket">
-          <div className="cj-sub" style={{ marginTop: 0 }}>Ticket{paciente ? ` · ${paciente.nombre_completo ?? paciente.nombre ?? ''}` : ' · público en general'}</div>
+          <div className="cj-sub" style={{ marginTop: 0 }}>Ticket{paciente ? ` · ${paciente.nombre_completo ?? paciente.nombre ?? ''}` : ' · cliente general'}</div>
           <div className="cj-lineas">
             {lineas.length === 0 && <div className="cj-vacio">Agrega un servicio o producto para empezar</div>}
             {lineasConGlobal.map(l0 => {

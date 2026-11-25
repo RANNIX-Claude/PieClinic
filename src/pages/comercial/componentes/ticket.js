@@ -25,7 +25,7 @@ export function ticketHtml({ org, sede, venta, lineas, pagos, copia, logo, qr })
     `<div class="folio">TICKET ${esc(venta.folio ?? '')}</div>`,
     `<div class="c sm">${esc(fechaHora(venta.cobrada_en ?? venta.created_at))}</div>`,
     `<div class="sm">Cajero: ${esc(venta.cajero_nombre ?? '')}</div>`,
-    venta.paciente_nombre ? `<div class="sm">Paciente: ${esc(venta.paciente_nombre)}</div>` : '',
+    `<div class="sm">Cliente: ${esc(venta.paciente_nombre ?? "Cliente general")}</div>`,
     venta.podologo_nombre ? `<div class="sm">Atendió: ${esc(venta.podologo_nombre)}</div>` : '',
     copia ? `<div class="copia">${esc(copia)} — NO ES ORIGINAL</div>` : '',
     '<hr>',

@@ -19,8 +19,9 @@ const ESTADOS = { programada: 'Programada', en_sala_espera: 'Paciente en sala de
 export default function Videoconsulta() {
   const { citaId } = useParams()
   const nav = useNavigate()
-  const { perfil } = useApp()
+  const { perfil, rol } = useApp()
   const puede = usePermiso('consultas.escribir')
+  const puedeSala = puede || rol === 'administrador'   // crear_sala_videoconsulta (RPC) también la permite a Administración
   const { ejecutar, ocupado } = useAccion()
   const cita = useQuery({ queryKey: ['clinico', 'cita-video', citaId], queryFn: async () => { const r = await leer('prp_agenda', { sedeCol: false, filtros: { id: citaId }, limite: 1 }); if (r.error) throw r.error; return r.data[0] ?? null } })
   const c = cita.data
@@ -92,7 +93,7 @@ export default function Videoconsulta() {
               <span className="bd n">Liga enviada: no (sin proveedor de mensajes)</span>
             </div>
             <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>Entrada desde {hora(entrada)} ({s?.entrada_minutos_antes ?? 10} min antes) · tope {s?.tope_minutos ?? 60} min · no se graba salvo autorización escrita (P-016, P-018). La liga es de un solo uso por cita.</div>
-            {!s && puede && <div style={{ marginTop: 8 }}><button type="button" className="btn" disabled={ocupado} onClick={crearSala}>Crear sala y liga para el paciente</button><div className="hint" style={{ fontSize: 11, color: 'var(--muted)' }}>La telemedicina debe estar activada en la configuración de la clínica.</div></div>}
+            {!s && puedeSala && <div style={{ marginTop: 8 }}><button type="button" className="btn" disabled={ocupado} onClick={crearSala}>Crear sala y liga para el paciente</button><div className="hint" style={{ fontSize: 11, color: 'var(--muted)' }}>La telemedicina debe estar activada en la configuración de la clínica.</div></div>}
             {ligaTxt && <div style={{ marginTop: 8, display: 'flex', gap: 6, alignItems: 'center' }}><input readOnly value={ligaTxt} style={{ flex: 1 }} /><button type="button" className="btn o sm" onClick={() => { navigator.clipboard?.writeText(ligaTxt); toast.success('Liga copiada: envíala por WhatsApp o correo') }}><Copy size={12} /> Copiar</button></div>}
             {s && !ligaTxt && <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>Por seguridad la liga solo se muestra al crear la sala. El portal del paciente valida la liga y el consentimiento.</div>}
             {!tieneConsent && puede && <button type="button" className="btn o sm" style={{ marginTop: 8 }} onClick={() => setFirmando(true)}>Registrar consentimiento a distancia del paciente</button>}

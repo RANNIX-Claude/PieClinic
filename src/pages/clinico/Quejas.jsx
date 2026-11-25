@@ -93,8 +93,11 @@ function PorPodologo({ todas, pf, sn }) {
 function DetalleQueja({ queja: q, pn, pf, cn, sn, responsables, p, perfil, onCerrar }) {
   const { ejecutar, ocupado } = useAccion()
   const [d, setD] = useState({ responsable_id: q?.responsable_id ?? '', fecha_compromiso: q?.fecha_compromiso ?? '', resolucion: q?.resolucion ?? '', compensacion_tipo: q?.compensacion_tipo ?? 'ninguna', compensacion_monto: q?.compensacion_monto ?? '', estado: q?.estado ?? 'nueva' })
+  const { rol } = useApp()
   if (!q) return null
-  const editable = p['quejas.registrar'] || p['quejas.resolver']
+  // La política de la BD (quejas_upd, mig. 039) deja modificar solo a Administración y al podólogo responsable asignado; Recepción registra y consulta.
+  // Antes se mostraban los botones a Recepción y el guardado «funcionaba» sin cambiar nada (el update afectaba 0 filas y salía «Queja actualizada»).
+  const editable = !!p['quejas.resolver'] || (rol === 'podologo' && q.responsable_id === perfil?.id)
   const costo = ['consulta_sin_costo', 'reembolso', 'descuento'].includes(d.compensacion_tipo)
   const guardar = (extra = {}) => ejecutar(() => actualizar('quejas', q.id, limpiar({ responsable_id: d.responsable_id, fecha_compromiso: d.fecha_compromiso, resolucion: d.resolucion, compensacion_tipo: d.compensacion_tipo, compensacion_monto: num(d.compensacion_monto), estado: d.estado, ...(costo && !p['quejas.resolver'] ? { compensacion_propuesta_por: perfil.id } : {}), ...extra })), { ok: 'Queja actualizada', invalidar: ['clinico'] })
   const enviarEncuesta = async () => {
@@ -126,6 +129,7 @@ function DetalleQueja({ queja: q, pn, pf, cn, sn, responsables, p, perfil, onCer
               {['reembolso', 'descuento'].includes(d.compensacion_tipo) && <FormField label="Monto" type="number" step="0.01" min="0" value={d.compensacion_monto} onChange={e => setD(s => ({ ...s, compensacion_monto: e.target.value }))} />}
             </div>
           </fieldset>
+          {!editable && <Aviso>Recepción registra y consulta la queja; el seguimiento, la resolución y el cierre los hace Administración o el responsable asignado.</Aviso>}
           {costo && !q.compensacion_autorizada_por && <Aviso>La compensación con costo la autoriza Administración (P-022).{!p['quejas.resolver'] && ' Tu propuesta queda registrada.'}</Aviso>}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {editable && <button type="button" className="btn" disabled={ocupado} onClick={() => guardar()}>Guardar</button>}

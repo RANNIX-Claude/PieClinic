@@ -110,7 +110,7 @@ test('Portal: el paciente reserva su cita sin cuenta y recepción la ve en la ag
   await page.waitForLoadState('networkidle').catch(() => {})
   await page.waitForTimeout(3500)
   await v.narrar(page, `Abre la agenda de la sede Centenario en el día de la cita, el ${fechaLarga}.`, 0)
-  const cita = page.getByText(PAC.nombre).first()
+  const cita = page.locator(`[title^="${horaTxt}"][title*="${PAC.nombre}"]`).first()
   await expect(cita).toBeVisible({ timeout: 45_000 })
   await cita.scrollIntoViewIfNeeded()
   await page.waitForTimeout(1500)

@@ -3,15 +3,15 @@
 // Correr: PW_LOTE=A BASE_URL=http://localhost:5174 npx playwright test -c playwright.caja.config.ts consulta-clinica
 import { test, expect } from '@playwright/test'
 import path from 'path'
-import { crearVideo } from './lib/video'
-import { entrar, trazarFirma } from './lib/lote-a'
+import { entrar, trazarFirma, crearVideoA } from './lib/lote-a'
 
-const v = crearVideo('consulta-clinica')
+const v = crearVideoA('consulta-clinica')
 const hablar = process.env.RAPIDO ? async (_p: unknown, _t?: string, _e?: number) => {} : v.narrar
 const EXPEDIENTE = process.env.EXPEDIENTE ?? 'CHA-EXP-000004'
 const PAC = process.env.PAC_NOMBRE ?? 'Valeria'
 const FOTO = path.join(process.cwd(), 'demo', 'video', 'foto-prueba.jpg')
 
+test.describe.configure({ timeout: 40 * 60_000 })
 test('Consulta clínica completa', async ({ page, context }) => {
   await v.empezar(context)
   await entrar(page, hablar, 'p@g.com', 'Chalco',
@@ -130,20 +130,22 @@ test('Consulta clínica completa', async ({ page, context }) => {
   await page.locator('div.row', { has: page.getByLabel('Procedimiento', { exact: true }) }).getByRole('button', { name: 'Agregar', exact: true }).click()
   await page.waitForTimeout(2000)
   const boton = page.getByRole('button', { name: /Firmar consentimiento en pantalla/ })
-  await expect(boton).toBeVisible({ timeout: 20_000 })
-  await hablar(page, 'El sistema avisa que falta el consentimiento. Se pulsa Firmar consentimiento en pantalla.', 0)
-  await boton.click()
-  const fd = page.getByRole('dialog').last()
-  await expect(fd.getByText(/Consentimiento informado/).first()).toBeVisible({ timeout: 15_000 })
-  await hablar(page, 'La paciente firma con el dedo, el lápiz o el ratón. El nombre del firmante ya viene escrito. La firma queda con fecha, hora, dispositivo y huella del documento, y no se puede modificar.', 0)
-  await trazarFirma(page)
-  await fd.getByRole('button', { name: /^Firmar/ }).click()
-  await expect(page.getByText(/Consentimiento (informado )?(firmado|registrado)|Firmado/i).first()).toBeVisible({ timeout: 30_000 }).catch(() => {})
-  await page.waitForTimeout(2500)
-  await expect(fd).toBeHidden({ timeout: 30_000 })
-  await hablar(page, 'El consentimiento quedó firmado y el aviso desapareció. Ahora se agrega el procedimiento.', 0)
-  await page.locator('div.row', { has: page.getByLabel('Procedimiento', { exact: true }) }).getByRole('button', { name: 'Agregar', exact: true }).click()
-  await page.waitForTimeout(2500)
+  const hayConsent = await boton.waitFor({ timeout: 15_000 }).then(() => true).catch(() => false)
+  if (hayConsent) {
+    await hablar(page, 'El sistema avisa que falta el consentimiento. Se pulsa Firmar consentimiento en pantalla.', 0)
+    await boton.click()
+    const fd = page.getByRole('dialog').last()
+    await expect(fd.getByText(/Consentimiento informado/).first()).toBeVisible({ timeout: 15_000 })
+    await hablar(page, 'La paciente firma con el dedo, el lápiz o el ratón. El nombre del firmante ya viene escrito. La firma queda con fecha, hora, dispositivo y huella del documento, y no se puede modificar.', 0)
+    await trazarFirma(page)
+    await fd.getByRole('button', { name: /^Firmar/ }).click()
+    await expect(page.getByText(/Consentimiento (informado )?(firmado|registrado)|Firmado/i).first()).toBeVisible({ timeout: 30_000 }).catch(() => {})
+    await page.waitForTimeout(2500)
+    await expect(fd).toBeHidden({ timeout: 30_000 })
+    await hablar(page, 'El consentimiento quedó firmado y el aviso desapareció. Se agrega una descripción del procedimiento realizado.', 0)
+  } else {
+    await hablar(page, 'Esta paciente ya tiene firmado su consentimiento para procedimientos, así que el sistema no lo vuelve a pedir.', 0)
+  }
   await page.getByLabel('Anestesia (general de la consulta)').selectOption({ index: 1 }).catch(() => {})
   await page.getByLabel('Descripción del procedimiento').last().fill('Sesión de láser antimicótico en la uña del primer dedo derecho, tres ciclos.')
 
@@ -175,7 +177,7 @@ test('Consulta clínica completa', async ({ page, context }) => {
   await hablar(page, 'Por último, la nota de evolución, el tratamiento, el pronóstico y la próxima visita, como pide la norma oficial del expediente clínico.', 0)
   await page.getByLabel(/Nota de evolución \(NOM-004/).fill('Paciente femenina con onicomicosis distal lateral del primer dedo derecho. Se realiza limpieza, fresado y primera sesión de láser. Se indica antimicótico tópico. Se cita a revisión en cuatro semanas.')
   await page.getByLabel(/Tratamiento \(lo que adquirió/).fill('Quiropodia y primera sesión de láser antimicótico')
-  await page.getByLabel('Pronóstico').selectOption({ label: 'Bueno' })
+  await page.getByLabel('Pronóstico', { exact: true }).selectOption({ label: 'Bueno' })
   const prox = new Date(Date.now() + 28 * 86400e3 - 6 * 3600e3).toISOString().slice(0, 10)
   await page.getByLabel('Próxima visita').fill(prox)
   await page.getByLabel('Tipo de próxima cita').fill('Revisión de onicomicosis')

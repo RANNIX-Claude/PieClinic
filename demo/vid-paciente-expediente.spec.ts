@@ -10,6 +10,7 @@ const SEDE = 'Chalco'
 const NOMBRE = process.env.PAC_NOMBRE ?? 'Valeria', PATERNO = 'Montes', MATERNO = 'Villalobos'
 
 
+test.describe.configure({ timeout: 40 * 60_000 })
 test('Alta de paciente y expediente', async ({ page, context }) => {
   await v.empezar(context)
   await entrar(page, hablar, 'r@g.com', SEDE,
@@ -93,13 +94,15 @@ test('Alta de paciente y expediente', async ({ page, context }) => {
   await page.waitForTimeout(1000)
   await hablar(page, 'Para ver la historia clínica, la recepcionista cierra su sesión y entra el podólogo con su cuenta.', 0)
   await page.getByRole('button', { name: /Cerrar sesión/ }).click()
+  await page.locator('#pf-email').waitFor({ timeout: 60_000 })
+  await page.waitForTimeout(1500)
   await entrar(page, hablar, 'p@g.com', null, '', 'El podólogo firma con su cuenta personal.')
   await v.irA(page, /^Pacientes$/)
   await hablar(page, 'Se busca a la paciente recién registrada por su nombre.', 0)
   const buscador = page.getByPlaceholder(/Nombre, N.º de expediente/).first()
   await buscador.pressSequentially(NOMBRE + ' ' + PATERNO, { delay: 80 })
   await page.waitForTimeout(2500)
-  await page.getByRole('link', { name: new RegExp(NOMBRE + ' ' + PATERNO) }).first().click()
+  await page.getByRole('row', { name: new RegExp(NOMBRE + ' ' + PATERNO) }).first().click()
   await expect(page.getByRole('link', { name: /Historia clínica/ }).first()).toBeVisible({ timeout: 30_000 })
   await page.waitForTimeout(2000)
   await hablar(page, 'El expediente, visto por el podólogo, muestra más pestañas: historial de consultas, fotos clínicas y plantillas ortopédicas, además de los botones para iniciar una consulta, ver la historia clínica e imprimir.')

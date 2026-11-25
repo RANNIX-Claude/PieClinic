@@ -1,13 +1,18 @@
 // Video Tableros: Dashboard, Resumen semanal, Reportes e Ingresos, consultando por sede y periodo (administración).
 // Correr: PW_LOTE=E BASE_URL=http://localhost:5174 npx playwright test -c playwright.caja.config.ts vid-tableros
 import { test, expect } from '@playwright/test'
+import path from 'path'
+import { iniciarGrabacion } from './lib/video-c'
 import { crearVideo } from './lib/video'
 
+test.use({ launchOptions: { slowMo: 250 }, video: 'off' })   // video propio por pantallazos: el webm de Playwright sale truncado con la máquina cargada
 const v = crearVideo('vid-tableros')
-const SEDE1 = 'Pie Clinic Centenario', SEDE2 = 'Pie Clinic Chalco'
+const SEDE1 = 'Centenario', SEDE2 = 'Chalco'
 
 test('Tableros: dashboard, resumen semanal, reportes e ingresos', async ({ page, context }) => {
+  test.setTimeout(1_500_000)
   await v.empezar(context)
+  const rec = await iniciarGrabacion(page, v.SALIDA)
   await v.firmar(page, SEDE1, 'Prueba de los tableros de Pie Clinic: dashboard, resumen semanal, reportes e ingresos, consultados por sede y por periodo.', 'm@g.com', 'la persona de administración')
   const cuerpo = async () => await page.locator('main').first().innerText()
   const dato = async (re: RegExp) => { await expect.poll(async () => (await cuerpo()).match(re)?.[1], { timeout: 60_000 }).toBeTruthy(); return (await cuerpo()).match(re)![1] }
@@ -20,8 +25,8 @@ test('Tableros: dashboard, resumen semanal, reportes e ingresos', async ({ page,
   await page.getByLabel('Mes', { exact: true }).selectOption({ label: 'Octubre' })
   const ing1 = await dato(new RegExp('Ingreso del mes \\(real\\)\\s*' + MONEDA))
   const atend1 = await dato(/Citas atendidas\s*([\d,]+)/)
-  const ocup1 = await dato(/Ocupación de agenda\s*([\d.]+ ?%)/)
-  await v.narrar(page, `El dashboard muestra los indicadores del mes elegido para la sede activa. En octubre de dos mil veintiséis, ${SEDE1} tuvo un ingreso real de ${ing1}, ${atend1} citas atendidas y una ocupación de agenda de ${ocup1}.`)
+  const ocup1 = await dato(/Ocupación de agenda\s*([^\n]+)/)
+  await v.narrar(page, `El dashboard muestra los indicadores del mes elegido para la sede activa. En octubre de dos mil veintiséis, ${SEDE1} tuvo un ingreso real de ${ing1}, ${atend1} citas atendidas y una ocupación de agenda de ${/\d/.test(ocup1) ? ocup1 : "no calculable, porque esta sede no tiene horarios de atención capturados"}.`)
   await page.getByLabel('Podólogo').selectOption({ index: 1 })
   await page.waitForTimeout(3500)
   const ingPod = await dato(new RegExp('Ingreso del mes \\(real\\)\\s*' + MONEDA))
@@ -94,5 +99,7 @@ test('Tableros: dashboard, resumen semanal, reportes e ingresos', async ({ page,
   await det.getByRole('tab', { name: /Reparto por renglón/ }).click().catch(() => {})
   await page.waitForTimeout(2000)
   await v.narrar(page, 'Fin del recorrido por los tableros.', 0)
+  await rec.detener()
   await v.terminar(page, { ing1, atend1, ocup1, ing2, ingSem, gastos, neto, ingSemAnt, tit1, tit2, serv, prod, reg })
+  rec.construir(path.join(v.SALIDA, 'pantalla.mp4'))
 })

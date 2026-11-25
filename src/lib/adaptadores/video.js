@@ -23,4 +23,5 @@ export function capturarFotograma(videoEl, calidad = 0.9) {
 }
 
 /** Liga que recibirá el paciente (la RPC crear_sala_videoconsulta devuelve el token; el portal construye la URL). */
-export const ligaSalaPaciente = (origen, token) => `${origen}/portal/sala?t=${encodeURIComponent(token)}`
+// La ruta pública del portal es /app/sala/:token (src/routes/comercial.jsx); antes apuntaba a /portal/sala?t=, que no existe.
+export const ligaSalaPaciente = (origen, token) => `${origen}${import.meta.env?.BASE_URL ?? '/app/'}sala/${encodeURIComponent(token)}`

@@ -14,6 +14,7 @@ export default {
     { label: 'Configuración e integraciones', path: '/configuracion', icon: Settings, roles },
     { label: 'Salud y errores', path: '/utilerias/salud', icon: HeartPulse, roles },
     { label: 'Datos de prueba', path: '/utilerias/datos-prueba', icon: FlaskConical, roles },
+    { label: 'Simulador de jornada', path: '/utilerias/simulador-jornada', icon: FlaskConical, roles },
     { label: 'Importar datos', path: '/importar', icon: Upload, roles },
     { label: 'Exportar mis datos', path: '/exportar-datos', icon: Download, roles },
     { label: 'Data warehouse', path: '/utilerias/warehouse', icon: Boxes, roles },

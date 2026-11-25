@@ -17,7 +17,7 @@ import { urlFirmada, BUCKETS, rutaStorage } from '../../lib/urlFirmada'
 import { hoyISO, fecha, moneda } from '../../lib/formato'
 import { ESTUDIOS_PISADA, TIPOS_PIE_ORTOPEDICO, COBERTURAS, etiquetaDe } from '../../lib/clinico/catalogos'
 import { anticipoOrdenCubierto, siguienteEstadoOrden, registroFirmadoBloqueado } from '../../lib/clinico/inmutabilidad'
-import { Aviso, Seccion, PacienteBuscador, usePaciente, useVista, useAccion, Volver, limpiar, num, mensajeError, CabeceraPaciente } from './componentes/comunes'
+import { Aviso, Seccion, PacienteBuscador, usePaciente, useVista, useAccion, Volver, limpiar, num, mensajeError, sedeDeRegistro, CabeceraPaciente } from './componentes/comunes'
 import FirmaDialogo from './componentes/FirmaDialogo'
 
 const E_NUM = ['talla_calzado', 'longitud_izq_mm', 'longitud_der_mm', 'ancho_metatarsal_izq_mm', 'ancho_metatarsal_der_mm', 'altura_arco_izq_mm', 'altura_arco_der_mm', 'angulo_retropie_izq', 'angulo_retropie_der', 'dismetria_mm', 'peso_kg', 'costo']
@@ -91,12 +91,12 @@ export default function PlantillaOrtopedica() {
       let eid = estudioId, oid = id
       if (!estudioFirmado) {
         if (eid) { const u = await actualizar('estudios_pisada', eid, { ...cuerpoE(), fecha: fechaE }); if (u.error) return u }
-        else { const c = await insertar('estudios_pisada', { paciente_id: paciente.id, consulta_id: sp.get('consulta') || null, sede_id: sedeActivaId ?? paciente.sede_registro_id ?? sedes[0]?.id, realizado_por: perfil.id, fecha: fechaE, ...cuerpoE() }); if (c.error) return c; eid = c.data[0].id }
+        else { const c = await insertar('estudios_pisada', { paciente_id: paciente.id, consulta_id: sp.get('consulta') || null, sede_id: sedeDeRegistro(sedeActivaId, paciente, sedes), realizado_por: perfil.id, fecha: fechaE, ...cuerpoE() }); if (c.error) return c; eid = c.data[0].id }
       }
       if (estado === 'borrador') {
         const base = { ...cuerpoO(), estudio_id: eid, podologo_id: orden.data?.podologo_id ?? perfil.id }
         if (oid) { const u = await actualizar('ordenes_plantilla', oid, base); if (u.error) return u }
-        else { const c = await insertar('ordenes_plantilla', { paciente_id: paciente.id, sede_id: sedeActivaId ?? paciente.sede_registro_id ?? sedes[0]?.id, ...base }); if (c.error) return c; oid = c.data[0].id }
+        else { const c = await insertar('ordenes_plantilla', { paciente_id: paciente.id, sede_id: sedeDeRegistro(sedeActivaId, paciente, sedes), ...base }); if (c.error) return c; oid = c.data[0].id }
       }
       return { data: oid }
     }, { ok: 'Estudio y orden guardados (borrador)', invalidar: ['clinico'] })

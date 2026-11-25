@@ -53,7 +53,9 @@ export function crearVideo(carpeta: string) {
     await page.waitForTimeout(1500)
     fs.writeFileSync(path.join(SALIDA, 'marcas.json'), JSON.stringify({ ...extra, marcas }, null, 2))
     const v = page.video()
+    const ctx = page.context()
     await page.close()
+    await ctx.close().catch(() => {})   // el video solo queda completo al cerrar el contexto (con la máquina cargada, saveAs a secas devolvía un archivo cortado)
     if (v) await v.saveAs(path.join(SALIDA, `${carpeta}.webm`))   // saveAs espera a que el video esté completamente escrito (copiar el archivo antes lo truncaba con la máquina cargada)
   }
   return { SALIDA, narrar, empezar, firmar, cambiarSede, irA, terminar }

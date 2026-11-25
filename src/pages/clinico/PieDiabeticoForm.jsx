@@ -15,7 +15,7 @@ import { puntajeSinbad, sugerirSinbad, DESCRIPCION_SINBAD, resumenMonofilamento,
 import { zonasDeVista, nombreZona, regionDeZona } from '../../lib/clinico/mapaPie'
 import { DIABETES_TIPO } from '../../lib/clinico/catalogos'
 import { registroFirmadoBloqueado } from '../../lib/clinico/inmutabilidad'
-import { Aviso, Seccion, Chips, TriEstado, PacienteBuscador, usePaciente, useAccion, Volver, num, mensajeError, CabeceraPaciente, useVista } from './componentes/comunes'
+import { Aviso, Seccion, Chips, TriEstado, PacienteBuscador, usePaciente, useAccion, Volver, num, mensajeError, sedeDeRegistro, CabeceraPaciente, useVista } from './componentes/comunes'
 import FirmaDialogo from './componentes/FirmaDialogo'
 
 const PULSO = ['presente', 'disminuido', 'ausente', 'no_evaluado'].map(v => ({ value: v, label: v.replace('_', ' ') }))
@@ -101,7 +101,7 @@ export default function PieDiabeticoForm() {
       let vid = id
       if (id) { const u = await actualizar('valoraciones_pie_diabetico', id, cuerpo); if (u.error) return u }
       else {
-        const c = await insertar('valoraciones_pie_diabetico', { paciente_id: paciente.id, consulta_id: sp.get('consulta') || null, sede_id: sedeActivaId ?? paciente.sede_registro_id ?? sedes[0]?.id, podologo_id: perfil.id, fecha: fechaV, ...cuerpo })
+        const c = await insertar('valoraciones_pie_diabetico', { paciente_id: paciente.id, consulta_id: sp.get('consulta') || null, sede_id: sedeDeRegistro(sedeActivaId, paciente, sedes), podologo_id: perfil.id, fecha: fechaV, ...cuerpo })
         if (c.error) return c
         vid = c.data[0].id
       }

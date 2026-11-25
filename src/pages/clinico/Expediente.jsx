@@ -20,6 +20,8 @@ import { fecha, fechaHora, moneda, telefono, hoyISO } from '../../lib/formato'
 import { resumenAntecedentesTexto } from '../../lib/clinico/impresos'
 import { etiquetaDe, TIPOS_ATENCION } from '../../lib/clinico/catalogos'
 import { Aviso, Seccion, useVista, useAccion, mensajeError, usePaciente, Volver } from './componentes/comunes'
+import FotoRapida from './componentes/FotoRapida'
+import EvolucionFotos from './componentes/EvolucionFotos'
 
 const TIPOS_DOC = [['consentimiento_escaneado', 'Consentimiento escaneado'], ['historia_papel', 'Historia en papel'], ['estudio', 'Estudio'], ['referencia', 'Referencia'], ['receta_externa', 'Receta externa'], ['constancia_fiscal', 'Constancia fiscal'], ['otro', 'Otro']].map(([value, label]) => ({ value, label }))
 
@@ -101,7 +103,7 @@ export default function Expediente() {
       <Tabs items={tabs} value={tab} onChange={setTab} />
       {tab === 'resumen' && <Resumen pac={pac} id={id} clinico={clinico} rol={rol} />}
       {tab === 'historial' && clinico && <Historial id={id} sedes={sedes} />}
-      {tab === 'fotos' && <Fotos id={id} />}
+      {tab === 'fotos' && <Fotos id={id} nombre={pac.nombre_completo} />}
       {tab === 'planes' && <Planes id={id} />}
       {tab === 'documentos' && <Documentos id={id} clinico={clinico} />}
       {tab === 'facturas' && <Facturas id={id} />}
@@ -295,7 +297,9 @@ export function Historial({ id, sedes }) {
   )
 }
 
-export function Fotos({ id }) {
+export function Fotos({ id, nombre }) {
+  const [tomando, setTomando] = useState(false)
+  const puedeFoto = usePermisos('fotos.subir')['fotos.subir']
   const q = useVista('fotos-' + id, 'prp_fotos_clinicas', { sedeCol: false, filtros: { paciente_id: id, retirada: false }, orden: { columna: 'tomada_en', asc: false }, limite: 60 })
   const [urls, setUrls] = useState({})
   useEffect(() => {
@@ -305,7 +309,9 @@ export function Fotos({ id }) {
   }, [q.data])
   const filas = q.data?.filas ?? []
   return (
-    <Seccion titulo={`Fotos clínicas (${filas.length})`} acciones={<Link to={`/pacientes/${id}/fotos`} className="btn sm" style={{ textDecoration: 'none' }}>Comparar evolución / subir fotos</Link>}>
+    <Seccion titulo={`Fotos clínicas (${filas.length})`} acciones={<>{puedeFoto && <button type="button" className="btn sm" onClick={() => setTomando(true)}>📷 Foto rápida</button>} <Link to={`/pacientes/${id}/fotos`} className="btn sm o" style={{ textDecoration: 'none' }}>Comparar evolución / subir fotos</Link></>}>
+      {tomando && <FotoRapida pacienteId={id} pacienteNombre={nombre} onClose={() => { setTomando(false); q.refetch() }} />}
+      <EvolucionFotos filas={filas} urls={urls} />
       {q.isLoading ? <LoadingSpinner compacto /> : q.error ? <Aviso tipo="err">{mensajeError(q.error)}</Aviso> : !filas.length ? <EmptyState compacto title="Sin fotos" description="Las fotos se suben en la consulta o desde el comparador." /> : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
           {filas.map(f => (

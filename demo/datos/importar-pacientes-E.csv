@@ -1,0 +1,6 @@
+Nombre,Apellido paterno,Apellido materno,Fecha de nacimiento,Teléfono,Correo,Alergias
+Ximena,Castañeda,Lozano,1984-03-12,5512345678,ximena.qa@example.com,Ninguna
+Rodrigo,Almazán,Pineda,1975-11-02,5523456789,rodrigo.qa@example.com,Penicilina
+Lorena,Bautista,Ochoa,1990-07-12,5534567890,lorena.qa@example.com,
+,Quiroz,Mena,1969-05-20,5545678901,sinnombre.qa@example.com,
+María,Jiménez,Hernández,1965-08-12,5556789012,maria.dup@example.com,

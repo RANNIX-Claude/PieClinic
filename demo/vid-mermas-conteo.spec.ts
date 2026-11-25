@@ -1,7 +1,7 @@
 // Video B2: mermas, conteo físico con diferencia, ajuste autorizado y resolución de la reclamación del traspaso GALERIAS-TRA-000002.
 // Correr: PW_LOTE=B BASE_URL=http://localhost:5174 npx playwright test -c playwright.caja.config.ts vid-mermas-conteo
 import { test, expect } from '@playwright/test'
-import { crearVideo, escribir } from './lib/video'
+import { crearVideo, escribir, crearTraspaso } from './lib/video'
 
 const SEDE = 'Pie Clinic Centenario'
 const v = crearVideo('vid-mermas-conteo')
@@ -81,8 +81,8 @@ test('Inventario: mermas, conteo físico y reclamación de traspaso', async ({ p
   await v.narrar(page, 'El conteo aparece como autorizado.')
 
   // ───────── Reclamación del traspaso ─────────
-  // La reclamación de GALERIAS-TRA-000002 ya se resolvió en la primera toma de esta prueba (quedó guardada y autorizada); aquí se muestra ya resuelta
-  // y se resuelve en cámara otra reclamación pendiente (GAL-MER-000001, traspaso CHA-TRA-000001).
+  // La reclamación de GALERIAS-TRA-000002 (CENTENARIO-MER-000001) ya se resolvió en la primera toma de esta prueba (quedó guardada y autorizada, verificado en BD);
+  // aquí se muestra ya resuelta y se resuelve en cámara una reclamación nueva, generada por otro traspaso con faltante.
   await page.getByText('Mermas y reclamaciones', { exact: true }).click()
   await page.waitForTimeout(1500)
   const filaRecl = page.locator('tbody tr', { hasText: 'Faltante: llegaron 5 piezas' }).first()
@@ -90,22 +90,39 @@ test('Inventario: mermas, conteo físico y reclamación de traspaso', async ({ p
   const folioRecl = (await filaRecl.locator('td').first().innerText()).trim()
   await expect(filaRecl.getByText('GALERIAS-TRA-000002')).toBeVisible()
   await expect(filaRecl.getByText('Autorizada', { exact: true })).toBeVisible()
-  await v.narrar(page, `Ahora las reclamaciones de traspaso. Aquí está ${folioRecl.replace(/-/g, ' ')}: la pieza que faltó cuando el traspaso Galerías T R A cero cero cero cero cero dos llegó a Centenario con una pieza de menos. Una columna dice de qué traspaso viene, y como Administración ya la resolvió aparece autorizada. Quedó guardada con su motivo y su traspaso.`, 0)
-  await v.cambiarSede(page, 'Galerías')
-  await page.waitForTimeout(2500)
-  const filaPend = page.locator('tbody tr', { hasText: 'Reclamación de traspaso' }).filter({ hasText: 'Pendiente' }).first()
+  await v.narrar(page, `Ahora las reclamaciones de traspaso. Aquí está ${folioRecl.replace(/-/g, ' ')}: la pieza que faltó cuando el traspaso Galerías T R A cero cero cero cero cero dos llegó a Centenario con una pieza de menos. Una columna dice de qué traspaso viene, y como Administración ya la resolvió aparece autorizada. Quedó guardada con su motivo y su traspaso. Para ver cómo se resuelve una pendiente, se genera una nueva.`, 0)
+  await v.cambiarSede(page, 'Pie Clinic Galerías')
+  await v.irA(page, /^Traspasos$/)
+  const modal = await crearTraspaso(page, 'Pie Clinic Galerías', 'Pie Clinic Centenario', [{ sku: 'PF-AM-002', nombre: 'Esmalte antimicótico', cantidad: 2 }], (t, e) => v.narrar(page, t, e))
+  await modal.getByRole('button', { name: 'Enviar traspaso' }).click()
+  const detalle = page.getByRole('dialog').last()
+  await expect(detalle.getByText(/Enviado \(en tránsito\)/).first()).toBeVisible({ timeout: 45_000 })
+  const folioTra = (await detalle.locator('h2, h3, [class*=title]').first().innerText()).replace('Traspaso', '').trim()
+  await v.narrar(page, `Se envían dos esmaltes de Galerías a Centenario en el traspaso ${folioTra.replace(/-/g, ' ')}.`, 0)
+  await page.keyboard.press('Escape').catch(() => {})
+  await v.cambiarSede(page, SEDE)
+  await page.getByText(folioTra, { exact: false }).first().click()
+  await page.getByRole('dialog').last().getByRole('button', { name: 'Recibir en destino' }).click()
+  const recep = page.getByRole('dialog').last()
+  await recep.locator('tbody tr').first().locator('input[type=number]').fill('1')
+  await escribir(recep.locator('tbody tr').first().locator('input:not([type=number])'), 'Faltante: llegó 1 pieza, falta 1 en la caja')
+  await v.narrar(page, 'En Centenario llega una sola pieza. Se captura uno como cantidad recibida, con el motivo del faltante, y se confirma con diferencia.', 0)
+  await recep.getByRole('button', { name: /Confirmar y reportar diferencia/ }).click()
+  await expect(page.getByRole('dialog').last().getByText(/Recibido con diferencias/).first()).toBeVisible({ timeout: 45_000 })
+  await page.keyboard.press('Escape').catch(() => {})
+  await v.irA(page, /^Mermas y conteos$/)
+  const filaPend = page.locator('tbody tr', { hasText: folioTra }).first()
   await expect(filaPend).toBeVisible({ timeout: 45_000 })
+  await expect(filaPend.getByText('Pendiente', { exact: true })).toBeVisible()
   const folioPend = (await filaPend.locator('td').first().innerText()).trim()
-  const traspasoPend = (await filaPend.getByText(/-TRA-/).first().innerText()).trim()
-  await v.narrar(page, `Para ver cómo se resuelve una pendiente, en la sucursal Galerías hay la reclamación ${folioPend.replace(/-/g, ' ')}, del traspaso ${traspasoPend.replace(/-/g, ' ')}, todavía pendiente.`, 0)
+  await v.narrar(page, `Apareció la reclamación ${folioPend.replace(/-/g, ' ')}, de ese traspaso, pendiente.`, 0)
   await filaPend.getByRole('button', { name: 'Autorizar' }).click()
   const dlg = page.getByRole('dialog').last()
   await expect(dlg.getByText(/no vuelve a descontar inventario/)).toBeVisible()
   await v.narrar(page, 'Al resolverla, el sistema avisa que se reconoce la reclamación y que no vuelve a descontar inventario, porque la pieza nunca llegó a entrar.', 0)
   await dlg.getByRole('button', { name: 'Autorizar', exact: true }).click()
-  await expect(page.locator('tbody tr', { hasText: folioPend }).getByText('Autorizada', { exact: true })).toBeVisible({ timeout: 45_000 })
+  await expect(page.locator('tbody tr', { hasText: folioTra }).getByText('Autorizada', { exact: true })).toBeVisible({ timeout: 45_000 })
   await v.narrar(page, 'La reclamación queda resuelta y autorizada.', 0)
-  await v.cambiarSede(page, SEDE)
 
   // ───────── Inventario después ─────────
   await v.irA(page, /^Inventario$/)
@@ -113,5 +130,5 @@ test('Inventario: mermas, conteo físico y reclamación de traspaso', async ({ p
   expect(d1).toBe(e1 - 1)
   expect(d2).toBe(contadoSep)
   await v.narrar(page, `En el inventario, las fresas bajaron de ${e1} a ${d1} por la merma, y los separadores de silicona quedaron en ${d2} por el conteo físico. La reclamación del traspaso no movió el inventario. Fin de la prueba.`)
-  await v.terminar(page, { folioMerma, folioConteo, folioRecl, folioPend, traspasoPend, fresas: [e1, d1], separadores: [e2, d2] })
+  await v.terminar(page, { folioMerma, folioConteo, folioRecl, folioPend, folioTra, fresas: [e1, d1], separadores: [e2, d2] })
 })

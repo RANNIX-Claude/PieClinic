@@ -41,6 +41,10 @@ test('Caja: venta de un plan multisesión y cobro de una sesión con el saldo de
   const txtOferta = (await filaOferta.innerText()).replace(/\s+/g, ' ')
   await v.narrar(page, `Primero, el catálogo de paquetes y membresías. En planes multisesión está el plan láser de seis sesiones: ${txtOferta.replace(/\s+/g, ' ').includes('3,600') ? 'tres mil seiscientos pesos en total' : 'con su precio total'}, con vigencia de doce meses para usar las sesiones. El valor de cada sesión es el precio del plan entre las seis sesiones.`)
 
+  await page.getByRole('tab', { name: 'Vendidos' }).click()
+  await page.waitForTimeout(2500)
+  const previos = new Set((await page.locator('tbody tr').allInnerTexts()).flatMap(t => t.match(/[A-Z]+-LP-\d+/g) ?? []))
+
   // 2. Venta del plan en caja
   await v.irA(page, /Caja y tickets/)
   await page.waitForTimeout(3500)
@@ -48,7 +52,7 @@ test('Caja: venta de un plan multisesión y cobro de una sesión con el saldo de
   if (await abrir.isVisible().catch(() => false)) { await page.getByLabel('Fondo inicial').fill('1000'); await abrir.click(); await page.waitForTimeout(3500) }
   await expect(page.locator('.cj-buscar-in')).toBeVisible({ timeout: 30_000 })
   await v.narrar(page, 'En caja, la paciente quiere comprar el plan. Un plan se vende siempre a un paciente identificado, así que primero se elige a la paciente.', 0)
-  const cliente = await elegirPaciente(page, 'Mendoza', /Laura Ramírez Mendoza/)
+  const cliente = await elegirPaciente(page, 'Vargas', /Verónica Vargas Cruz/)
   await v.narrar(page, `Se elige a ${cliente}.`, 0)
   await page.keyboard.press('F5')
   await page.locator('.cj-buscar-in').pressSequentially('plan l', { delay: 100 })
@@ -71,16 +75,15 @@ test('Caja: venta de un plan multisesión y cobro de una sesión con el saldo de
   await page.getByRole('tab', { name: 'Vendidos' }).click()
   await page.waitForTimeout(2500)
   const planes = page.locator('div.card', { hasText: 'Planes de pacientes' }).first()
-  const mejor = page.locator('tbody tr', { hasText: 'Plan láser 6 sesiones' })
-  const n = await mejor.count()
-  expect(n).toBeGreaterThan(0)
-  // el plan recién vendido: 0/6 sesiones
-  const fnuevo = page.locator('tbody tr', { hasText: /Plan láser 6 sesiones/ }).filter({ hasText: /0\/6/ }).first()
-  await expect(fnuevo).toBeVisible({ timeout: 30_000 })
-  await fnuevo.scrollIntoViewIfNeeded()
-  const folioPlan = ((await fnuevo.innerText()).match(/[A-Z]{3}-LP-\d+/) ?? [''])[0]
+  const filasPlan = page.locator('tbody tr', { hasText: /[A-Z]+-LP-\d+/ })
+  const textos = await filasPlan.allInnerTexts()
+  const folioPlan = textos.flatMap(t => t.match(/[A-Z]+-LP-\d+/g) ?? []).find(f => !previos.has(f)) ?? ''
   expect(folioPlan).not.toBe('')
-  const txtNuevo = (await fnuevo.innerText()).replace(/\s+/g, ' ')
+  const fnuevo = page.locator('tbody tr', { hasText: folioPlan }).first()
+  await expect(fnuevo).toBeVisible({ timeout: 30_000 })
+  await expect(fnuevo).toContainText('0/6')
+  await fnuevo.scrollIntoViewIfNeeded()
+  const txtNuevo = (await fnuevo.innerText()).replace(/s+/g, ' ')
   void planes
   await v.narrar(page, `En la pestaña Vendidos, la lista de planes de pacientes muestra el plan ${folioPlan.replace(/-/g, ' ')}, con cero de seis sesiones usadas, el valor de cada sesión, lo que falta por cobrar, que es cero porque se pagó completo, y su fecha de caducidad.`)
 
@@ -89,7 +92,7 @@ test('Caja: venta de un plan multisesión y cobro de una sesión con el saldo de
   await page.waitForTimeout(3000)
   await expect(page.locator('.cj-buscar-in')).toBeVisible({ timeout: 30_000 })
   await v.narrar(page, 'Una semana después, la paciente regresa a su primera sesión de láser. En caja se elige otra vez a la paciente.', 0)
-  await elegirPaciente(page, 'Mendoza', /Laura Ramírez Mendoza/)
+  await elegirPaciente(page, 'Vargas', /Verónica Vargas Cruz/)
   await page.keyboard.press('F2')
   await page.locator('.cj-buscar-in').pressSequentially('onicomic', { delay: 100 })
   await page.waitForTimeout(1500)

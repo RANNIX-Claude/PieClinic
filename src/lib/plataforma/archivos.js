@@ -13,7 +13,14 @@ export const tipoArchivo = nombre => {
 export async function leerTabla(archivo) {
   const XLSX = await import('xlsx')
   const buf = await archivo.arrayBuffer()
-  const wb = XLSX.read(buf, { type: 'array', cellDates: true, raw: false })
+  let wb
+  if (['csv', 'tsv', 'txt'].includes(EXT(archivo.name))) {
+    // Texto plano: se decodifica como UTF-8 (si no es válido, Windows-1252) y se leen los valores TAL CUAL. Con type:'array' SheetJS lo tomaba como Latin-1
+    // (María → «MarÃ­a», lo que además impedía detectar duplicados) y convertía «1969-05-20» en fecha con un día de menos («5/19/69»).
+    let texto
+    try { texto = new TextDecoder('utf-8', { fatal: true }).decode(buf) } catch { texto = new TextDecoder('windows-1252').decode(buf) }
+    wb = XLSX.read(texto.replace(/^﻿/, ''), { type: 'string', raw: true })
+  } else wb = XLSX.read(buf, { type: 'array', cellDates: true, raw: false })
   const hojas = wb.SheetNames.map(nombre => {
     const matriz = XLSX.utils.sheet_to_json(wb.Sheets[nombre], { header: 1, defval: '', raw: false, blankrows: false })
     const iEnc = matriz.findIndex(f => f.filter(c => String(c).trim() !== '').length >= 2)

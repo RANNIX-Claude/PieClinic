@@ -14,6 +14,12 @@ import { calcularEdad } from '../../../lib/clinico/edad'
 /** '' → null y recorta textos, para insertar en la BD sin cadenas vacías. */
 export const limpiar = obj => Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, typeof v === 'string' ? (v.trim() === '' ? null : v.trim()) : v]))
 export const num = v => (v === '' || v === null || v === undefined || Number.isNaN(Number(v)) ? null : Number(v))
+/**
+ * Sede en la que se registra un documento clínico nuevo: la sede activa; si el usuario trabaja en «todas mis sedes», la sede de registro del paciente
+ * SOLO si es una de las suyas; si no, la primera suya. (Antes se tomaba la del paciente sin revisar: un podólogo de una sola sede que abría a un paciente de otra
+ * recibía «No tienes permiso» por la política de sede de la BD.)
+ */
+export const sedeDeRegistro = (sedeActivaId, paciente, sedes) => sedeActivaId ?? ((sedes ?? []).some(s => s.id === paciente?.sede_registro_id) ? paciente.sede_registro_id : sedes?.[0]?.id)
 export const mensajeError = e => {
   const m = e?.message || String(e || 'Error desconocido')
   if (e?.code === 'SIN_CONEXION') return m
@@ -131,7 +137,7 @@ export function PacienteBuscador({ onElegir, etiqueta = 'Paciente', seleccionado
     queryKey: ['clinico', 'buscar-paciente', texto, sedeActivaId],
     enabled: buscar,
     queryFn: async () => {
-      const r = await leer('prp_pacientes', { sedeCol: false, buscar: { columnas: ['nombre_completo', 'numero_expediente', 'telefono_celular', 'apellido_paterno'], texto }, orden: { columna: 'nombre' }, limite: 8, filtros: { estado: ['activo', 'inactivo'] } })
+      const r = await leer('prp_pacientes', { sedeCol: false, buscar: { columnas: ['nombre_completo', 'numero_expediente', 'telefono_celular', 'apellido_paterno'], texto }, orden: { columna: 'nombre' }, limite: 8, filtros: { estado: ['activo', 'inactivo'], tipo_registro: 'paciente' } })
       if (r.error) throw r.error
       return r.data
     },

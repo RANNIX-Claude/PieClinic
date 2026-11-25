@@ -5,8 +5,8 @@ import { crearVideo } from './lib/video'
 
 const v = crearVideo('vid-mantenimiento')
 const SEDE = 'Pie Clinic Centenario'
-const EQUIPO = 'Autoclave de vapor QA-E'
-const FALLA = 'La autoclave no alcanza la presión de esterilización (video QA)'
+const EQUIPO = 'Autoclave a presión E2'
+const FALLA = 'La autoclave pierde presión durante el ciclo (video QA 2)'
 
 test('Mantenimiento: equipo, orden de trabajo, presupuesto y cierre', async ({ page, context }) => {
   await v.empezar(context)
@@ -30,7 +30,7 @@ test('Mantenimiento: equipo, orden de trabajo, presupuesto y cierre', async ({ p
   await cat.selectOption({ label: catEq })
   await eq.getByLabel('Marca').fill('Tuttnauer')
   await eq.getByLabel('Modelo').fill('3870EA')
-  await eq.getByLabel('Serie').fill('QA-E-0001')
+  await eq.getByLabel('Serie').fill('QA-E-0002')
   await eq.getByLabel('Último servicio').fill('2026-09-01')
   await eq.getByLabel('Periodicidad (días)').fill('90')
   await v.narrar(page, `Se captura el nombre, la categoría ${catEq}, marca, modelo y serie. Con el último servicio del primero de septiembre y una periodicidad de noventa días, el sistema calcula solo el próximo servicio.`, 0)

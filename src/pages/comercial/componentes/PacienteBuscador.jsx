@@ -1,11 +1,23 @@
 // Buscador de paciente por nombre, teléfono o expediente (prp_pacientes). Devuelve el paciente elegido por onElegir.
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
-import { leer } from '../../../lib/api'
+import { leer, insertar } from '../../../lib/api'
+import { useApp } from '../../../context/AppContext'
 import { leerSnapshot } from '../../../lib/offline/almacen'
 import { telefono } from '../../../lib/formato'
 
-export default function PacienteBuscador({ valor, onElegir, placeholder = 'Buscar paciente por nombre, teléfono o expediente…', deshabilitado }) {
+export default function PacienteBuscador({ valor, onElegir, placeholder = 'Buscar cliente por nombre, teléfono o expediente…', deshabilitado }) {
+  const { sedeActivaId } = useApp()
+  const [nuevo, setNuevo] = useState(null) // { nombre, apellido, tel } mientras se da de alta un cliente
+  const [guardando, setGuardando] = useState(false)
+  const crearCliente = async () => {
+    setGuardando(true); setError(null)
+    const r = await insertar('pacientes', { nombre: nuevo.nombre.trim(), apellido_paterno: nuevo.apellido.trim() || null, telefono_celular: nuevo.tel.trim() || null, sede_registro_id: sedeActivaId, alta_rapida: true, tipo_registro: 'cliente', origen_registro: 'recepcion' })
+    setGuardando(false)
+    if (r.error) { setError(r.error.message); return }
+    const fila = Array.isArray(r.data) ? r.data[0] : r.data
+    onElegir({ ...fila, nombre_completo: [fila.nombre, fila.apellido_paterno].filter(Boolean).join(' ') }); setNuevo(null); setTexto('')
+  }
   const [texto, setTexto] = useState('')
   const [res, setRes] = useState([])
   const [buscando, setBuscando] = useState(false)
@@ -23,7 +35,7 @@ export default function PacienteBuscador({ valor, onElegir, placeholder = 'Busca
         return
       }
       const r = await leer('prp_pacientes', { sedeCol: false, buscar: { columnas: ['nombre', 'apellido_paterno', 'apellido_materno', 'telefono_celular', 'numero_expediente'], texto }, limite: 8,
-        columnas: 'id,nombre,apellido_paterno,apellido_materno,nombre_completo,telefono_celular,numero_expediente,fecha_nacimiento,es_menor,tiene_datos_fiscales' })
+        columnas: 'id,nombre,apellido_paterno,apellido_materno,nombre_completo,telefono_celular,numero_expediente,fecha_nacimiento,es_menor,tiene_datos_fiscales,tipo_registro' })
       setBuscando(false); setError(r.error?.message ?? null); setRes(r.data)
     }, 300)
     return () => clearTimeout(id)
@@ -32,7 +44,7 @@ export default function PacienteBuscador({ valor, onElegir, placeholder = 'Busca
   if (valor) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid var(--border)', borderRadius: 8, padding: '7px 10px', background: 'var(--accent-light)' }}>
-        <div style={{ flex: 1, fontSize: 13 }}><b>{valor.nombre_completo ?? valor.nombre}</b> · {valor.numero_expediente ?? 'sin expediente'} · {telefono(valor.telefono_celular)}</div>
+        <div style={{ flex: 1, fontSize: 13 }}><b>{valor.nombre_completo ?? valor.nombre}</b> · {valor.numero_expediente ?? 'cliente'} · {telefono(valor.telefono_celular)}</div>
         {!deshabilitado && <button type="button" className="btn o" onClick={() => onElegir(null)} aria-label="Quitar paciente"><X size={13} /></button>}
       </div>
     )
@@ -44,11 +56,20 @@ export default function PacienteBuscador({ valor, onElegir, placeholder = 'Busca
         <div className="card" style={{ position: 'absolute', zIndex: 30, left: 0, right: 0, top: '100%', marginTop: 2, padding: 4, maxHeight: 260, overflow: 'auto' }}>
           {buscando && <div className="text-muted" style={{ padding: 8, fontSize: 12.5 }}>Buscando…</div>}
           {error && <div className="text-red" style={{ padding: 8, fontSize: 12.5 }}>{error}</div>}
-          {!buscando && !error && res.length === 0 && <div className="text-muted" style={{ padding: 8, fontSize: 12.5 }}>Sin coincidencias. Registra al paciente en Pacientes y vuelve.</div>}
+          {!buscando && !error && res.length === 0 && <div className="text-muted" style={{ padding: 8, fontSize: 12.5 }}>Sin coincidencias.</div>}
+          {navigator.onLine && !nuevo && <button type="button" className="btn o" style={{ margin: 4 }} onClick={() => { const [n, ...r] = texto.trim().split(/\s+/); setNuevo({ nombre: n ?? '', apellido: r.join(' '), tel: '' }) }}>+ Nuevo cliente (nombre y teléfono)</button>}
+          {nuevo && (
+            <div style={{ padding: 8, display: 'grid', gap: 6 }}>
+              <input aria-label="Nombre del cliente" placeholder="Nombre" value={nuevo.nombre} onChange={e => setNuevo(n => ({ ...n, nombre: e.target.value }))} />
+              <input aria-label="Apellido del cliente" placeholder="Apellido" value={nuevo.apellido} onChange={e => setNuevo(n => ({ ...n, apellido: e.target.value }))} />
+              <input aria-label="Teléfono del cliente" placeholder="Teléfono celular" value={nuevo.tel} onChange={e => setNuevo(n => ({ ...n, tel: e.target.value }))} />
+              <button type="button" className="btn" disabled={!nuevo.nombre.trim() || guardando} onClick={crearCliente}>{guardando ? 'Guardando…' : 'Guardar cliente y usarlo'}</button>
+              <span className="text-muted" style={{ fontSize: 11.5 }}>Es solo cliente: no tiene expediente. Si después se atiende en podología, se le da de alta como paciente y conserva su historial.</span>
+            </div>)}
           {res.map(p => (
             <button type="button" key={p.id} onClick={() => { onElegir(p); setTexto('') }}
               style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '7px 10px', cursor: 'pointer', fontSize: 13, color: 'var(--text)', borderRadius: 6 }}>
-              <b>{p.nombre_completo}</b> <span className="text-muted">· {p.numero_expediente ?? 's/exp.'} · {telefono(p.telefono_celular)}</span>
+              <b>{p.nombre_completo}</b> <span className="text-muted">· {p.tipo_registro === 'cliente' ? 'cliente' : (p.numero_expediente ?? 's/exp.')} · {telefono(p.telefono_celular)}</span>
             </button>
           ))}
         </div>

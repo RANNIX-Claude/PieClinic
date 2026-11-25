@@ -162,8 +162,15 @@ export default function Importar() {
   async function existentesDe(tipo) {
     const tabla = { pacientes: ['pacientes', 'nombre,apellido_paterno,apellido_materno,fecha_nacimiento,telefono_celular'], productos: ['productos', 'sku,codigo_barras,nombre'], proveedores: ['proveedores', 'nombre,rfc,telefono'] }[tipo]
     if (!tabla) return []
-    const r = await leer(tabla[0], { sedeCol: false, columnas: tabla[1], limite: 20000 })
-    return r.error ? [] : r.data
+    // PostgREST devuelve como máximo 1000 filas por consulta: se pagina para que el detector de duplicados vea TODA la base (con .limit(20000) solo veía las primeras 1000).
+    const todos = []
+    for (let pagina = 0; pagina < 100; pagina++) {
+      const r = await leer(tabla[0], { sedeCol: false, columnas: tabla[1], orden: [{ columna: 'id' }], pagina, tamano: 1000 })
+      if (r.error) return todos
+      todos.push(...r.data)
+      if (r.data.length < 1000) break
+    }
+    return todos
   }
   async function generarVistaPrevia() {
     if (mapeosPorRevisar(mapeos).length) return toast.error('Quedan columnas por revisar')

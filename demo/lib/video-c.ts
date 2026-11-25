@@ -24,7 +24,8 @@ export async function firmarCon(page: Page, narrar: Voz, cuenta: Cuenta, sede: s
   await page.waitForLoadState('networkidle').catch(() => {})
   if (sede) {
     const sel = page.locator('header select')
-    if (await sel.count()) { await sel.selectOption({ label: sede }); await page.waitForTimeout(1500) }
+    await sel.waitFor({ timeout: 90_000 })   // el selector de sede aparece cuando termina de cargar el perfil (con la máquina lenta puede tardar)
+    await sel.selectOption({ label: sede }); await page.waitForTimeout(1500)
   }
 }
 
@@ -55,11 +56,12 @@ export async function trazarFirma(page: Page) {
 // El codificador de video de Playwright es un proceso ffmpeg vivo durante toda la prueba; con la máquina cargada (varios lotes grabando a la vez)
 // se queda atrás o lo matan y el webm sale truncado a la mitad. Aquí solo se guardan JPEG en disco durante la prueba y el video se arma al final.
 import fs from 'fs'
+import os from 'os'
 import path from 'path'
 import { execFileSync } from 'child_process'
 
 export async function iniciarGrabacion(page: Page, dirSalida: string) {
-  const dirFrames = path.join(dirSalida, 'frames')
+  const dirFrames = path.join(os.tmpdir(), 'pf-frames-' + path.basename(dirSalida))   // fuera de OneDrive: miles de JPEG sincronizándose frenan la prueba
   fs.rmSync(dirFrames, { recursive: true, force: true })
   fs.mkdirSync(dirFrames, { recursive: true })
   const sesion = await page.context().newCDPSession(page)
@@ -87,13 +89,13 @@ export async function iniciarGrabacion(page: Page, dirSalida: string) {
       frames.sort((a, b) => a.t - b.t)
       const lista = frames.map((f, i) => {
         const dur = Math.max(0.04, ((i + 1 < frames.length ? frames[i + 1].t : fin) - f.t) / 1000)
-        return `file '${f.archivo.replace(/\/g, '/')}'\nduration ${dur.toFixed(3)}`
+        return `file '${f.archivo.split(path.sep).join('/')}'\nduration ${dur.toFixed(3)}`
       })
-      lista.push(`file '${frames[frames.length - 1].archivo.replace(/\/g, '/')}'`)
-      const txt = path.join(dirSalida, 'frames.txt')
+      lista.push(`file '${frames[frames.length - 1].archivo.split(path.sep).join('/')}'`)
+      const txt = path.join(dirFrames, 'frames.txt')
       fs.writeFileSync(txt, lista.join('\n'))
-      execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', txt, '-vf', 'fps=25,scale=1366:768:flags=lanczos,format=yuv420p',
-        '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-movflags', '+faststart', salida])
+      execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', txt, '-vf', 'fps=12,format=yuv420p',
+        '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '24', '-movflags', '+faststart', salida])
       fs.rmSync(dirFrames, { recursive: true, force: true })
       return salida
     },

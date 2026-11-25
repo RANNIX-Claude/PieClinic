@@ -33,8 +33,16 @@ test('Finanzas: pagar una cuenta por pagar y conciliarla con el banco', async ({
   const cuentaTxt = opcionesCta.find(o => o.includes('BBVA'))!
   await pago.getByLabel(/Cuenta bancaria/).selectOption({ label: cuentaTxt })
   const referencia = `SPEI-${FACTURA.slice(3)}`
+  await expect(pago.getByLabel('Forma de pago')).toHaveValue('transferencia')
   await escribir(pago.getByLabel('Referencia'), referencia)
   await v.narrar(page, `Solo Administración autoriza y registra los pagos a proveedores. El monto propuesto es el saldo completo. La forma de pago es transferencia, desde la cuenta ${cuentaTxt.replace('···', 'terminación ')}, con la referencia ${referencia.replace('-', ' ')}.`, 0)
+  const uuid = `3F2B8C1E-5D7A-4E9B-A1C3-${FACTURA.slice(3).padStart(12, '0')}`
+  await expect(pago.getByLabel('UUID del CFDI de la factura')).toBeVisible()
+  await expect(pago.getByRole('button', { name: 'Registrar pago' })).toBeDisabled()
+  await v.narrar(page, 'La factura se registró en la recepción sin el UUID del CFDI, y como el pago pasa de dos mil pesos, el sistema exige el comprobante fiscal: sin él, el botón de registrar pago sigue bloqueado.', 0)
+  await escribir(pago.getByLabel('UUID del CFDI de la factura'), uuid)
+  await expect(pago.getByRole('button', { name: 'Registrar pago' })).toBeEnabled()
+  await v.narrar(page, 'Se captura el UUID del CFDI que viene en la factura del proveedor y el botón se habilita.', 0)
   await pago.getByRole('button', { name: 'Registrar pago' }).click()
   await expect(fila.getByText('Pagada', { exact: true })).toBeVisible({ timeout: 45_000 })
   await v.narrar(page, 'La cuenta quedó pagada y su saldo en cero. Al pagar, el sistema también generó el gasto correspondiente, base caja.', 0)
@@ -71,5 +79,5 @@ test('Finanzas: pagar una cuenta por pagar y conciliarla con el banco', async ({
   await expect(filaPago2).toBeVisible({ timeout: 45_000 })
   await expect(filaPago2.getByText('Sí', { exact: true })).toBeVisible({ timeout: 30_000 })
   await v.narrar(page, 'De regreso en cuentas por pagar, el pago ya figura como conciliado. Así se cierra el ciclo: compra, cuenta por pagar, pago y banco. Fin de la prueba.')
-  await v.terminar(page, { factura: FACTURA, importe, referencia, cuentaTxt, csv: path.basename(csv) })
+  await v.terminar(page, { uuid, factura: FACTURA, importe, referencia, cuentaTxt, csv: path.basename(csv) })
 })

@@ -25,7 +25,7 @@ test('Compras: orden de compra a proveedor con factura y entrada de inventario',
   await v.irA(page, /^Inventario$/)
   const antes: Record<string, number> = {}
   for (const p of PRODUCTOS) antes[p.sku] = await existencia(page, p.sku)
-  await v.narrar(page, `Antes de comprar se revisa el inventario de Galerías. Las calcetas para pie diabético tienen ${antes['PF-PD-001']} piezas y la crema hidratante de talones tiene ${antes['PF-CC-001']}: las dos están sin existencia, por eso se van a comprar.`)
+  await v.narrar(page, `Antes de comprar se revisa el inventario de Galerías. Las calcetas para pie diabético tienen ${antes['PF-PD-001']} piezas y la crema hidratante de talones tiene ${antes['PF-CC-001']}: Se van a comprar cuarenta piezas de cada uno a un proveedor, y al final se verifica cuánto subió el inventario.`)
 
   // ───────── Proveedores ─────────
   await v.irA(page, /^Proveedores$/)

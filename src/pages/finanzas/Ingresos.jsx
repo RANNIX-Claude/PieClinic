@@ -107,7 +107,7 @@ export default function Ingresos() {
     { key: 'docs', label: 'Docs', sortable: false, exportar: false, render: f => <span title="CFDI / comprobante">{f.tiene_cfdi ? <FileText size={14} color="var(--green)" /> : <span style={{ color: 'var(--muted)' }}>—</span>} {f.tiene_comprobante ? <Paperclip size={14} color="var(--accent)" /> : <span style={{ color: 'var(--muted)' }}>—</span>}</span>, valor: f => `${f.tiene_cfdi ? 'CFDI' : 'sin CFDI'} ${f.tiene_comprobante ? 'comprobante' : ''}` },
     { key: 'forma_pago', label: 'F. pago', render: f => <span title={etiquetaForma(f.forma_pago)}>{FORMAS_PAGO_BD.find(x => x.value === f.forma_pago)?.corto ?? f.forma_pago}</span>, valor: f => etiquetaForma(f.forma_pago), filtro: true },
     { key: 'fecha_pago', label: 'Fecha pago', render: f => fecha(f.fecha_pago), valor: f => f.fecha_pago },
-    { key: 'origen', label: 'Cita / venta', valor: f => (f.cita_id ? `Cita ${f.cita_id.slice(0, 6)}` : f.venta_id ? `Venta ${f.venta_id.slice(0, 6)}` : f.origen_registro === 'manual' ? 'Manual' : '—') },
+    { key: 'origen', label: 'Cita / venta', valor: f => (f.venta_folio ? `Ticket ${f.venta_folio}` : f.cita_folio ? `Cita ${f.cita_folio}` : f.cita_id ? `Cita ${f.cita_id.slice(0, 6)}` : f.venta_id ? `Venta ${f.venta_id.slice(0, 6)}` : f.origen_registro === 'manual' ? 'Manual' : '—') },
     { key: 'paciente', label: 'Paciente', valor: f => nombres[f.paciente_id] ?? (f.paciente_id ? '…' : '—') },
     { key: 'podologo', label: 'Podólogo', valor: f => perfiles[f.podologo_id] ?? '—', filtro: true },
     { key: 'sede', label: 'Sede', valor: f => f.sede_nombre, filtro: true },

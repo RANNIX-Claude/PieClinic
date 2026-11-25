@@ -5,6 +5,8 @@ import { rolesCon } from '../lib/permisos'
 
 const A = 'administrador', P = 'podologo', R = 'recepcion'
 export default [
+  { path: '/clientes', element: lazy(() => import('../pages/comercial/Clientes.jsx')), roles: rolesCon('pacientes.ver'), titulo: 'Clientes', cap: 'pacientes.ver' },
+  { path: '/clientes/:id', element: lazy(() => import('../pages/comercial/Clientes.jsx')), roles: rolesCon('pacientes.ver'), titulo: 'Historia del cliente', cap: 'pacientes.ver' },
   { path: '/agenda', element: lazy(() => import('../pages/comercial/Agenda.jsx')), roles: rolesCon('agenda.ver'), titulo: 'Agenda', cap: 'agenda.ver' },
   { path: '/agenda/nueva', element: lazy(() => import('../pages/comercial/CitaNueva.jsx')), roles: rolesCon('agenda.editar'), titulo: 'Nueva cita', cap: 'agenda.editar' },
   { path: '/agenda/horarios', element: lazy(() => import('../pages/comercial/Horarios.jsx')), roles: [A, P, R], titulo: 'Horarios y bloqueos', cap: 'agenda.ver' },

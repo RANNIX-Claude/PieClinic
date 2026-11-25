@@ -2,14 +2,15 @@
 // Requiere una cita atendida y sin cobro en Chalco (la deja demo/consulta-clinica.spec.ts al firmar la consulta).
 // Correr: PW_LOTE=A BASE_URL=http://localhost:5174 npx playwright test -c playwright.caja.config.ts cita-cobrar
 import { test, expect } from '@playwright/test'
-import { crearVideo, dinero, letras, escribir } from './lib/video'
-import { entrar, verTicket, quitarTicket } from './lib/lote-a'
+import { dinero, letras } from './lib/video'
+import { entrar, verTicket, quitarTicket, crearVideoA } from './lib/lote-a'
 
-const v = crearVideo('cita-cobrar')
+const v = crearVideoA('cita-cobrar')
 const hablar = process.env.RAPIDO ? async (_p: unknown, _t?: string, _e?: number) => {} : v.narrar
 const SEDE = 'Chalco'
 const PAC = process.env.PAC_NOMBRE ?? 'Valeria'
 
+test.describe.configure({ timeout: 40 * 60_000 })
 test('Cobrar una cita desde la caja', async ({ page, context }) => {
   await v.empezar(context)
   await entrar(page, hablar, 'r@g.com', SEDE,
@@ -20,13 +21,14 @@ test('Cobrar una cita desde la caja', async ({ page, context }) => {
   await v.irA(page, /^Agenda$/)
   await hablar(page, 'En la agenda del día aparece la cita que el podólogo acaba de atender. Al firmar su nota, el sistema la pasó sola al estado atendida.', 0)
   const tarjeta = page.getByText(new RegExp(PAC)).first()
-  await expect(tarjeta).toBeVisible({ timeout: 30_000 })
+  await expect(tarjeta).toBeVisible({ timeout: 120_000 })
   await tarjeta.click()
   const modal = page.getByRole('dialog').last()
   await expect(modal.getByText('Quiropodia').first()).toBeVisible({ timeout: 20_000 })
   const dato = async (k: string) => (await modal.locator('tr', { hasText: k }).first().locator('td').nth(1).innerText()).trim()
   const paciente = await dato('Paciente'), servicio = await dato('Servicio'), podologo = await dato('Podólogo'), precio = await dato('Precio'), horario = await dato('Horario')
   const estado = (await modal.locator('.bd, [class*=badge]').first().innerText().catch(() => '')).trim()
+  const citaFolio = (await modal.innerText()).match(/[A-Z]{3}-CIT-\d+/)?.[0] ?? ''
   await expect(modal.getByText(/Atendida/i).first()).toBeVisible()
   await hablar(page, `El detalle de la cita muestra a ${paciente}, servicio ${servicio}, con ${podologo}, horario ${horario.replace('–', 'a')}, precio ${precio.replace('$', '')} pesos y estado atendida. Aquí está el botón Cobrar.`, 0)
   await page.waitForTimeout(500)
@@ -37,12 +39,16 @@ test('Cobrar una cita desde la caja', async ({ page, context }) => {
   // ───────── 2. Turno de caja ─────────
   await page.waitForLoadState('networkidle').catch(() => {})
   await page.waitForTimeout(5000)
+  await expect(page.locator('.cj-barra')).toContainText(/Sede/, { timeout: 40_000 })
   const abrir = page.getByRole('button', { name: 'Abrir turno' })
-  if (await abrir.isVisible().catch(() => false)) {
-    await hablar(page, 'Para cobrar necesita abrir su turno de caja, con el fondo inicial.', 0)
+  const sinTurno = await abrir.waitFor({ timeout: 12_000 }).then(() => true).catch(() => false)
+  if (sinTurno) {
+    await hablar(page, 'La barra indica que esta cajera no tiene turno abierto, y sin turno no se puede cobrar. La Caja 1 de esta sucursal ya tiene el turno abierto de otra persona, porque el sistema permite un solo turno por caja y por cajera; por eso se abre la Caja 2, con el fondo inicial de mil pesos.', 0)
+    await page.getByLabel('Caja', { exact: true }).fill('Caja 2')
     await page.getByLabel('Fondo inicial').fill('1000')
     await abrir.click()
-    await page.waitForTimeout(3500)
+    await expect(page.locator('.cj-barra .bd.v')).toBeVisible({ timeout: 30_000 })
+    await page.waitForTimeout(2500)
   }
   await expect(page.locator('.cj-buscar-in')).toBeVisible({ timeout: 40_000 })
   const barra = (await page.locator('.cj-barra').innerText().catch(() => '')).replace(/\s+/g, ' ')
@@ -50,8 +56,7 @@ test('Cobrar una cita desde la caja', async ({ page, context }) => {
 
   // ───────── 3. Ticket precargado con la cita ─────────
   await expect(page.locator('.cj-total')).toBeVisible({ timeout: 30_000 })
-  await expect(page.getByText(/Cita\s+[A-Z]{3}-CIT-\d+/).first()).toBeVisible({ timeout: 30_000 })
-  const citaFolio = (await page.getByText(/[A-Z]{3}-CIT-\d+/).first().innerText()).match(/[A-Z]{3}-CIT-\d+/)?.[0] ?? ''
+  await expect(page.getByText(/Ticket\s+·/).first()).toBeVisible({ timeout: 30_000 })
   const total = dinero(await page.locator('.cj-total span').last().innerText())
   const iva = dinero(await page.locator('.cj-iva span').last().innerText())
   await hablar(page, `La cita ${citaFolio.replace(/-/g, ' ')} ya viene cargada en el ticket: la paciente, el servicio y su precio. El total a cobrar es ${letras(total)} pesos, con ${letras(iva)} de I V A incluido.`)

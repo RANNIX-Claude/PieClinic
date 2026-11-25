@@ -1,11 +1,12 @@
 // Video VID-C2: pie diabético — valoración de riesgo (monofilamento, vascular, úlcera SINBAD, categoría), firma y revisión; luego comparación de fotos de evolución.
 // Correr: PW_LOTE=C BASE_URL=http://localhost:5174 npx playwright test -c playwright.caja.config.ts vid-pie-diabetico
-import { test, expect } from '@playwright/test'
+import { test, expect as expectBase } from '@playwright/test'
 import { crearVideo, escribir } from './lib/video'
 import { firmarCon, trazarFirma, iniciarGrabacion } from './lib/video-c'
 import path from 'path'
 
 test.use({ launchOptions: { slowMo: 150 }, video: 'off' })   // video propio por pantallazos (ver iniciarGrabacion): el webm de Playwright salía truncado con la máquina cargada
+const expect = expectBase.configure({ timeout: 45_000 })   // la máquina compartida va lenta: las pantallas tardan en cargar
 const v = crearVideo('vid-pie-diabetico')
 const hoy = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 
@@ -16,7 +17,9 @@ const MONO: Record<string, [boolean, boolean]> = {
 }
 
 test('Pie diabético: valoración, evolución y fotos', async ({ page, context }) => {
+  test.setTimeout(40 * 60_000)   // la máquina compartida va lenta; la prueba espera la voz de cada marca
   await v.empezar(context)
+  const rec = await iniciarGrabacion(page, v.SALIDA)
   await firmarCon(page, v.narrar, 'podologo', null, 'Prueba de pie diabético de Pie Clinic. Caso: un paciente con diabetes tipo uno llega a consulta. El podólogo hace la valoración de riesgo del pie, la firma, y revisa la evolución con las fotos clínicas.')
   await v.irA(page, /^Pie diabético$/)
   await expect(page.getByRole('heading', { name: 'Pie diabético' })).toBeVisible()
@@ -26,8 +29,8 @@ test('Pie diabético: valoración, evolución y fotos', async ({ page, context }
   await expect(page.getByRole('heading', { name: 'Valoración de pie diabético' })).toBeVisible({ timeout: 30_000 })
 
   // Paciente
-  await escribir(page.getByPlaceholder(/Nombre, N.º de expediente/), 'ortega')
-  const op = page.locator('button', { hasText: /· .*·/ }).filter({ has: page.locator('b') }).filter({ hasText: 'Juan' }).first()
+  await escribir(page.getByPlaceholder(/Nombre, N.º de expediente/), 'PC-0412')
+  const op = page.locator('button', { hasText: /· .*·/ }).filter({ has: page.locator('b') }).first()
   await expect(op).toBeVisible({ timeout: 30_000 })
   const nombre = (await op.locator('b').innerText()).trim()
   await page.waitForTimeout(1000)
@@ -129,8 +132,8 @@ test('Pie diabético: valoración, evolución y fotos', async ({ page, context }
   // Fotos
   await v.narrar(page, 'Ahora la evolución con fotos clínicas. Se entra a Fotos clínicas y se busca al paciente.', 0)
   await v.irA(page, /^Fotos clínicas$/)
-  await escribir(page.getByPlaceholder(/Nombre, N.º de expediente/), 'ortega')
-  const op2 = page.locator('button', { hasText: /· .*·/ }).filter({ has: page.locator('b') }).filter({ hasText: 'Juan' }).first()
+  await escribir(page.getByPlaceholder(/Nombre, N.º de expediente/), 'PC-0412')
+  const op2 = page.locator('button', { hasText: /· .*·/ }).filter({ has: page.locator('b') }).first()
   await expect(op2).toBeVisible({ timeout: 30_000 })
   await page.waitForTimeout(800)
   await op2.click()
@@ -153,4 +156,7 @@ test('Pie diabético: valoración, evolución y fotos', async ({ page, context }
   await page.getByRole('button', { name: 'Cerrar', exact: true }).click()
   await page.getByRole('heading', { name: 'Línea de tiempo de evolución' }).scrollIntoViewIfNeeded()
   await v.narrar(page, 'Abajo está la línea de tiempo de evolución, con las fotos de cada consulta en orden. Con esto el podólogo ve de un vistazo cómo ha cambiado el pie del paciente entre una visita y otra. Fin del caso.')
-  await v.terminar(page, { nombre, 
+  await rec.detener()
+  await v.terminar(page, { nombre, prox, resultado, sinbad, filaTxt, antes, despues })
+  rec.construir(path.join(v.SALIDA, 'pantalla.mp4'))
+})

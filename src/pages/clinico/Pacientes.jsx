@@ -42,7 +42,7 @@ export default function Pacientes() {
 
   useEffect(() => { setPagina(0) }, [texto, filtro, sedeActivaId])
 
-  const filtros = { estado: ['activo', 'inactivo', 'bloqueado'] }
+  const filtros = { estado: ['activo', 'inactivo', 'bloqueado'], tipo_registro: 'paciente' } // los clientes sin expediente viven en /clientes
   if (filtro === 'alta_rapida') filtros.alta_rapida = true
   if (filtro === 'sin_aviso') filtros.aviso_privacidad_firmado = false
   if (filtro === 'menores') filtros.es_menor = true

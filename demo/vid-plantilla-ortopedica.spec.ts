@@ -1,14 +1,16 @@
 // Video VID-C1: plantilla ortopédica — estudio de pisada con medidas, orden al laboratorio, envío, recepción y entrega con firma de conformidad.
 // Correr: PW_LOTE=C BASE_URL=http://localhost:5174 npx playwright test -c playwright.caja.config.ts vid-plantilla-ortopedica
-import { test, expect } from '@playwright/test'
+import { test, expect as expectBase } from '@playwright/test'
 import { crearVideo, escribir } from './lib/video'
 import { firmarCon, trazarFirma, iniciarGrabacion } from './lib/video-c'
 import path from 'path'
 
 test.use({ launchOptions: { slowMo: 150 }, video: 'off' })   // video propio por pantallazos (ver iniciarGrabacion): el webm de Playwright salía truncado con la máquina cargada
+const expect = expectBase.configure({ timeout: 45_000 })   // la máquina compartida va lenta: las pantallas tardan en cargar
 const v = crearVideo('vid-plantilla-ortopedica')
 
 test('Plantilla ortopédica: orden, fabricación y entrega', async ({ page, context }) => {
+  test.setTimeout(40 * 60_000)   // la máquina compartida va lenta; la prueba espera la voz de cada marca
   await v.empezar(context)
   const rec = await iniciarGrabacion(page, v.SALIDA)
   await firmarCon(page, v.narrar, 'podologo', null, 'Prueba de plantillas ortopédicas de Pie Clinic. Caso: un paciente con pie plano necesita plantillas a la medida. Se captura el estudio de pisada, se manda a fabricar y se entrega.')
@@ -114,7 +116,8 @@ test('Plantilla ortopédica: orden, fabricación y entrega', async ({ page, cont
   const bloque = page.locator('div', { has: page.locator('b', { hasText: 'Entrega:' }) }).last()
   const resumen = (await bloque.innerText()).replace(/\s+/g, ' ').replace('Cubre defectos de fabricación y ajustes sin costo.', '').trim()
   await bloque.scrollIntoViewIfNeeded()
-  await v.narrar(page, `La orden queda entregada. El sistema programa solo la garantía, la revisión de ajuste a los treinta días y la ventana de renovación. ${resumen}`)
+  const garantia = resumen.match(/Garantía hasta: ([\d/]+)/)?.[1], revision = resumen.match(/Revisión de ajuste: ([\d/]+)/)?.[1]
+  await v.narrar(page, `La orden queda entregada, con garantía hasta el ${garantia} y revisión de ajuste el ${revision}.`)
 
   // Lista
   await v.narrar(page, 'Se regresa a la lista de órdenes.', 0)

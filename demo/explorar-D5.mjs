@@ -1,0 +1,23 @@
+import { chromium } from '@playwright/test'
+const b = await chromium.launch({ channel: 'chrome', headless: true })
+const ctx = await b.newContext({ viewport: { width: 1366, height: 768 } })
+const p = await ctx.newPage()
+const T = process.env.TEMP
+p.on('console', m => { if (m.type() === 'error') console.log('CONSOLE:', m.text().slice(0, 300)) })
+await p.goto('http://localhost:5184/app/login', { timeout: 150000, waitUntil: 'domcontentloaded' })
+await p.locator('#pf-email').waitFor({ timeout: 150000 })
+await p.locator('#pf-email').fill('m@g.com'); await p.locator('#pf-pass').fill('123456')
+await p.getByRole('button', { name: 'Iniciar sesión' }).click()
+await p.locator('header').waitFor({ timeout: 90000 }); await p.waitForTimeout(2500)
+await p.locator('header select').selectOption({ label: 'Pie Clinic Centenario' }); await p.waitForTimeout(1500)
+await p.getByRole('link', { name: /Caja y tickets/ }).first().click(); await p.waitForTimeout(6000)
+console.log((await p.locator('.cj-barra-info').innerText()).slice(0, 200))
+await p.keyboard.press('F2')
+await p.locator('.cj-buscar-in').pressSequentially('uña encarn', { delay: 60 }); await p.waitForTimeout(1500)
+await p.locator('.cj-res button', { hasText: 'Uña encarnada' }).first().click(); await p.waitForTimeout(1500)
+await p.getByRole('button', { name: /Efectivo/ }).first().click(); await p.waitForTimeout(800)
+await p.locator('.cj-billetes button', { hasText: '$1000' }).click(); await p.waitForTimeout(800)
+await p.getByRole('button', { name: /COBRAR E IMPRIMIR/ }).click()
+for (let i = 0; i < 12; i++) { await p.waitForTimeout(2500); const t = await p.locator('[role=status]').allInnerTexts(); const h = await p.locator('.cj-hecho').count(); console.log(i, 'hecho', h, JSON.stringify(t)) ; if (h) break }
+await p.screenshot({ path: T + '/d5.png' })
+await b.close()

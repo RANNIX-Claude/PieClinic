@@ -30,16 +30,16 @@ async function agendar(page: any, busqueda: string, servicio: string, fecha: str
 }
 
 test('Portal del paciente: confirmar, reprogramar y sala de videoconsulta', async ({ page, context }) => {
-  test.setTimeout(25 * 60_000)
+  test.setTimeout(50 * 60_000)
   await v.empezar(context)
   await v.firmar(page, SEDE, 'Prueba del portal del paciente de Pie Clinic. Caso: la clínica agenda una cita y genera la liga personal; la paciente, sin cuenta, confirma y reprograma su cita desde esa liga, y después entra a la sala de su videoconsulta.', 'm@g.com', 'la persona administradora')
   await v.irA(page, /^Agenda$/)
 
   // ───────── Parte A: liga personal ─────────
   await v.narrar(page, 'Primero, la clínica agenda una cita. Se pulsa Nueva cita.', 0)
-  const nombre = await agendar(page, 'jime', 'Quiropodia · 30 min', null)
+  const nombre = await agendar(page, 'jim', 'Quiropodia · 30 min', null)
   let hay = 0, fecha = ''
-  for (let d = 5; d <= 12 && !hay; d++) {
+  for (let d = 5; d <= 12 && hay < 4; d++) {
     const f = new Date(); f.setDate(f.getDate() + d); if (f.getDay() === 0) continue
     fecha = iso(f)
     await page.getByLabel('Fecha', { exact: true }).fill(fecha)
@@ -56,9 +56,9 @@ test('Portal del paciente: confirmar, reprogramar y sala de videoconsulta', asyn
   await expect(page).toHaveURL(/\/agenda\?dia=/, { timeout: 45_000 })
   await page.waitForLoadState('networkidle').catch(() => {})
   await page.waitForTimeout(3000)
-  await page.getByText(nombre.split(' ')[0]).first().click()
+  await page.locator(`[title^="${hora}"][title*="${nombre}"]`).first().click()
   const dlg = page.getByRole('dialog').last()
-  const folio = (await dlg.getByRole('heading').first().innerText()).replace('Cita ', '').trim()
+  const folio = (await dlg.getByText(/^Cita [A-Z]+-CIT-[0-9]+$/).first().innerText()).replace('Cita ', '').trim()
   await expect(dlg.getByText('Por confirmar')).toBeVisible()
   await v.narrar(page, `La cita ${folio} nace por confirmar. En el detalle, el botón Liga del paciente genera su enlace personal.`, 0)
   await dlg.getByRole('button', { name: /Liga del paciente/ }).click()
@@ -89,7 +89,7 @@ test('Portal del paciente: confirmar, reprogramar y sala de videoconsulta', asyn
   await page.waitForTimeout(3500)
   const dN = new Date(fecha + 'T12:00'); dN.setDate(dN.getDate() + 1); if (dN.getDay() === 0) dN.setDate(dN.getDate() + 1)
   const fechaNueva = iso(dN)
-  const tarjeta = rep.locator('div.card', { has: page.locator('div').filter({ hasText: new RegExp('^[a-záéíóú]{3}\.?, ' + dN.getDate() + ' ') }) }).first()
+  const tarjeta = rep.locator('div.card', { has: page.locator('div').filter({ hasText: new RegExp('^[a-záéíóú]{3} ' + dN.getDate() + ' de ') }) }).first()
   const botones = tarjeta.locator('button.btn')
   expect(await botones.count()).toBeGreaterThan(3)
   const nuevo = botones.nth(2)
@@ -111,12 +111,12 @@ test('Portal del paciente: confirmar, reprogramar y sala de videoconsulta', asyn
   await page.waitForTimeout(3500)
   await page.getByPlaceholder(/Buscar paciente/).first().pressSequentially(nombre, { delay: 50 })
   await page.waitForTimeout(2000)
-  expect(await page.getByText(nombre).count()).toBe(0)
+  expect(await page.locator(`[title^="${hora}"][title*="${nombre}"]`).count()).toBe(0)
   await v.narrar(page, `En el ${largo(fecha)} la cita de ${nombre} ya no aparece: ese horario quedó libre para otro paciente.`, 0)
   await page.goto(`/app/agenda?dia=${fechaNueva}`, { waitUntil: 'domcontentloaded' })
   await page.waitForLoadState('networkidle').catch(() => {})
   await page.waitForTimeout(3500)
-  const citaNueva = page.getByText(nombre.split(' ')[0]).first()
+  const citaNueva = page.locator(`[title^="${horaNueva}"][title*="${nombre}"]`).first()
   await expect(citaNueva).toBeVisible({ timeout: 45_000 })
   await citaNueva.click()
   const dlgR = page.getByRole('dialog').last()
@@ -124,7 +124,7 @@ test('Portal del paciente: confirmar, reprogramar y sala de videoconsulta', asyn
   const reprog = (await dlgR.locator('tr', { hasText: 'Reprogramaciones' }).innerText()).replace(/s+/g, ' ')
   const estadoR = (await dlgR.locator('.bd, span').filter({ hasText: /^(Confirmada|Por confirmar)$/ }).first().innerText()).trim()
   await v.narrar(page, `En el ${largo(fechaNueva)} sí está: la cita ${folio}, a las ${horaNueva}, con estado ${estadoR.toLowerCase()}, y el detalle registra ${reprog.toLowerCase()}. Todo sin que recepción tuviera que intervenir.`, 0)
-  await dlgR.getByRole('button', { name: 'Cerrar' }).click()
+  await dlgR.getByRole('button', { name: 'Cerrar', exact: true }).last().click()
 
   // ───────── Parte B: sala de videoconsulta ─────────
   await v.narrar(page, 'Segunda parte: una videoconsulta. La cita es de tipo videoconsulta, para el servicio seguimiento a distancia.', 0)
@@ -133,7 +133,7 @@ test('Portal del paciente: confirmar, reprogramar y sala de videoconsulta', asyn
   const ahoraMx = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date())
   const g = (t: string) => ahoraMx.find(p => p.type === t)!.value
   const hoyMx = `${g('year')}-${g('month')}-${g('day')}`
-  const base = Number(g('hour')) * 60 + Number(g('minute')) + 12
+  const base = Number(g('hour')) * 60 + Number(g('minute')) + 10
   const horaVc = `${String(Math.floor(base / 60) % 24).padStart(2, '0')}:${String(base % 60).padStart(2, '0')}`
   await page.getByPlaceholder(/Buscar paciente/).pressSequentially('dani', { delay: 120 })
   const op = page.locator('button', { hasText: /· .*·/ }).filter({ has: page.locator('b') }).first()
@@ -143,19 +143,26 @@ test('Portal del paciente: confirmar, reprogramar y sala de videoconsulta', asyn
   await page.getByLabel('Servicio', { exact: true }).selectOption({ label: 'Seguimiento a distancia · 20 min' })
   const pod = page.getByLabel('Podólogo', { exact: true })
   const ops = await pod.locator('option').allInnerTexts()
-  await pod.selectOption({ index: ops.findIndex((t: string, i: number) => i > 0 && /Paulina Soto/.test(t)) })
   await page.getByLabel('Videoconsulta').check()
   await page.getByLabel('Fecha', { exact: true }).fill(hoyMx)
   await page.getByLabel('Hora de inicio').fill(horaVc)
-  await page.waitForTimeout(1500)
-  await v.narrar(page, `Se agenda a ${nombreVc}, con la podóloga Paulina Soto, el día de hoy a las ${horaVc}, con tipo de atención videoconsulta.`, 0)
+  // el primer podólogo de la sede sin empalme a esa hora (hoy la agenda de la sede ya trae citas)
+  let podVc = ''
+  for (let i = 1; i < ops.length && !podVc; i++) {
+    await pod.selectOption({ index: i })
+    await page.waitForTimeout(1800)
+    if (await page.getByRole('button', { name: 'Agendar cita', exact: true }).isEnabled()) podVc = ops[i].trim()
+  }
+  expect(podVc).not.toBe('')
+  await page.waitForTimeout(1000)
+  await v.narrar(page, `Se agenda a ${nombreVc}, con el podólogo ${podVc}, el día de hoy a las ${horaVc}, con tipo de atención videoconsulta. El sistema solo deja agendar si ese podólogo no tiene empalme a esa hora.`, 0)
   await page.getByRole('button', { name: 'Agendar cita', exact: true }).click()
   await expect(page).toHaveURL(/\/agenda\?dia=/, { timeout: 45_000 })
   await page.waitForLoadState('networkidle').catch(() => {})
   await page.waitForTimeout(3000)
-  await page.getByText(nombreVc.split(' ')[0]).first().click()
+  await page.locator(`[title^="${horaVc}"][title*="${nombreVc}"]`).first().click()
   const dlg2 = page.getByRole('dialog').last()
-  const folioVc = (await dlg2.getByRole('heading').first().innerText()).replace('Cita ', '').trim()
+  const folioVc = (await dlg2.getByText(/^Cita [A-Z]+-CIT-[0-9]+$/).first().innerText()).replace('Cita ', '').trim()
   await v.narrar(page, `La cita ${folioVc} queda en la agenda. Para crear la sala se abre el expediente de la paciente: en su próxima cita aparece el enlace Abrir sala de videoconsulta.`, 0)
   await dlg2.getByRole('button', { name: /^Paciente$/ }).click()
   await expect(page).toHaveURL(/\/pacientes\//, { timeout: 30_000 })
@@ -197,5 +204,5 @@ test('Portal del paciente: confirmar, reprogramar y sala de videoconsulta', asyn
   await page.waitForTimeout(2500)
   await v.narrar(page, 'De vuelta en la pantalla de videoconsulta de la clínica: el estado de la sala cambió a paciente en sala de espera, el paciente aparece conectado, y el consentimiento a distancia ya está firmado, con su fecha, hora y dispositivo.', 0)
   await v.narrar(page, 'Hasta aquí llega lo que existe. NO CORREGIDO, requiere liberación: no hay un proveedor de videollamadas conectado, así que la consulta en vivo no se puede realizar todavía desde el sistema; la clínica debe contactar a la paciente por la vía acordada. Además, la telemedicina está apagada por defecto hasta que un abogado revise el consentimiento, y para esta prueba se activó en el ambiente de QA. Fin del caso.')
-  await v.terminar(page, { folio, fecha, hora, liga: liga.replace(/[0-9a-f]{40,}/, '…'), estado0, horaNueva, diaNuevo, restantes, fechaNueva, reprog, estadoR, folioVc, horaVc, ligaSala: ligaSala.replace(/[0-9a-f]{40,}/, '…') })
+  await v.terminar(page, { folio, fecha, hora, liga: liga.replace(/[0-9a-f]{40,}/, '…'), estado0, horaNueva, diaNuevo, restantes, fechaNueva, reprog, estadoR, folioVc, horaVc, podVc, ligaSala: ligaSala.replace(/[0-9a-f]{40,}/, '…') })
 })

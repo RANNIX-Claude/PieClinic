@@ -9,7 +9,7 @@ import { moneda, fecha, hoyISO, nombreCompleto } from '../../lib/formato'
 import { usePermiso } from '../../lib/permisos'
 import { validarAplicaciones, autoDistribuir } from '../../lib/finanzas/aplicaciones.js'
 import { rangoMes } from '../../lib/finanzas/semana.js'
-import { FORMAS_PAGO } from '../../lib/finanzas/constantes.js'
+import { parametrosFinanzas } from '../../lib/finanzas/constantes.js'
 import PageHeader from '../../components/ui/PageHeader'
 import KPICard from '../../components/ui/KPICard'
 import DataTable from '../../components/ui/DataTable'
@@ -21,6 +21,8 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useVista, Chips, VistaNoDisponible, mensajeError, TablaImprimible, BotonesExportar } from './componentes/comunes.jsx'
 
 const ETQ = { programada: 'Programada', por_vencer: 'Por vencer', vencida: 'Vencida', parcial: 'Parcial', pagada: 'Pagada', cancelada: 'Cancelada', reciente: 'Reciente', pendiente: 'Pendiente', en_mora: 'En mora', cobrada: 'Cobrada' }
+// Valores que acepta pagos_proveedor.forma_pago (migración 046). El pago en efectivo no existe aquí: el efectivo sale del fondo revolvente como gasto.
+const FORMAS_PAGO_PROVEEDOR = [{ value: 'transferencia', label: 'Transferencia' }, { value: 'cheque', label: 'Cheque' }, { value: 'tarjeta_clinica', label: 'Tarjeta de la clínica' }]
 const ORIGEN = { venta: 'Venta', plan: 'Plan de tratamiento', plantilla_apartado: 'Plantillas (apartado)', cita_sin_cobro: 'Cita sin cobro', otro: 'Otro' }
 
 export default function CuentasPagarCobrar() {
@@ -225,18 +227,27 @@ function NuevaCxC({ abierto, sedes, sedeActivaId, pacientes, onClose, onListo })
 }
 
 function PagoModal({ cuenta, onClose, onListo }) {
+  const { organizacion } = useApp()
+  const umbral = parametrosFinanzas(organizacion).comprobante_gasto_desde
   const [f, setF] = useState({})
   const [guardando, setGuardando] = useState(false)
   const qCta = useQuery({ queryKey: ['finanzas', 'cuentas-bancarias-pago'], enabled: !!cuenta, queryFn: async () => (await leer('prp_cuentas_bancarias', { sedeCol: false, filtros: { activa: true } })).data })
-  useEffect(() => { if (cuenta) setF({ monto: Number(cuenta.saldo), forma: 'Transferencia', fecha: hoyISO(), cuenta_bancaria_id: '', referencia: '' }) }, [cuenta])
+  useEffect(() => { if (cuenta) setF({ monto: Number(cuenta.saldo), forma: 'transferencia', fecha: hoyISO(), cuenta_bancaria_id: '', referencia: '', cfdi_uuid: '' }) }, [cuenta])
   const set = (k, v) => setF(x => ({ ...x, [k]: v }))
   const saldo = Number(cuenta?.saldo ?? 0)
+  // P-093: el pago genera un gasto que exige comprobante fiscal (UUID del CFDI o archivo) desde el umbral; una cuenta nacida de una recepción sin UUID no tenía forma de completarlo.
+  const faltaComprobante = !!cuenta && Number(f.monto) >= umbral && !cuenta.cfdi_uuid && !cuenta.archivo_url
   const errores = []
   if (!(Number(f.monto) > 0)) errores.push('El monto debe ser mayor a cero.')
+  if (faltaComprobante && !(f.cfdi_uuid ?? '').trim()) errores.push(`Desde ${moneda(umbral)} el pago exige el comprobante fiscal: captura el UUID del CFDI de la factura.`)
   if (Number(f.monto) > saldo + 0.01) errores.push(`El pago no puede exceder el saldo (${moneda(saldo)}).`)
-  if (f.forma !== 'Efectivo' && !f.cuenta_bancaria_id) errores.push('Elige la cuenta bancaria desde la que se paga.')
+  if (!f.cuenta_bancaria_id) errores.push('Elige la cuenta bancaria desde la que se paga.')
   async function guardar() {
     setGuardando(true)
+    if (faltaComprobante) {
+      const a = await actualizar('cuentas_por_pagar', cuenta.id, { cfdi_uuid: f.cfdi_uuid.trim() })
+      if (a.error) { setGuardando(false); return toast.error(mensajeError(a.error)) }
+    }
     const { error } = await rpc('pagar_proveedor', { p_cuenta: cuenta.id, p_monto: Number(f.monto), p_forma: f.forma, p_cuenta_bancaria: f.cuenta_bancaria_id || null, p_referencia: f.referencia || null, p_fecha: f.fecha })
     setGuardando(false)
     if (error) return toast.error(mensajeError(error))
@@ -246,9 +257,10 @@ function PagoModal({ cuenta, onClose, onListo }) {
     <Modal open={!!cuenta} onClose={onClose} size="sm" title={`Registrar pago · ${cuenta?.proveedor_nombre ?? ''}`} footer={<><button type="button" className="btn o" onClick={onClose}>Cancelar</button><button type="button" className="btn" disabled={errores.length > 0 || guardando} onClick={guardar}>{guardando ? 'Registrando…' : 'Registrar pago'}</button></>}>
       <div style={{ fontSize: 12, marginBottom: 8 }}>Folio {cuenta?.folio_factura ?? '—'} · saldo <b>{moneda(saldo)}</b>. Solo Administración autoriza pagos (P-096).</div>
       <FormField label="Monto" required type="number" step="0.01" value={f.monto ?? ''} onChange={e => set('monto', e.target.value)} />
-      <FormField label="Forma de pago" as="select" value={f.forma ?? ''} onChange={e => set('forma', e.target.value)} options={FORMAS_PAGO.map(x => ({ value: x, label: x }))} />
-      <FormField label="Cuenta bancaria" required={f.forma !== 'Efectivo'} as="select" value={f.cuenta_bancaria_id ?? ''} onChange={e => set('cuenta_bancaria_id', e.target.value)} options={(qCta.data ?? []).map(c => ({ value: c.id, label: c.etiqueta }))} />
+      <FormField label="Forma de pago" as="select" value={f.forma ?? ''} onChange={e => set('forma', e.target.value)} options={FORMAS_PAGO_PROVEEDOR} />
+      <FormField label="Cuenta bancaria" required as="select" value={f.cuenta_bancaria_id ?? ''} onChange={e => set('cuenta_bancaria_id', e.target.value)} options={(qCta.data ?? []).map(c => ({ value: c.id, label: c.etiqueta }))} />
       <FormField label="Referencia" value={f.referencia ?? ''} onChange={e => set('referencia', e.target.value)} />
+      {faltaComprobante && <FormField label="UUID del CFDI de la factura" required value={f.cfdi_uuid ?? ''} onChange={e => set('cfdi_uuid', e.target.value)} hint={`La factura ${cuenta?.folio_factura ?? ''} se registró sin comprobante fiscal y el pago desde ${moneda(umbral)} lo exige (P-093).`} />}
       <FormField label="Fecha" type="date" value={f.fecha ?? ''} onChange={e => set('fecha', e.target.value)} />
       {errores.length > 0 && <div style={{ fontSize: 12, color: 'var(--red)' }}>{errores.join(' ')}</div>}
     </Modal>

@@ -5,7 +5,7 @@ import fs from 'fs'
 import path from 'path'
 import { crearVideo, escribir, dinero, letras, CLAVE } from './lib/video'
 
-const SEDE = process.env.PW_SEDE ?? 'Pie Clinic Chalco'
+const SEDE = process.env.PW_SEDE ?? 'Pie Clinic Sendero'
 const v = crearVideo('vid-gastos-fondo')
 
 /** Dibuja un ticket de papelería en un canvas y lo guarda como PNG (es la «foto» que se sube). */
