@@ -1,0 +1,25 @@
+// Verificación en navegador del folio de ticket (dev server en :5174 contra QA). Capturas en tests/corridas/folio-ticket/.
+import { chromium } from "@playwright/test";
+const BASE = "http://localhost:5174/app", OUT = "tests/corridas/folio-ticket";
+const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: 1280, height: 1000 } });
+const p = await ctx.newPage(); const errs = [];
+p.on("console", (m) => { if (m.type() === "error") errs.push(m.text()); });
+await p.goto(BASE + "/login"); await p.fill("#pf-email", "m@g.com"); await p.fill("#pf-pass", "123456");
+await p.click("button[type=submit]"); await p.waitForTimeout(3000);
+await p.goto(BASE + "/parametros-duenos"); await p.waitForSelector("[data-testid=folio-tickets] input#folio-formato", { timeout: 20000 });
+await p.waitForTimeout(1500);
+await p.locator("[data-testid=folio-tickets]").screenshot({ path: `${OUT}/01-parametros-folio-defecto.png` });
+console.log("vista previa:", (await p.locator("[data-testid=folio-vista-previa]").innerText()).replace(/\n/g, " | "));
+await p.fill("#folio-formato", "{SUC}-{NNN}"); await p.waitForTimeout(500);
+await p.locator("[data-testid=folio-tickets]").screenshot({ path: `${OUT}/02-formato-invalido-reinicio.png` });
+console.log("error:", await p.locator("[data-testid=folio-tickets] .err").first().innerText());
+await p.fill("#folio-formato", ""); await p.click("button:has-text('{SUC}')"); await p.click("button:has-text('{AAMMDD}')"); await p.click("button:has-text('{NNN}')");
+await p.waitForTimeout(1200);
+console.log("formato armado con fichas:", await p.inputValue("#folio-formato"));
+await p.fill("#folio-formato", "T{SUC}/{AAMMDD}/{NNNN}"); await p.waitForTimeout(1200);
+await p.locator("[data-testid=folio-tickets]").screenshot({ path: `${OUT}/03-formato-personalizado-vista-previa.png` });
+console.log("vista previa 2:", (await p.locator("[data-testid=folio-vista-previa]").innerText()).replace(/\n/g, " | "));
+await p.fill("input[aria-label^='Código de']:first-of-type >> nth=1", "01"); await p.waitForTimeout(300);
+await p.locator("[data-testid=folio-tickets]").screenshot({ path: `${OUT}/04-codigo-repetido.png` });
+console.log("errores de consola:", errs.length, errs.slice(0, 3));
+await b.close();

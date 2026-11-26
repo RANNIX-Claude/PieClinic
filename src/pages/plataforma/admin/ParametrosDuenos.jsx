@@ -8,6 +8,7 @@ import { rpc } from '../../../lib/api'
 import PageHeader from '../../../components/ui/PageHeader'
 import FormField from '../../../components/ui/FormField'
 import { useDatos, errMsg, EstadoConsulta } from './comun'
+import FolioTickets from './FolioTickets'
 
 const CAMPOS = [
   { k: 'supervisor_descuento_max_pct', label: 'Descuento máximo que autoriza el supervisor (%)', hint: 'Arriba de este porcentaje solo autorizan los dueños. 0 = el supervisor no autoriza descuentos.' },
@@ -54,6 +55,7 @@ export default function ParametrosDuenos() {
           <button className="btn" disabled={ocupado} onClick={guardar}>Guardar parámetros</button>
         </div>
       )}
+      <FolioTickets />
     </div>
   )
 }

@@ -1,0 +1,204 @@
+<title>Pedidos especiales</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+  /* Plan: pizarra fría con el morado de la marca Pie Firme como único acento; el dinero se marca con verde. Cuerpo Inter, títulos Space Grotesk. */
+  :root {
+    --bg: #f5f6f9; --card: #ffffff; --fg: #1d2030; --muted: #5c6178; --line: #cfd3e0;
+    --lane: #eceef5; --lane2: #f5f6f9; --accent: #6b4fa0; --accent-soft: #e6def4;
+    --money: #1f7a4d; --money-soft: #d9efe2; --warn: #a2560d; --warn-soft: #f7e6d2;
+    --font-body: 'Inter', system-ui, sans-serif; --font-head: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #14161f; --card: #1d2030; --fg: #e8eaf3; --muted: #9ba0b8; --line: #3a3f58;
+    --lane: #1a1d2b; --lane2: #14161f; --accent: #b79cf0; --accent-soft: #2f2650;
+    --money: #6fd09a; --money-soft: #173a29; --warn: #f0b070; --warn-soft: #3d2a14; color-scheme: dark; } }
+  :root[data-theme="dark"] {
+    --bg: #14161f; --card: #1d2030; --fg: #e8eaf3; --muted: #9ba0b8; --line: #3a3f58;
+    --lane: #1a1d2b; --lane2: #14161f; --accent: #b79cf0; --accent-soft: #2f2650;
+    --money: #6fd09a; --money-soft: #173a29; --warn: #f0b070; --warn-soft: #3d2a14; color-scheme: dark; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--font-body); line-height: 1.5;
+    padding-block: 28px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  main { max-width: 1180px; margin: 0 auto; display: grid; gap: 28px; }
+  h1, h2 { font-family: var(--font-head); text-wrap: balance; margin: 0; }
+  h1 { font-size: clamp(1.6rem, 3vw, 2.1rem); letter-spacing: -0.01em; }
+  h2 { font-size: 1.15rem; }
+  p { margin: 0; max-width: 70ch; color: var(--muted); }
+  .head { display: grid; gap: 8px; }
+  section { display: grid; gap: 12px; min-width: 0; }
+  figure { margin: 0; display: grid; gap: 10px; min-width: 0; }
+  .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+  figcaption { font-size: 0.86rem; color: var(--muted); max-width: 78ch; }
+  svg { display: block; min-width: 940px; width: 100%; height: auto; color: var(--fg); font-family: var(--font-body); }
+  .estados { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .pill { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--accent); background: var(--accent-soft); font-size: 0.82rem; font-weight: 600; }
+  .pill.m { border-color: var(--money); background: var(--money-soft); }
+  .flecha { color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+  td:first-child { font-weight: 600; white-space: nowrap; }
+  .tabla { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+  .dos { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .caja { border: 1px solid var(--line); border-radius: 10px; background: var(--card); padding: 14px 16px; display: grid; gap: 8px; min-width: 0; }
+  .caja h3 { margin: 0; font-family: var(--font-head); font-size: 0.98rem; }
+  .caja ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 0.9rem; }
+  .ok { border-left: 4px solid var(--money); } .falta { border-left: 4px solid var(--warn); }
+</style>
+
+<main>
+  <div class="head">
+    <h1>Pedidos especiales</h1>
+    <p>Zapatos, plantillas y aditamentos que se piden al proveedor a nombre de un cliente: del anticipo del 50 % a la entrega, con las cuentas por pagar al final. Propuesta para construir en Pie Firme.</p>
+  </div>
+
+  <section>
+    <h2>El camino de un pedido</h2>
+    <figure>
+      <div class="scroll">
+        <svg viewBox="0 0 1180 520" role="img" aria-label="Diagrama por carriles: el cliente pide, el encargado levanta el pedido y cobra el anticipo, el propietario autoriza, el proveedor acepta y envía, el encargado recibe en la sucursal, se abre la cuenta por pagar y el cliente liquida el saldo al recoger.">
+          <defs>
+            <marker id="fl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+          </defs>
+          <!-- carriles -->
+          <g font-size="12" font-weight="600">
+            <rect x="0" y="10" width="1180" height="96" fill="var(--lane)"/><text x="12" y="62" fill="currentColor">Cliente</text>
+            <rect x="0" y="106" width="1180" height="96" fill="var(--lane2)"/><text x="12" y="150" fill="currentColor">Encargado</text><text x="12" y="166" fill="var(--muted)" font-weight="400" font-size="10.5">de la sucursal</text>
+            <rect x="0" y="202" width="1180" height="96" fill="var(--lane)"/><text x="12" y="254" fill="currentColor">Propietario</text>
+            <rect x="0" y="298" width="1180" height="96" fill="var(--lane2)"/><text x="12" y="346" fill="currentColor">Proveedor</text>
+            <rect x="0" y="394" width="1180" height="96" fill="var(--lane)"/><text x="12" y="438" fill="currentColor">Sistema</text><text x="12" y="454" fill="var(--muted)" font-weight="400" font-size="10.5">Caja y cuentas</text>
+          </g>
+          <!-- flechas (ortogonales, de la derecha de un paso a la izquierda del siguiente) -->
+          <g fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#fl)">
+            <path d="M218 58 H227 V154 H235"/>
+            <path d="M335 154 H344 V442 H352"/>
+            <path d="M452 442 H461 V250 H469"/>
+            <path d="M569 250 H578 V154 H586"/>
+            <path d="M686 154 H695 V346 H703"/>
+            <path d="M803 346 H812 V154 H820"/>
+            <path d="M920 154 H929 V442 H937"/>
+            <path d="M1037 442 H1046 V58 H1054" stroke-dasharray="4 3"/>
+          </g>
+          <!-- pasos: x = 118 + i*117, caja 100 x 48 -->
+          <g font-size="11.5" text-anchor="middle">
+            <g><rect x="118" y="34" width="100" height="48" rx="7" fill="var(--card)" stroke="currentColor"/>
+              <text x="168" y="54" fill="currentColor" font-weight="600">1 Pide un</text><text x="168" y="69" fill="currentColor" font-weight="600">pedido especial</text></g>
+            <g><rect x="235" y="130" width="100" height="48" rx="7" fill="var(--card)" stroke="currentColor"/>
+              <text x="285" y="150" fill="currentColor" font-weight="600">2 Levanta el</text><text x="285" y="165" fill="currentColor" font-weight="600">pedido (nota)</text></g>
+            <g><rect x="352" y="418" width="100" height="48" rx="7" fill="var(--money-soft)" stroke="var(--money)"/>
+              <text x="402" y="438" fill="currentColor" font-weight="600">3 Anticipo 50 %</text><text x="402" y="453" fill="var(--money)" font-weight="600">$1,000 de $2,000</text></g>
+            <g><rect x="469" y="226" width="100" height="48" rx="7" fill="var(--card)" stroke="currentColor"/>
+              <text x="519" y="246" fill="currentColor" font-weight="600">4 Autoriza</text><text x="519" y="261" fill="currentColor" font-weight="600">el pedido</text></g>
+            <g><rect x="586" y="130" width="100" height="48" rx="7" fill="var(--card)" stroke="currentColor"/>
+              <text x="636" y="150" fill="currentColor" font-weight="600">5 Petición al</text><text x="636" y="165" fill="currentColor" font-weight="600">proveedor</text></g>
+            <g><rect x="703" y="322" width="100" height="48" rx="7" fill="var(--card)" stroke="currentColor"/>
+              <text x="753" y="342" fill="currentColor" font-weight="600">6 Acepta, fija</text><text x="753" y="357" fill="currentColor" font-weight="600">fecha y envía</text></g>
+            <g><rect x="820" y="130" width="100" height="48" rx="7" fill="var(--card)" stroke="currentColor"/>
+              <text x="870" y="150" fill="currentColor" font-weight="600">7 Recibe en la</text><text x="870" y="165" fill="currentColor" font-weight="600">sucursal</text></g>
+            <g><rect x="937" y="418" width="100" height="48" rx="7" fill="var(--warn-soft)" stroke="var(--warn)"/>
+              <text x="987" y="438" fill="currentColor" font-weight="600">8 Se abre la</text><text x="987" y="453" fill="var(--warn)" font-weight="600">cuenta por pagar</text></g>
+            <g><rect x="1054" y="34" width="100" height="48" rx="7" fill="var(--money-soft)" stroke="var(--money)"/>
+              <text x="1104" y="54" fill="currentColor" font-weight="600">9 Recoge y paga</text><text x="1104" y="69" fill="var(--money)" font-weight="600">el saldo $1,000</text></g>
+          </g>
+          <!-- notas sobre las flechas -->
+          <g font-size="10.5" fill="var(--muted)">
+            <text x="352" y="410">el otro 50 % queda pendiente</text>
+            <text x="586" y="196">por WhatsApp (simulado hoy)</text>
+            <text x="937" y="490">al proveedor de ese pedido</text>
+            <text x="1048" y="108" text-anchor="end">el pedido sale de la nota</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption>Cada paso cambia el estado del pedido. Los pasos verdes mueven dinero del cliente, el ámbar abre una deuda con el proveedor. La flecha punteada es la entrega: no ocurre hasta que el producto llegó y quedó recibido.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Estados que verá la pantalla Pedidos</h2>
+    <div class="estados" role="list" aria-label="Estados de un pedido especial">
+      <span class="pill" role="listitem">Solicitado</span><span class="flecha" aria-hidden="true">→</span>
+      <span class="pill m" role="listitem">Anticipo cobrado</span><span class="flecha" aria-hidden="true">→</span>
+      <span class="pill" role="listitem">Autorizado</span><span class="flecha" aria-hidden="true">→</span>
+      <span class="pill" role="listitem">Enviado al proveedor</span><span class="flecha" aria-hidden="true">→</span>
+      <span class="pill" role="listitem">Aceptado</span><span class="flecha" aria-hidden="true">→</span>
+      <span class="pill" role="listitem">En tránsito</span><span class="flecha" aria-hidden="true">→</span>
+      <span class="pill" role="listitem">Recibido</span><span class="flecha" aria-hidden="true">→</span>
+      <span class="pill m" role="listitem">Entregado</span>
+    </div>
+    <p>El propietario puede rechazar en la autorización, y el proveedor puede rechazar el pedido o pedir cambios. En ambos casos el pedido queda en espera con el motivo, y el anticipo se devuelve o se reasigna con una nota.</p>
+  </section>
+
+  <section>
+    <h2>Varios proveedores en una misma nota</h2>
+    <figure>
+      <div class="scroll">
+        <svg viewBox="0 0 900 250" role="img" aria-label="Una nota del cliente con un anticipo se divide en dos pedidos, uno por proveedor, que avanzan por separado y abren cada uno su cuenta por pagar.">
+          <g fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#fl)">
+            <path d="M232 125 H262 V62 H300"/><path d="M232 125 H262 V188 H300"/>
+            <path d="M560 62 H600"/><path d="M560 188 H600"/>
+            <path d="M740 62 H770"/><path d="M740 188 H770"/>
+          </g>
+          <g font-size="12" text-anchor="middle">
+            <rect x="30" y="80" width="202" height="90" rx="8" fill="var(--money-soft)" stroke="var(--money)"/>
+            <text x="131" y="108" fill="currentColor" font-weight="600">Nota del cliente</text>
+            <text x="131" y="128" fill="currentColor">zapato + plantilla</text>
+            <text x="131" y="148" fill="var(--money)" font-weight="600">un solo anticipo</text>
+            <rect x="300" y="30" width="260" height="64" rx="8" fill="var(--card)" stroke="currentColor"/>
+            <text x="430" y="56" fill="currentColor" font-weight="600">Pedido A: zapato especial</text><text x="430" y="76" fill="var(--muted)">Proveedor de calzado</text>
+            <rect x="300" y="156" width="260" height="64" rx="8" fill="var(--card)" stroke="currentColor"/>
+            <text x="430" y="182" fill="currentColor" font-weight="600">Pedido B: plantilla especial</text><text x="430" y="202" fill="var(--muted)">Laboratorio de plantillas</text>
+            <rect x="600" y="38" width="140" height="48" rx="8" fill="var(--card)" stroke="currentColor"/>
+            <text x="670" y="58" fill="currentColor" font-weight="600">Su propia etapa</text><text x="670" y="74" fill="var(--muted)">y su fecha</text>
+            <rect x="600" y="164" width="140" height="48" rx="8" fill="var(--card)" stroke="currentColor"/>
+            <text x="670" y="184" fill="currentColor" font-weight="600">Su propia etapa</text><text x="670" y="200" fill="var(--muted)">y su fecha</text>
+            <rect x="770" y="38" width="110" height="48" rx="8" fill="var(--warn-soft)" stroke="var(--warn)"/>
+            <text x="825" y="58" fill="currentColor" font-weight="600">Cuenta por</text><text x="825" y="74" fill="var(--warn)" font-weight="600">pagar A</text>
+            <rect x="770" y="164" width="110" height="48" rx="8" fill="var(--warn-soft)" stroke="var(--warn)"/>
+            <text x="825" y="184" fill="currentColor" font-weight="600">Cuenta por</text><text x="825" y="200" fill="var(--warn)" font-weight="600">pagar B</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption>Un pedido por proveedor. El cliente deja un solo anticipo y paga una sola nota; el cliente recoge cuando llegan los dos, o uno por uno si lo prefiere. Cada deuda con el proveedor se abre al recibir su pieza.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Qué pantalla toca cada paso</h2>
+    <div class="tabla">
+      <table>
+        <thead><tr><th>Paso</th><th>Quién</th><th>Pantalla</th><th>Qué queda registrado</th></tr></thead>
+        <tbody>
+          <tr><td>1–2 Solicitud</td><td>Encargado, recepción o podólogo</td><td>Pedidos → Nuevo</td><td>Cliente, producto y características, proveedor, precio, fecha prometida</td></tr>
+          <tr><td>3 Anticipo</td><td>Quien cobra</td><td>Caja</td><td>Anticipo del pedido, saldo pendiente y fecha límite de pago</td></tr>
+          <tr><td>4 Autorización</td><td>Propietario</td><td>Pedidos → Por autorizar</td><td>Quién autorizó, cuándo y el motivo si rechaza</td></tr>
+          <tr><td>5 Petición</td><td>Encargado</td><td>Pedidos → detalle</td><td>Mensaje armado para el proveedor y hora de envío</td></tr>
+          <tr><td>6 Aceptado y en tránsito</td><td>Encargado</td><td>Pedidos → detalle</td><td>Fecha acordada, guía o referencia del envío</td></tr>
+          <tr><td>7 Recepción</td><td>Quien opera la sucursal</td><td>Compras → Recepciones</td><td>Pieza recibida, fecha, hora y persona</td></tr>
+          <tr><td>8 Cuenta por pagar</td><td>Automático</td><td>Proveedores → Cuentas por pagar</td><td>Deuda con el proveedor, vencimiento y facturas</td></tr>
+          <tr><td>9 Entrega</td><td>Quien cobra</td><td>Caja</td><td>Cobro del saldo y cierre del pedido</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="dos">
+    <div class="caja ok">
+      <h3>Ya existe en Pie Firme</h3>
+      <ul>
+        <li>Expediente del proveedor con compras, cuentas por pagar y documentos.</li>
+        <li>Órdenes de compra con autorización del dueño y recepción de mercancía.</li>
+        <li>Plantillas ortopédicas con laboratorio externo y sus estados.</li>
+        <li>Anticipos, aunque hoy ligados a las citas.</li>
+      </ul>
+    </div>
+    <div class="caja falta">
+      <h3>Falta construir</h3>
+      <ul>
+        <li>El pedido especial que nace de la nota del cliente.</li>
+        <li>El anticipo del 50 % ligado al pedido, con saldo y fecha límite.</li>
+        <li>La petición al proveedor con sus etapas y el tablero de Pedidos.</li>
+        <li>Ligar la recepción con la cuenta por pagar de ese proveedor, y la entrega con el cobro del saldo.</li>
+      </ul>
+    </div>
+  </section>
+</main>

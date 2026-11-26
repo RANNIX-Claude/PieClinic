@@ -6,7 +6,7 @@
 import { json, identificar, leerCuerpo, rpc, rest, entorno, origenSitio } from './_lib/comun.js'
 
 const ROLES = ['administrador', 'podologo', 'recepcion', 'supervisor']
-const FUNCIONES = ['caja', 'recepcion_mercancia', 'podologia']   // perfiles.funciones (073)
+const FUNCIONES = ['caja', 'recepcion_mercancia', 'podologia', 'encargado']   // perfiles.funciones (073)
 
 export default async req => {
   if (req.method !== 'POST') return json(405, { error: 'Método no permitido' })
