@@ -372,7 +372,13 @@ function Camara({ onCodigo, onError }) {
         const { Html5Qrcode, Html5QrcodeSupportedFormats: F } = await import('html5-qrcode')
         if (!vivo) return
         lector = new Html5Qrcode(id.current, { formatsToSupport: [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.CODE_39, F.CODE_93, F.ITF, F.QR_CODE], experimentalFeatures: { useBarCodeDetectorIfSupported: true }, verbose: false })
-        await lector.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 260, height: 140 } }, texto => {
+        // Códigos de barras 1D: más resolución, enfoque continuo y un recuadro ancho (el de 260×140 era muy chico y el celular lo veía borroso)
+        const config = {
+          fps: 15,
+          qrbox: (w, h) => ({ width: Math.floor(w * 0.92), height: Math.floor(Math.min(h * 0.6, w * 0.5)) }),
+          videoConstraints: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 }, advanced: [{ focusMode: 'continuous' }] },
+        }
+        await lector.start({ facingMode: 'environment' }, config, texto => {
           const ahora = Date.now()
           if (texto === ultimo.current.c && ahora - ultimo.current.t < 2000) return
           ultimo.current = { c: texto, t: ahora }; cb.current(texto)
