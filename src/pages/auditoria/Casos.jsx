@@ -1,31 +1,47 @@
-// Casos de diferencia. Etapa 3 (ciclo de vida, investigación, cierre con causa, autorización y detalle con movimientos de contexto).
-// Etapa 0: lista de solo lectura de lo que haya en ctl_caso (para verificar permisos y datos).
+// Casos de diferencia · Etapa 3 del módulo de Control y Auditoría (docs/AUDITORIA_ETAPA3.md).
+// Ciclo de vida: abierta → en investigación → cerrada con ajuste | cerrada sin ajuste | rechazada, más «ajuste fallido» (visible y reintentable).
+// Un caso NUNCA se captura a mano: nace de un conteo o un cierre. Investigan dueño y supervisor; autoriza SOLO el dueño (contraseña completa) y distinto de
+// quien capturó. Soporte RANNIX solo lee y sus consultas quedan en bitácora. El rol de sucursal no entra aquí (ni ve casos ni diferencias: lo exige la base).
+import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import PageHeader from '../../components/ui/PageHeader'
-import DataTable from '../../components/ui/DataTable'
-import StatusBadge from '../../components/ui/StatusBadge'
-import { listar } from '../../lib/auditoria/api'
-import { fechaHora, moneda } from '../../lib/formato'
-import { useDatos, EstadoConsulta, EtapaPendiente, NOMBRE_ESTADO } from './comun'
+import Tabs from '../../components/ui/Tabs'
+import { usePermiso } from '../../lib/permisos'
+import CasosLista from './casos/CasosLista'
+import CasoDetalle from './casos/CasoDetalle'
+import ReportesCasos from './casos/ReportesCasos'
 
 export default function Casos() {
-  const q = useDatos(['ctl-casos'], () => listar('ctl_caso', { orden: [{ columna: 'abierto_en', asc: false }], limite: 200 }))
-  const columnas = [
-    { key: 'folio', label: 'Folio' },
-    { key: 'abierto_en', label: 'Abierto', render: f => fechaHora(f.abierto_en) },
-    { key: 'tipo', label: 'Tipo', filtro: true },
-    { key: 'cantidad', label: 'Piezas', align: 'right' },
-    { key: 'valor', label: 'Valor al costo', align: 'right', render: f => moneda(f.valor) },
-    { key: 'estado', label: 'Estado', filtro: true, render: f => <StatusBadge estado={f.estado} label={NOMBRE_ESTADO[f.estado] ?? f.estado} />, valor: f => NOMBRE_ESTADO[f.estado] ?? f.estado },
-  ]
+  const esDueno = usePermiso('auditoria.autorizar')
+  const investiga = usePermiso('auditoria.investigar')
+  const verDif = usePermiso('auditoria.ver_diferencias')
+  const rolAud = esDueno ? 'dueno' : investiga ? 'supervisor' : verDif ? 'soporte' : 'sucursal'
+  const [params, setParams] = useSearchParams()
+  const casoId = params.get('caso')
+  const [tab, setTab] = useState('lista')
+  const abrir = id => setParams(id ? { caso: id } : {})
+
+  if (rolAud === 'sucursal') {
+    return (
+      <div className="pagina">
+        <PageHeader titulo="Casos de diferencia" subtitulo="Esta pantalla es de dueño y supervisor" />
+        <div className="card">Quien captura los conteos no ve casos ni diferencias: así el conteo se hace a ciegas.</div>
+      </div>
+    )
+  }
+  if (casoId) return <CasoDetalle casoId={casoId} rolAud={rolAud} onSalir={() => abrir(null)} />
   return (
     <div className="pagina">
       <PageHeader titulo="Casos de diferencia" subtitulo="Toda diferencia se vuelve un caso con folio; mientras esté abierto, el inventario no se mueve" />
-      <EstadoConsulta q={q} />
-      {q.data && !q.data.aviso && <DataTable columnas={columnas} filas={q.data.data} exportarNombre="casos_auditoria" vacio={{ title: 'Sin casos', description: 'Los casos nacen al cerrar un conteo o un cierre con diferencias.' }} />}
-      <div style={{ marginTop: 14 }}>
-        <EtapaPendiente etapa="3" titulo="Investigación y cierre de casos"
-          descripcion="Aquí se completa el ciclo abierta → en investigación → cerrada. La separación de funciones y el ajuste idempotente ya están en la base."
-          incluira={['Bitácora de solo inserciones, evidencia y asignación con fecha compromiso', 'Detalle con los movimientos de inventario del producto desde el conteo anterior', 'Cierre con causa, quién absorbe el costo y autorización con contraseña completa', 'Reintento de ajustes fallidos']} />
+      <Tabs value={tab} onChange={setTab} items={[
+        { id: 'lista', label: 'Todos los casos' },
+        { id: 'mios', label: 'Mis casos', oculto: rolAud === 'soporte' },
+        { id: 'seguimiento', label: 'Seguimiento' },
+      ]} />
+      <div style={{ marginTop: 12 }}>
+        {tab === 'lista' && <CasosLista rolAud={rolAud} onAbrir={abrir} />}
+        {tab === 'mios' && <CasosLista rolAud={rolAud} soloMios onAbrir={abrir} />}
+        {tab === 'seguimiento' && <ReportesCasos onAbrirCaso={abrir} />}
       </div>
     </div>
   )
