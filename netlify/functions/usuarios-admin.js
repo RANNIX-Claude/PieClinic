@@ -51,6 +51,8 @@ export default async req => {
 
   // acciones sobre un usuario existente de la MISMA clínica
   const objetivo = await rest(admin, 'GET', `/rest/v1/perfiles?id=eq.${encodeURIComponent(b.usuario_id)}&organizacion_id=eq.${org}&select=id,rol,activo`)
+  // Si la consulta misma falla (llave de servicio incorrecta, esquema sin permisos…) se dice la causa real, no un «no encontrado» engañoso
+  if (!objetivo.ok) return json(502, { error: `No se pudo consultar el usuario en la base (${objetivo.status}): ${objetivo.error}. Revisa SUPABASE_SERVICE_ROLE_KEY y los permisos del esquema ${process.env.DB_SCHEMA || process.env.VITE_DB_SCHEMA || 'piefirme'}.` })
   const u = objetivo.data?.[0]
   if (!u) return json(404, { error: 'Usuario no encontrado en tu clínica' })
   const eliminaAdmin = (cambio) => cambio && u.rol === 'administrador' && u.activo

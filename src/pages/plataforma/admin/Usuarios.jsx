@@ -24,10 +24,10 @@ function SelectorSedes({ sedes, valor, onChange }) {
   return (
     <div className="field">
       <label>Sedes con acceso</label>
-      <label style={{ display: 'flex', gap: 6, fontSize: 13 }}><input type="checkbox" checked={todas} onChange={() => onChange([])} /> Todas las sedes de la clínica</label>
+      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', textAlign: 'left', gap: 8, fontSize: 13, fontWeight: 400 }}><input type="checkbox" style={{ width: 18, height: 18, flex: 'none', margin: 0 }} checked={todas} onChange={() => onChange([])} /> Todas las sedes de la clínica</label>
       {!todas || sedes.length ? sedes.map(s => (
-        <label key={s.id} style={{ display: 'flex', gap: 6, fontSize: 13, marginLeft: 16 }}>
-          <input type="checkbox" checked={valor.includes(s.id)} onChange={e => onChange(e.target.checked ? [...valor, s.id] : valor.filter(x => x !== s.id))} /> {s.nombre}
+        <label key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', textAlign: 'left', gap: 8, fontSize: 13, fontWeight: 400, marginLeft: 16 }}>
+          <input type="checkbox" style={{ width: 18, height: 18, flex: 'none', margin: 0 }} checked={valor.includes(s.id)} onChange={e => onChange(e.target.checked ? [...valor, s.id] : valor.filter(x => x !== s.id))} /> {s.nombre}
         </label>
       )) : null}
       <span className="hint">Sin ninguna marcada = todas las sedes. Marca una o varias para restringir.</span>
@@ -191,8 +191,8 @@ export default function Usuarios() {
         <div className="field">
           <label>Funciones habilitadas</label>
           {Object.entries(FUNCIONES).map(([k, etiqueta]) => (
-            <label key={k} style={{ display: 'flex', gap: 6, fontSize: 13 }}>
-              <input type="checkbox" checked={(form.funciones ?? []).includes(k)}
+            <label key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', textAlign: 'left', gap: 8, fontSize: 13, fontWeight: 400 }}>
+              <input type="checkbox" style={{ width: 18, height: 18, flex: 'none', margin: 0 }} checked={(form.funciones ?? []).includes(k)}
                 onChange={e => setForm({ ...form, funciones: e.target.checked ? [...(form.funciones ?? []), k] : (form.funciones ?? []).filter(x => x !== k) })} /> {etiqueta}
             </label>
           ))}
