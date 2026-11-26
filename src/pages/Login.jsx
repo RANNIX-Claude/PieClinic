@@ -28,7 +28,7 @@ export const estiloInput = { display: 'block', width: '100%', marginBottom: 16, 
 // Cuentas de PRUEBA por rol (scripts/qa-usuarios-prueba.mjs). Se muestran salvo que VITE_ENTORNO=prod (variable del sitio de producción en Netlify).
 const ACCESOS_PRUEBA = import.meta.env.VITE_ENTORNO !== 'prod'
 const CUENTAS = [
-  { correo: 'a@g.com', rol: 'Superadmin' }, { correo: 'm@g.com', rol: 'Administrador' },
+  { correo: 'm@g.com', rol: 'Administrador' },   // el Superadmin ya no se ofrece aquí: entra escribiendo su correo y contraseña
   { correo: 'p@g.com', rol: 'Podólogo' }, { correo: 'r@g.com', rol: 'Recepción' }, { correo: 's@g.com', rol: 'Supervisor' },
 ]
 
@@ -85,10 +85,10 @@ export default function Login() {
       </div>
       {ACCESOS_PRUEBA && (
         <div role="note" style={{ border: '1px dashed var(--gold)', borderRadius: 8, padding: '8px 10px', margin: '0 0 12px', fontSize: 12 }}>
-          <b>Accesos de prueba</b> (contraseña <b>123456</b>) — <span style={{ color: 'var(--red)' }}>solo QA: quitar antes de producción</span>
+          <b>Accesos de prueba</b> (el botón solo pone el usuario; la contraseña se escribe) — <span style={{ color: 'var(--red)' }}>solo QA: quitar antes de producción</span>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
             {CUENTAS.map(c => (
-              <button key={c.correo} type="button" className="btn o sm" onClick={() => { setEmail(c.correo); setPassword('123456') }} title={c.rol}>
+              <button key={c.correo} type="button" className="btn o sm" onClick={() => { setEmail(c.correo); setPassword(''); setError(''); document.getElementById('pf-pass')?.focus() }} title={c.rol}>
                 {c.correo} · {c.rol}
               </button>
             ))}
