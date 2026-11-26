@@ -391,7 +391,7 @@ function Camara({ onCodigo, onError }) {
         // Códigos de barras 1D: más resolución, enfoque continuo y un recuadro ancho (el de 260×140 era muy chico y el celular lo veía borroso)
         const config = {
           fps: 15,
-          qrbox: (w, h) => ({ width: Math.floor(w * 0.92), height: Math.floor(Math.min(h * 0.6, w * 0.5)) }),
+          qrbox: w => ({ width: Math.floor(w * 0.86), height: Math.floor(w * 0.5) }),
           videoConstraints: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 }, advanced: [{ focusMode: 'continuous' }] },
         }
         await lector.start({ facingMode: 'environment' }, config, texto => {
@@ -403,5 +403,10 @@ function Camara({ onCodigo, onError }) {
     })()
     return () => { vivo = false; if (lector) { lector.stop().catch(() => {}).finally(() => { try { lector.clear() } catch { /* ya liberada */ } }) } }
   }, [])  // eslint-disable-line react-hooks/exhaustive-deps
-  return <div id={id.current} style={{ width: '100%', maxWidth: 420, margin: '10px auto 0', borderRadius: 10, overflow: 'hidden' }} />
+  // El video del celular sale vertical y muy alto: se muestra solo la franja central (donde está el recuadro de lectura) para verlo completo sin bajar la pantalla.
+  return (
+    <div style={{ position: 'relative', width: '100%', maxWidth: 420, height: 'min(44vh, 340px)', margin: '10px auto 0', borderRadius: 10, overflow: 'hidden', background: '#111' }}>
+      <div id={id.current} style={{ position: 'absolute', left: 0, right: 0, top: '50%', transform: 'translateY(-50%)' }} />
+    </div>
+  )
 }
