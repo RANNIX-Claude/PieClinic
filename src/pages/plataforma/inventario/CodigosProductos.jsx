@@ -37,15 +37,17 @@ export default function CodigosProductos() {
     columnas: 'id,sku,codigo_barras,nombre,categoria,marca,presentacion,precio_lista' })
   const [texto, setTexto] = useState('')
   const [soloConCodigo, setSoloConCodigo] = useState(false)
+  const [soloNinguno, setSoloNinguno] = useState(false)
   const [conQr, setConQr] = useState(false)
   const [grueso, setGrueso] = useState(2.6)   // ancho de barra: más grueso = más fácil para la cámara
   const [elegido, setElegido] = useState(null)
 
   const filas = useMemo(() => {
     const t = sinAcentos(texto.trim())
-    return q.filas.filter(p => (!soloConCodigo || p.codigo_barras) && (!t || sinAcentos(`${p.nombre} ${p.sku} ${p.codigo_barras} ${p.categoria} ${p.marca}`).includes(t)))
+    return q.filas.filter(p => (!soloConCodigo || p.codigo_barras) && (!soloNinguno || !codigoDe(p)) && (!t || sinAcentos(`${p.nombre} ${p.sku} ${p.codigo_barras} ${p.categoria} ${p.marca}`).includes(t)))
   }, [q.filas, texto, soloConCodigo])
   const total = q.filas.length, conCodigo = q.filas.filter(p => p.codigo_barras).length
+  const soloSku = q.filas.filter(p => !p.codigo_barras && p.sku).length, ninguno = q.filas.filter(p => !p.codigo_barras && !p.sku).length
   const copiar = async c => { try { await navigator.clipboard.writeText(c); toast.success('Código copiado') } catch { toast.error('No se pudo copiar') } }
 
   return (
@@ -54,7 +56,8 @@ export default function CodigosProductos() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 12 }}>
         <KPICard title="Productos activos" value={total} />
         <KPICard title="Con código de barras" value={conCodigo} />
-        <KPICard title="Sin código de barras (usan SKU)" value={total - conCodigo} />
+        <KPICard title="Solo SKU alfanumérico (también se escanea)" value={soloSku} />
+        <KPICard title="Sin código ni SKU" value={ninguno} />
       </div>
       {q.error && <div className="card" style={{ color: 'var(--red)', marginBottom: 10 }}>{msgError(q.error)}</div>}
 
@@ -63,6 +66,7 @@ export default function CodigosProductos() {
           <Search size={15} style={{ position: 'absolute', left: 10, top: 11, color: 'var(--muted)' }} />
           <input aria-label="Buscar producto o código" placeholder="Buscar por nombre, SKU, código o categoría…" value={texto} onChange={e => setTexto(e.target.value)} style={{ width: '100%', paddingLeft: 32 }} />
         </div>
+        <label style={{ fontSize: 13 }}><input type="checkbox" checked={soloNinguno} onChange={e => setSoloNinguno(e.target.checked)} /> Solo los que no tienen ni código ni SKU</label>
         <label style={{ fontSize: 13 }}><input type="checkbox" checked={soloConCodigo} onChange={e => setSoloConCodigo(e.target.checked)} /> Solo con código de barras real (sin los que usan SKU)</label>
         <label style={{ fontSize: 13 }}><input type="checkbox" checked={conQr} onChange={e => setConQr(e.target.checked)} /> Mostrar también QR</label>
         <label style={{ fontSize: 13 }}>Grosor de barras <input type="range" min="1.6" max="4" step="0.2" value={grueso} onChange={e => setGrueso(Number(e.target.value))} style={{ verticalAlign: 'middle' }} /></label>
