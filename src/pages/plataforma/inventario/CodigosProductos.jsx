@@ -1,4 +1,4 @@
-// Utilerías · Códigos de productos (pruebas de lectura). Consulta los productos con su código de barras y lo dibuja GRANDE en pantalla,
+// Inventario · Códigos de productos (pruebas de lectura). Consulta los productos con su código de barras y lo dibuja GRANDE en pantalla,
 // para apuntar la cámara del celular (Conteo inicial, Caja) o el escáner Bluetooth a esta pantalla y validar que la lectura funciona.
 // Es solo lectura: no cambia nada del catálogo.
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -6,10 +6,10 @@ import JsBarcode from 'jsbarcode'
 import QRCode from 'qrcode'
 import { ScanBarcode, Search, Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
-import PageHeader from '../../components/ui/PageHeader'
-import KPICard from '../../components/ui/KPICard'
-import { moneda } from '../../lib/formato'
-import { useLectura, msgError } from '../plataforma/inventario/comun'
+import PageHeader from '../../../components/ui/PageHeader'
+import KPICard from '../../../components/ui/KPICard'
+import { moneda } from '../../../lib/formato'
+import { useLectura, msgError } from './comun'
 
 const sinAcentos = t => (t ?? '').toString().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 const ean13Valido = c => /^\d{13}$/.test(c) && ((10 - ([...c.slice(0, 12)].reduce((s, d, i) => s + Number(d) * (i % 2 ? 3 : 1), 0) % 10)) % 10) === Number(c[12])

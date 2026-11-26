@@ -8,6 +8,7 @@ export default {
     { label: 'Mermas y conteos', path: '/mermas-conteos', icon: 'ClipboardCheck', roles: ['administrador', 'recepcion'] },
     { label: 'Conteo inicial', path: '/conteo-inicial', icon: 'ScanLine', roles: ['administrador', 'recepcion'] },
     { label: 'Códigos de servicios', path: '/catalogo/codigos', icon: 'QrCode', roles: ['administrador', 'recepcion'] },
+    { label: 'Códigos de productos', path: '/catalogo/codigos-productos', icon: 'ScanBarcode', roles: ['administrador', 'recepcion'] },
     { label: 'Productos provisionales', path: '/productos-provisionales', icon: 'PackageSearch', roles: ['administrador'] },
   ],
 }

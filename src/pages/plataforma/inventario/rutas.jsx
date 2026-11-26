@@ -13,4 +13,5 @@ export default [
   { path: '/conteo-inicial', element: lazy(() => import('./ConteoInicial.jsx')), roles: rolesCon('conteo.operar'), titulo: 'Conteo inicial', cap: 'conteo.operar' },
   { path: '/productos-provisionales', element: lazy(() => import('./ProductosProvisionales.jsx')), roles: rolesCon('conteo.provisionales'), titulo: 'Productos provisionales', cap: 'conteo.provisionales' },
   { path: '/catalogo/codigos', element: lazy(() => import('./HojaCodigos.jsx')), roles: rolesCon('catalogo.ver'), titulo: 'Códigos de servicios', cap: 'catalogo.ver' },
+  { path: '/catalogo/codigos-productos', element: lazy(() => import('./CodigosProductos.jsx')), roles: rolesCon('catalogo.ver'), titulo: 'Códigos de productos', cap: 'catalogo.ver' },
 ]
