@@ -41,7 +41,7 @@ function crearClienteSinConexion() {
 export const DB_SCHEMA = import.meta.env.VITE_DB_SCHEMA || 'piefirme'
 
 export const supabase = SUPABASE_CONFIGURADO
-  ? createClient(url, anon, { db: { schema: DB_SCHEMA }, auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true } })
+  ? createClient(url, anon, { db: { schema: DB_SCHEMA }, auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: !import.meta.env.VITE_AUTH_STORAGE_KEY, ...(import.meta.env.VITE_AUTH_STORAGE_KEY ? { storageKey: import.meta.env.VITE_AUTH_STORAGE_KEY } : {}) } })  // la PWA de auditoría (/aud/) usa su propia llave: no pisa la sesión de /app/
   : crearClienteSinConexion()
 
 if (!SUPABASE_CONFIGURADO) console.warn('[supabase] ' + MENSAJE_SIN_CONEXION)

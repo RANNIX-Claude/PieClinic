@@ -13,6 +13,7 @@ Reglas de negocio: [`REGLAS_NEGOCIO.md`](REGLAS_NEGOCIO.md) (157 reglas; las no 
 |---|---|---|
 | `/` | Portal público (botón Iniciar → `/app/`) | `portal/index.html` |
 | `/app/` | La aplicación (React Router `basename="/app"`) | `src/` (Vite `base: "/app/"`) |
+| `/aud/` | PWA móvil de captura de Control y Auditoría (Etapa 5; `docs/AUDITORIA_ETAPA5.md`) | `auditoria-movil/` (`vite.config.aud.js`, base `/aud/`, `npm run build:aud`) |
 Portal del paciente sin sesión dentro de la app: `/app/reservar/:clinica`, `/app/cita/:token`, `/app/sala/:token` (solo RPC `portal_*`).
 
 ## Base de datos compartida (BITDATA)

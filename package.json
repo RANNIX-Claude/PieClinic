@@ -5,7 +5,10 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/build-portal.mjs",
+    "build": "vite build && vite build -c vite.config.aud.js && node scripts/build-portal.mjs",
+    "build:aud": "vite build -c vite.config.aud.js",
+    "dev:aud": "vite -c vite.config.aud.js",
+    "preview:aud": "vite preview -c vite.config.aud.js --port 5175 --strictPort",
     "migrate:qa": "node scripts/apply-migration.mjs qa",
     "migrate:qa:pendientes": "node scripts/apply-migration.mjs qa --pendientes",
     "migrate:prod": "node scripts/apply-migration.mjs prod --confirmo-produccion",

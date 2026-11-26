@@ -1,0 +1,18 @@
+{
+  "id": "/aud/",
+  "name": "Pie Firme — Captura de auditoría",
+  "short_name": "Auditoría",
+  "description": "Cierres, conteos y recepción para la sucursal",
+  "start_url": "/aud/",
+  "scope": "/aud/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F5F5F7",
+  "theme_color": "#7B5EA7",
+  "lang": "es-MX",
+  "icons": [
+    { "src": "/aud/icons/piefirme-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/aud/icons/piefirme-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/aud/icons/piefirme-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -29,3 +29,21 @@
   from = "/app"
   to = "/app/"
   status = 301
+
+# PWA móvil de Control y Auditoría (Etapa 5): segunda entrada de Vite, base /aud/, build en dist/aud
+[[redirects]]
+  from = "/aud/*"
+  to = "/aud/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/aud"
+  to = "/aud/"
+  status = 301
+
+# El service worker y el manifiesto nunca se guardan en caché del CDN: así la PWA se actualiza sola
+[[headers]]
+  for = "/aud/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Service-Worker-Allowed = "/aud/"
