@@ -2,6 +2,7 @@
 // esto solo decide qué se muestra y evita pedirle al usuario acciones que la base va a rechazar.
 // Lo marcado [PROPUESTO] en la matriz está aquí como propuesta; cuando el dueño lo confirme se cambia SOLO este archivo.
 import { useApp } from '../context/AppContext'
+import { puedeAuditoria, rolAuditoria } from './auditoria/roles'
 
 export const ROLES = {
   administrador: 'Administrador',
@@ -24,6 +25,8 @@ export const CAPS_SUPERVISOR = new Set([
 export const RUTAS_SUPERVISOR = [
   '/dashboard', '/resumen-semanal', '/analisis/ejecutivo', '/operacion-dia', '/reportes', '/agenda', '/catalogo',
   '/inventario', '/traspasos', '/compras', '/mermas-conteos', '/conteo-inicial', '/productos-provisionales', '/catalogo/codigos', '/catalogo/codigos-productos', '/inventario/analisis', '/mi-pin',
+  // Control y Auditoría: el supervisor captura, ve diferencias e investiga (NO autoriza ni configura; ver lib/auditoria/roles.js)
+  '/auditoria', '/auditoria/diferencias', '/auditoria/casos', '/auditoria/conteos', '/auditoria/cierres',
 ]
 export const TODOS_LOS_ROLES = ['administrador', 'podologo', 'recepcion', 'supervisor', 'rannix']
 
@@ -104,6 +107,14 @@ export const CAPACIDADES = {
   'bitacora.ver':             cap([A]),
   'suscripcion.ver':          cap([A]),
   'suscripcion.editar':       cap([A], true),
+  // Control y Auditoría (docs/AUDITORIA_ARQUITECTURA.md). La matriz real está en lib/auditoria/roles.js y en la base (piefirme_app.ctl_puede);
+  // `puede()` la consulta aparte porque depende de si la cuenta es superadministrador (= soporte RANNIX: solo lectura y configuración).
+  'auditoria.ver':             cap([A, P, R]),               // ver el grupo AUDITORÍA (el supervisor y el soporte entran por la matriz)
+  'auditoria.capturar':        cap([A, P, R], true),         // conteos y cierres a ciegas (dueño, supervisor, encargado, cajero, podólogo)
+  'auditoria.ver_diferencias': cap([A]),                     // dueño, supervisor y soporte; NUNCA sucursal
+  'auditoria.investigar':      cap([A], true),               // dueño y supervisor
+  'auditoria.autorizar':       cap([A], true),               // solo el dueño (contraseña completa)
+  'auditoria.configurar':      cap([A], true),               // dueño y soporte RANNIX
   // Panel RANNIX (solo metadatos de uso y cobro; nunca datos de salud)
   // Costos: dueños y supervisor. Recepción y podología ven solo el PRECIO DE LISTA (migración 270 en la base).
   'inventario.ver_costos':    cap([A, X]),
@@ -121,6 +132,10 @@ export function puede(rol, capacidad, { soloLectura = false } = {}) {
   const c = CAPACIDADES[capacidad]
   if (!c || !rol) return false
   if (c.escritura && soloLectura) return false
+  if (capacidad.startsWith('auditoria.')) {   // matriz propia del módulo (incluye al supervisor y a la cuenta de soporte)
+    const cap = capacidad.slice('auditoria.'.length)
+    return cap === 'ver' ? rolAuditoria(rol, superadmin) != null : puedeAuditoria(rol, cap, superadmin)
+  }
   if (rol === 'supervisor') return CAPS_SUPERVISOR.has(capacidad)
   return c.roles.includes(rol) || (superadmin && c.roles.includes(X))
 }

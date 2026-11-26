@@ -8,7 +8,7 @@ const modRutas = import.meta.glob('../routes/*.jsx', { eager: true })
 const modMenu = import.meta.glob('../menu/*.js', { eager: true })
 
 /** Orden fijo de los grupos del menú (mockups). RANNIX va aparte y al final. */
-export const GRUPOS_ORDEN = ['INICIO', 'AGENDA', 'PACIENTES', 'CLÍNICA', 'VENTAS', 'INVENTARIO', 'FINANZAS', 'EQUIPO', 'ANÁLISIS', 'ADMIN', 'UTILERÍAS', 'RANNIX']
+export const GRUPOS_ORDEN = ['INICIO', 'AGENDA', 'PACIENTES', 'CLÍNICA', 'VENTAS', 'INVENTARIO', 'FINANZAS', 'EQUIPO', 'ANÁLISIS', 'AUDITORÍA', 'ADMIN', 'UTILERÍAS', 'RANNIX']
 
 /** Todas las rutas declaradas por los módulos (aplanadas). Una ruta repetida avisa en consola. */
 export function obtenerRutas() {

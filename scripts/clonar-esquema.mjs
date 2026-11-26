@@ -20,7 +20,7 @@ if (!/^[a-z][a-z0-9_]{2,30}$/.test(esquema || "") || esquema === "piefirme" || !
 }
 if (!/^[a-z]{2,6}$/.test(prefijo) || prefijo === "pf") { console.error("el prefijo de buckets debe ser de 2 a 6 letras minúsculas y distinto de «pf»"); process.exit(2); }
 
-const BUCKETS = "(acervo|auditorias|catalogo|comprobantes|documentos|equipo|expedientes|fotos-clinicas|importaciones|logos)";
+const BUCKETS = "(acervo|auditorias|auditoria|catalogo|comprobantes|documentos|equipo|expedientes|fotos-clinicas|importaciones|logos)";
 const dirEntrada = path.join(ROOT, "migraciones");
 fs.mkdirSync(salida, { recursive: true });
 let n = 0;

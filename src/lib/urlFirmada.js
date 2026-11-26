@@ -10,6 +10,7 @@ export const BUCKETS = {
   comprobantes: `${P}-comprobantes`,
   importaciones: `${P}-importaciones`,
   logos: `${P}-logos`,
+  auditoria: `${P}-auditoria`,   // Control y Auditoría: fotos de evidencia; ruta <organizacion_id>/ctl/<sucursal_id>/… (firma ≤ 5 min, ver lib/auditoria/urlFirmadaAuditoria.js)
 }
 
 /**
