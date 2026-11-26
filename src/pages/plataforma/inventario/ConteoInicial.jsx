@@ -349,7 +349,7 @@ function HojaCaptura({ hoja, setHoja, zona, puedePrecio, guardando, guardar, cer
       setHoja(h => ({ ...h, foto: { blob, url: URL.createObjectURL(blob) } })); setSug(null); setLeyendo(0)
       const r = await leerFotoProducto(c, { alAvanzar: setLeyendo })
       setSug(r)
-      if (r.nombres[0]) setHoja(h => (h.nombre.trim() ? h : { ...h, nombre: r.nombres[0] }))   // solo rellena si estaba vacío
+      if (r.nombres[0]) setHoja(h => (!h.nombre.trim() || h.nombreAuto ? { ...h, nombre: r.nombres[0], nombreAuto: true } : h))   // el nombre leído de la caja se pone solo; si la persona ya escribió el suyo, no se pisa
     } catch { setSug({ nombres: [], codigos: [] }); toast.error('No se pudo leer la foto. Escribe el nombre a mano.') }
     finally { setLeyendo(null) }
   }
@@ -371,15 +371,15 @@ function HojaCaptura({ hoja, setHoja, zona, puedePrecio, guardando, guardar, cer
           <div style={{ display: 'grid', gap: 8 }}>
             <input ref={archivo} type="file" accept="image/*" capture="environment" onChange={deFoto} style={{ display: 'none' }} />
             <button type="button" className="btn o" style={{ minHeight: 56, fontSize: 17, fontWeight: 700 }} disabled={leyendo != null} onClick={() => archivo.current?.click()}>
-              <Camera size={20} style={{ verticalAlign: -4 }} /> {hoja.foto ? 'Tomar otra foto del producto' : 'Foto del producto (sugiere el nombre)'}
+              <Camera size={20} style={{ verticalAlign: -4 }} /> {hoja.foto ? 'Tomar otra foto del producto' : 'Foto de la caja (lee el nombre)'}
             </button>
             {hoja.foto && <img src={hoja.foto.url} alt="Foto del producto" style={{ width: '100%', maxHeight: 190, objectFit: 'contain', borderRadius: 10, background: '#111' }} />}
             {leyendo != null && <div style={{ fontSize: 13.5, color: 'var(--muted)' }}>Leyendo el texto de la foto… {leyendo}% (la primera vez descarga el lector, puede tardar)</div>}
             {sug && (sug.nombres.length > 0 || sug.codigos.length > 0)
               ? <div style={{ display: 'grid', gap: 6 }} data-testid="sugerencias">
-                  {sug.nombres.length > 0 && <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>Nombre sugerido (toca el que sirva, o escríbelo tú):</div>}
+                  {sug.nombres.length > 0 && <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>Otras lecturas de la caja (toca una si el nombre no quedó bien):</div>}
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {sug.nombres.map(n => <button key={n} type="button" className="btn o" style={{ minHeight: 44, textAlign: 'left' }} onClick={() => setHoja(h => ({ ...h, nombre: n }))}>{n}</button>)}
+                    {sug.nombres.map(n => <button key={n} type="button" className="btn o" style={{ minHeight: 44, textAlign: 'left' }} onClick={() => setHoja(h => ({ ...h, nombre: n, nombreAuto: true }))}>{n}</button>)}
                   </div>
                   {sug.codigos.filter(c => c !== hoja.codigo).slice(0, 2).map(c => <button key={c} type="button" className="btn o" style={{ minHeight: 44, textAlign: 'left' }} onClick={() => setHoja(h => ({ ...h, codigo: c }))}>Código visto en la foto: {c} · usar este</button>)}
                 </div>
@@ -388,7 +388,8 @@ function HojaCaptura({ hoja, setHoja, zona, puedePrecio, guardando, guardar, cer
 
         {nuevo && (
           <label style={{ display: 'grid', gap: 6, fontWeight: 600 }}>Nombre del producto
-            <input value={hoja.nombre} onChange={e => setHoja(h => ({ ...h, nombre: e.target.value }))} placeholder="Ej. Tobillera neopreno chica" autoComplete="off" style={{ minHeight: 56, fontSize: 20 }} />
+            <input value={hoja.nombre} onChange={e => setHoja(h => ({ ...h, nombre: e.target.value, nombreAuto: false }))} placeholder="Ej. Tobillera neopreno chica" autoComplete="off" style={{ minHeight: 56, fontSize: 20 }} />
+            {hoja.nombreAuto && <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent)' }}>✓ Nombre leído de la caja. Corrígelo si hace falta.</span>}
             <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--muted)' }}>Código no registrado: queda como provisional hasta que Administración le asigne categoría.</span>
           </label>)}
 
