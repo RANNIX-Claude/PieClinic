@@ -16,9 +16,13 @@ test('Caja: ticket con producto especial a la medida y producto de catálogo', a
   if (await abrir.isVisible().catch(() => false)) { await page.getByLabel('Fondo inicial').fill('1000'); await abrir.click(); await page.waitForTimeout(3500) }
   await expect(page.locator('.cj-buscar-in')).toBeVisible({ timeout: 180_000 })
   // 0. Cliente obligatorio: se busca y elige a la paciente por nombre
-  const buscador = page.getByPlaceholder(/Buscar paciente/)
-  await page.locator('.cj-tile', { hasText: 'Paciente' }).click()
-  await expect(buscador).toBeVisible({ timeout: 90_000 })
+  const buscador = page.getByPlaceholder(/Buscar (paciente|cliente)/)
+  const tile = page.locator('.cj-tile', { hasText: 'Paciente' })
+  for (let k = 0; k < 15 && !(await buscador.isVisible().catch(() => false)); k++) {   // con la máquina cargada el primer clic se pierde: solo se pulsa si el panel sigue cerrado
+    if (!((await tile.getAttribute('class')) ?? '').includes('on')) await tile.click().catch(() => {})
+    await page.waitForTimeout(3000)
+  }
+  await expect(buscador).toBeVisible({ timeout: 30_000 })
   await buscador.pressSequentially('mar', { delay: 120 })
   const op = page.locator('button:not(.cj-tile)', { hasText: /· .*·/ }).filter({ has: page.locator('b') }).first()
   await expect(op).toBeVisible({ timeout: 20_000 })

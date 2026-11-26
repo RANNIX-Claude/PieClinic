@@ -1,0 +1,8 @@
+
+## caja-especial (regrabado con cliente obligatorio, 2026-11-25)
+- MP4: `demo/video/caja-especial-narrado.mp4` (361.6 s; 0 voces exceden su hueco; la última narración termina antes del final). Folio **CENTENARIO-TKT-000035**, total $3,470.00, cliente **María Jiménez Hernández** (paciente_id 923955e4-dd5b-4061-a80d-53f2090291cb, verificado por SQL de solo lectura: `ventas.paciente_id` presente, estado cobrada).
+- El spec ahora busca «mar» en el panel «Más» (tile Paciente), elige a la paciente, verifica «Ticket · <nombre>» en pantalla y que el ticket impreso trae «Cliente: <nombre>» (no «Cliente general»); la narración lo dice.
+- Observación (no error de regla): el ticket imprime nombre + apellido paterno («María Jiménez»), no el nombre completo en pantalla («María Jiménez Hernández»), porque la vista usa `nombre || apellido_paterno`. Es decisión de formato; el video narra lo que el ticket muestra. Si el dueño quiere el nombre completo, cambiar la vista (migración) — sin decidir.
+- Cambio de UI detectado a media corrida: el buscador del panel «Más» cambió su placeholder de «Buscar paciente…» a «Buscar cliente…» (otro lote). `demo/caja-offline.spec.ts` usa `/Buscar paciente/` y su selector de resultados `button` con `/· .*·/` también coincide con el tile «Paciente · factura · descuento»: requiere el mismo ajuste (`button:not(.cj-tile)` y `/Buscar (paciente|cliente)/`) antes de regrabarlo.
+- QA: quedaron ventas de corridas fallidas previas (p. ej. CENTENARIO-TKT-000033, misma paciente, mismos importes); no se borran (inmutabilidad).
+- Operativo: con la máquina al 100 % de CPU el spec tarda ~24 min; `timeout 590` mata el worker (código 143), por eso se corrió con `--timeout=2400000` y sin `timeout`.

@@ -7,7 +7,7 @@ import { crearVideo, escribir } from './lib/video'
 
 test.use({ launchOptions: { slowMo: 250 }, video: 'off' })   // video propio por pantallazos: el webm de Playwright sale truncado con la máquina cargada
 const v = crearVideo('vid-rh-asistencia')
-const EMPLEADA = 'Sofía Lara Ortiz'      // vacaciones
+let EMPLEADA = ''      // vacaciones: se elige un empleado sin solicitudes que se encimen (varias tomas dejan datos de QA que no se pueden borrar)
 let EMP_INC = ''     // incidencia: se elige un empleado distinto en cada toma (la BD rechaza dos incidencias iguales del mismo empleado y día)
 const DESDE = '2026-12-07', HASTA = '2026-12-11'
 
@@ -75,9 +75,16 @@ test('RH: asistencia, horarios, incidencias y vacaciones', async ({ page, contex
   await v.narrar(page, `En Vacaciones, el sistema calcula los días de ley por antigüedad y lleva el saldo de cada empleado. Ahora hay ${porAut} solicitudes por autorizar.`)
   await page.getByRole('button', { name: /\+ Solicitar vacaciones/ }).click()
   const dlg = page.getByRole('dialog').last()
-  await dlg.getByLabel('Empleado').selectOption({ label: await etiqueta(dlg.getByLabel('Empleado'), EMPLEADA) })
   await dlg.getByLabel('Desde').fill(DESDE)
   await dlg.getByLabel('Hasta').fill(HASTA)
+  const opsV = await dlg.getByLabel('Empleado').locator('option').allInnerTexts()
+  for (let k = 0; k < 40; k++) {
+    const opt = opsV[1 + ((Date.now() + k * 7) % (opsV.length - 1))]
+    await dlg.getByLabel('Empleado').selectOption({ label: opt })
+    await page.waitForTimeout(700)
+    if (await dlg.getByRole('button', { name: 'Registrar solicitud' }).isEnabled()) { EMPLEADA = opt.split(' · ')[1] ?? opt; break }
+  }
+  expect(EMPLEADA).toBeTruthy()
   await page.waitForTimeout(800)
   const resumen = await dlg.getByText(/Días solicitados/).innerText()
   await v.narrar(page, `Se solicitan vacaciones para ${EMPLEADA} del siete al once de diciembre. El formulario calcula en vivo: ${resumen.replace(/\s+/g, ' ')}.`, 0)
