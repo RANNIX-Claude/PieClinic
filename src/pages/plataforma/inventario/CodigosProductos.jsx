@@ -13,6 +13,8 @@ import { useLectura, msgError } from './comun'
 
 const sinAcentos = t => (t ?? '').toString().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 const ean13Valido = c => /^\d{13}$/.test(c) && ((10 - ([...c.slice(0, 12)].reduce((s, d, i) => s + Number(d) * (i % 2 ? 3 : 1), 0) % 10)) % 10) === Number(c[12])
+// Un producto sin código de barras numérico se identifica por su SKU (alfanumérico, p. ej. T0COC05-3): Code 128 sí lo representa y Conteo inicial y Caja lo reconocen igual.
+const codigoDe = p => p.codigo_barras || p.sku || ''
 const formatoDe = c => (ean13Valido(c) ? 'EAN13' : 'CODE128')
 
 function Barras({ valor, ancho }) {
@@ -34,7 +36,7 @@ export default function CodigosProductos() {
   const q = useLectura('codigos-productos', 'prp_productos', { sedeCol: false, filtros: { estado: ['activo', 'provisional'] }, orden: [{ columna: 'categoria' }, { columna: 'nombre' }], limite: 2000,
     columnas: 'id,sku,codigo_barras,nombre,categoria,marca,presentacion,precio_lista' })
   const [texto, setTexto] = useState('')
-  const [soloConCodigo, setSoloConCodigo] = useState(true)
+  const [soloConCodigo, setSoloConCodigo] = useState(false)
   const [conQr, setConQr] = useState(false)
   const [grueso, setGrueso] = useState(2.6)   // ancho de barra: más grueso = más fácil para la cámara
   const [elegido, setElegido] = useState(null)
@@ -52,7 +54,7 @@ export default function CodigosProductos() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 12 }}>
         <KPICard title="Productos activos" value={total} />
         <KPICard title="Con código de barras" value={conCodigo} />
-        <KPICard title="Sin código" value={total - conCodigo} />
+        <KPICard title="Sin código de barras (usan SKU)" value={total - conCodigo} />
       </div>
       {q.error && <div className="card" style={{ color: 'var(--red)', marginBottom: 10 }}>{msgError(q.error)}</div>}
 
@@ -61,7 +63,7 @@ export default function CodigosProductos() {
           <Search size={15} style={{ position: 'absolute', left: 10, top: 11, color: 'var(--muted)' }} />
           <input aria-label="Buscar producto o código" placeholder="Buscar por nombre, SKU, código o categoría…" value={texto} onChange={e => setTexto(e.target.value)} style={{ width: '100%', paddingLeft: 32 }} />
         </div>
-        <label style={{ fontSize: 13 }}><input type="checkbox" checked={soloConCodigo} onChange={e => setSoloConCodigo(e.target.checked)} /> Solo con código de barras</label>
+        <label style={{ fontSize: 13 }}><input type="checkbox" checked={soloConCodigo} onChange={e => setSoloConCodigo(e.target.checked)} /> Solo con código de barras real (sin los que usan SKU)</label>
         <label style={{ fontSize: 13 }}><input type="checkbox" checked={conQr} onChange={e => setConQr(e.target.checked)} /> Mostrar también QR</label>
         <label style={{ fontSize: 13 }}>Grosor de barras <input type="range" min="1.6" max="4" step="0.2" value={grueso} onChange={e => setGrueso(Number(e.target.value))} style={{ verticalAlign: 'middle' }} /></label>
       </div>
@@ -72,20 +74,20 @@ export default function CodigosProductos() {
             <div key={p.id} className="card" style={{ padding: 12 }}>
               <div style={{ fontWeight: 700, fontSize: 14.5 }}>{p.nombre}</div>
               <div className="text-muted" style={{ fontSize: 12.5, margin: '2px 0 8px' }}>{[p.sku, p.categoria, p.presentacion].filter(Boolean).join(' · ')}{p.precio_lista != null ? ` · ${moneda(p.precio_lista)}` : ''}</div>
-              {p.codigo_barras ? (
+              {codigoDe(p) ? (
                 <>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center', background: '#fff', borderRadius: 8, padding: 4, justifyContent: 'center' }}>
-                    <Barras valor={p.codigo_barras} ancho={grueso} />
-                    {conQr && <Qr valor={p.codigo_barras} />}
+                    <Barras valor={codigoDe(p)} ancho={grueso} />
+                    {conQr && <Qr valor={codigoDe(p)} />}
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <code style={{ fontSize: 13 }}>{p.codigo_barras}</code>
-                    <span className="text-muted" style={{ fontSize: 11.5 }}>{formatoDe(p.codigo_barras) === 'EAN13' ? 'EAN-13' : 'Code 128'}</span>
-                    <button type="button" className="btn o" style={{ marginLeft: 'auto', padding: '4px 10px' }} onClick={() => copiar(p.codigo_barras)}><Copy size={13} style={{ verticalAlign: -2 }} /> Copiar</button>
+                    <code style={{ fontSize: 13 }}>{codigoDe(p)}</code>
+                    <span className="text-muted" style={{ fontSize: 11.5 }}>{p.codigo_barras ? (formatoDe(p.codigo_barras) === 'EAN13' ? 'EAN-13' : 'Code 128') : 'SKU alfanumérico · Code 128'}</span>
+                    <button type="button" className="btn o" style={{ marginLeft: 'auto', padding: '4px 10px' }} onClick={() => copiar(codigoDe(p))}><Copy size={13} style={{ verticalAlign: -2 }} /> Copiar</button>
                     <button type="button" className="btn o" style={{ padding: '4px 10px' }} onClick={() => setElegido(p)}><ScanBarcode size={13} style={{ verticalAlign: -2 }} /> Pantalla completa</button>
                   </div>
                 </>
-              ) : <div className="text-muted" style={{ fontSize: 13 }}>Sin código de barras{p.sku ? ` (SKU ${p.sku})` : ''}.</div>}
+              ) : <div className="text-muted" style={{ fontSize: 13 }}>Sin código de barras ni SKU.</div>}
             </div>
           ))}
         </div>
@@ -95,8 +97,8 @@ export default function CodigosProductos() {
         <div role="dialog" aria-label={`Código de ${elegido.nombre}`} onClick={() => setElegido(null)}
           style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 16 }}>
           <div style={{ color: '#000', fontWeight: 800, fontSize: 20, textAlign: 'center' }}>{elegido.nombre}</div>
-          <Barras valor={elegido.codigo_barras} ancho={4} />
-          {conQr && <Qr valor={elegido.codigo_barras} />}
+          <Barras valor={codigoDe(elegido)} ancho={4} />
+          {conQr && <Qr valor={codigoDe(elegido)} />}
           <div style={{ color: '#555', fontSize: 14 }}>Toca para cerrar</div>
         </div>
       )}
