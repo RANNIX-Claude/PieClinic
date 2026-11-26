@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Eye, PackageSearch } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { rpc } from '../../../lib/api'
+import { rpc, leer } from '../../../lib/api'
 import { urlFirmada, BUCKETS } from '../../../lib/urlFirmada'
 import PageHeader from '../../../components/ui/PageHeader'
 import DataTable from '../../../components/ui/DataTable'
@@ -44,6 +44,8 @@ function Completar({ prov, productos, categorias, onClose }) {
   const [dup, setDup] = useState('')
   const [modo, setModo] = useState('completar')
   const [foto, setFoto] = useState(null)
+  // si el precio de venta ya se puso al contarlo, llega precargado
+  useEffect(() => { let vivo = true; leer('prp_productos', { sedeCol: false, filtros: { id: prov.id }, columnas: 'id,precio_lista', limite: 1 }).then(r => { const p = r.data?.[0]?.precio_lista; if (vivo && p != null) setF(x => (x.precio === '' ? { ...x, precio: String(Number(p)) } : x)) }); return () => { vivo = false } }, [prov.id])
   useEffect(() => { let vivo = true; if (prov.provisional_foto_path) urlFirmada(BUCKETS.comprobantes, prov.provisional_foto_path, 600).then(u => vivo && setFoto(u)); return () => { vivo = false } }, [prov.provisional_foto_path])
   const listo = modo === 'duplicado' ? !!dup : f.nombre.trim() && f.categoria && num(f.precio) > 0
   const guardar = async () => {

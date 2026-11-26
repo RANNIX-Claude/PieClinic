@@ -1,32 +1,38 @@
-// Conteo inicial de inventario por sucursal (migración 078). Móvil primero: escáner Bluetooth (teclado) siempre activo, cámara opcional, zonas,
-// producto provisional si el código no existe, resumen y aprobación (solo Administración). Todas las escrituras van por funciones de la base.
+// Conteo inicial de inventario por sucursal (migraciones 078 y 160). Pantalla de CAPTURA pensada para celular:
+// botón grande «Escanear» (cámara/QR/código de barras; el escáner Bluetooth sigue activo) → hoja de captura a pantalla completa
+// (producto, PRECIO DE VENTA y EXISTENCIA con − / +) → «Guardar» guarda precio + piezas en un solo paso y vuelve a la cámara.
+// La zona/anaquel es un selector compacto (se recuerda la última; si no hay ninguna se crea «General»). Zonas, cierre, aprobación y
+// últimos conteos viven en «Resumen» (tarjetas, sin tablas). Todas las escrituras van por funciones de la base.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Camera, CameraOff, Keyboard, Minus, Plus, Trash2, ScanLine, AlertTriangle, Lock, CheckCircle2, MapPin } from 'lucide-react'
+import { Camera, CameraOff, Minus, Plus, Trash2, ScanLine, Lock, CheckCircle2, MapPin, X, ListChecks, ChevronDown } from 'lucide-react'
 import { useApp } from '../../../context/AppContext'
 import { usePermiso } from '../../../lib/permisos'
-import { rpc } from '../../../lib/api'
+import { rpc, leer } from '../../../lib/api'
+import { moneda } from '../../../lib/formato'
 import { urlFirmada, BUCKETS } from '../../../lib/urlFirmada'
 import PageHeader from '../../../components/ui/PageHeader'
-import Modal from '../../../components/ui/Modal'
-import FormField from '../../../components/ui/FormField'
-import StatusBadge from '../../../components/ui/StatusBadge'
 import EmptyState from '../../../components/ui/EmptyState'
 import LoadingSpinner from '../../../components/ui/LoadingSpinner'
+import StatusBadge from '../../../components/ui/StatusBadge'
 import { useConfirmacion } from '../../../components/ui/ConfirmDialog'
-import SubirComprobante from '../../finanzas/componentes/SubirComprobante'
 import { useLectura, useAccion, msgError, num, qty, CLAVE } from './comun'
 import { sonido, vibrar } from './conteoSonido'
 
 const ESTADO = { borrador: 'En captura', capturado: 'Zonas cerradas', autorizado: 'Aprobado', cancelado: 'Cancelado' }
 const fechaCorta = v => (v ? new Date(v).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—')
+const GRANDE = { minHeight: 52, fontSize: 17 }
+const clavesZona = id => `pf-ci-zona-${id}`
+const leerZonaGuardada = id => { try { return localStorage.getItem(clavesZona(id)) } catch { return null } }
+const guardarZona = (id, z) => { try { localStorage.setItem(clavesZona(id), z) } catch { /* sin almacenamiento */ } }
 
 export default function ConteoInicial() {
   const qc = useQueryClient()
   const { sedes, sedeActivaId } = useApp()
   const esAdmin = usePermiso('inventario.autorizar')
   const puedeIniciar = usePermiso('conteo.iniciar')
+  const puedePrecio = usePermiso('catalogo.editar')   // solo Administración fija precios (igual que Catálogo y precios)
   const { correr, ocupado } = useAccion()
   const { confirmar, dialogo } = useConfirmacion()
   const [sedeId, setSedeId] = useState(sedeActivaId ?? sedes[0]?.id ?? null)
@@ -42,56 +48,111 @@ export default function ConteoInicial() {
 
   const [zonaId, setZonaId] = useState(null)
   const [zonaNueva, setZonaNueva] = useState('')
+  const [cambiandoZona, setCambiandoZona] = useState(false)
+  const [resumen, setResumen] = useState(false)
   const zona = zonas.filas.find(z => z.id === zonaId)
-  useEffect(() => { if (zonaId && !zonas.filas.some(z => z.id === zonaId)) setZonaId(null) }, [zonas.filas, zonaId])
   const refrescar = () => qc.invalidateQueries({ queryKey: [CLAVE] })
+  const elegirZona = id => { setZonaId(id); if (conteoId && id) guardarZona(conteoId, id); setCambiandoZona(false) }
 
-  // ── escaneo ──
+  // Zona activa: la última recordada si sigue abierta; si no, la última abierta. Sin zonas se crea «General» (no bloquea la captura).
+  const creandoGeneral = useRef(false)
+  useEffect(() => {
+    if (!abierto || !conteoId || zonas.cargando) return
+    if (zonaId && zonas.filas.some(z => z.id === zonaId)) return
+    const abiertas = zonas.filas.filter(z => z.estado === 'abierta')
+    const guardada = leerZonaGuardada(conteoId)
+    const elegida = abiertas.find(z => z.id === guardada) ?? abiertas[abiertas.length - 1]
+    if (elegida) { setZonaId(elegida.id); return }
+    if (!zonas.filas.length && !creandoGeneral.current) {
+      creandoGeneral.current = true
+      rpc('conteo_zona_abrir', { p_conteo: conteoId, p_nombre: 'General' }).then(async r => {
+        if (r.error) { toast.error(msgError(r.error)); return }
+        await zonas.refrescar(); setZonaId(r.data); guardarZona(conteoId, r.data); refrescar()
+      }).finally(() => { creandoGeneral.current = false })
+    }
+  }, [abierto, conteoId, zonas.cargando, zonas.filas, zonaId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── captura ──
   const campo = useRef(null)
   const [codigo, setCodigo] = useState('')
-  const [tecladoVirtual, setTecladoVirtual] = useState(false)
-  const [ultimo, setUltimo] = useState(null)        // { producto, cantidad }
-  const [noEncontrado, setNoEncontrado] = useState(null)
   const [camara, setCamara] = useState(false)
-  const [alta, setAlta] = useState(null)
-  const enfocar = useCallback(() => { if (campo.current && !alta) campo.current.focus({ preventScroll: true }) }, [alta])
-  useEffect(() => {
-    const f = e => { if (!/^(INPUT|BUTTON|SELECT|TEXTAREA|A|LABEL)$/.test(e.target.tagName)) enfocar() }
-    window.addEventListener('click', f); return () => window.removeEventListener('click', f)
-  }, [enfocar])
-  useEffect(() => { enfocar() }, [zonaId, abierto, enfocar])
+  const [hoja, setHoja] = useState(null)        // hoja de captura abierta: { codigo, producto|null, nombre, cantidad, precio, precioAct, existente, metodo }
+  const [guardando, setGuardando] = useState(false)
+  const [ultimoGuardado, setUltimoGuardado] = useState(null)
+  const zonaAbierta = zona?.estado === 'abierta'
+  const enfocar = useCallback(() => { if (campo.current && !hoja && window.matchMedia?.('(min-width: 700px)').matches) campo.current.focus({ preventScroll: true }) }, [hoja])
+  useEffect(() => { enfocar() }, [zonaId, abierto, hoja, enfocar])
 
-  const capturar = async ({ productoId, delta = 1, cantidad = null, metodo = 'escaner', zona: z = zonaId }) => {
-    const r = await rpc('conteo_capturar', { p_conteo: conteoId, p_zona: z, p_producto: productoId, p_delta: delta, p_cantidad: cantidad, p_metodo: metodo })
+  const capturar = async ({ productoId, cantidad, metodo = 'manual', zona: z = zonaId }) => {
+    const r = await rpc('conteo_capturar', { p_conteo: conteoId, p_zona: z, p_producto: productoId, p_delta: 0, p_cantidad: cantidad, p_metodo: metodo })
     if (r.error) { sonido('error'); toast.error(msgError(r.error)); return null }
     refrescar(); return Number(r.data)
   }
+  // Un código recién leído (escáner, cámara o teclado) abre la hoja de captura.
   const leerCodigo = async (texto, metodo = 'escaner') => {
     const c = String(texto ?? '').trim()
-    if (!c) return
-    if (!zonaId || zona?.estado !== 'abierta') { sonido('error'); toast.error('Abre o elige una zona antes de contar.'); return }
+    if (!c || hoja) return
+    if (!zonaId || !zonaAbierta) { sonido('error'); toast.error('Elige una zona abierta con «Cambiar».'); return }
     const r = await rpc('producto_por_codigo', { p_codigo: c })
     if (r.error) { sonido('error'); toast.error(msgError(r.error)); return }
-    if (!r.data) { sonido('error'); vibrar('error'); setUltimo(null); setNoEncontrado(c); return }
-    const n = await capturar({ productoId: r.data.id, delta: 1, metodo })
-    if (n == null) return
-    setNoEncontrado(null); setUltimo({ producto: r.data, cantidad: n }); sonido('ok'); vibrar('ok')
+    sonido('ok'); vibrar('ok')
+    if (!r.data) { setHoja({ codigo: c, producto: null, nombre: '', cantidad: '1', precio: '', precioAct: null, existente: null, metodo }); return }
+    const [p, k] = await Promise.all([
+      leer('prp_productos', { sedeCol: false, filtros: { id: r.data.id }, columnas: 'id,precio_lista', limite: 1 }),
+      leer('prp_conteo_capturas', { sedeCol: false, filtros: { conteo_id: conteoId, zona_id: zonaId, producto_id: r.data.id }, columnas: 'id,cantidad', limite: 1 }),
+    ])
+    const precioAct = p.data?.[0]?.precio_lista ?? null
+    const existente = k.data?.[0] ? num(k.data[0].cantidad) : null
+    setHoja({ codigo: c, producto: r.data, nombre: r.data.nombre, cantidad: String(existente != null ? existente + 1 : 1), precio: precioAct != null ? String(Number(precioAct)) : '', precioAct: precioAct != null ? Number(precioAct) : null, existente, metodo })
   }
-  const enviar = e => { e.preventDefault(); const c = codigo; setCodigo(''); leerCodigo(c, 'escaner'); enfocar() }
-  const ajustar = async (delta) => { const n = await capturar({ productoId: ultimo.producto.id, delta, metodo: 'manual' }); if (n != null) setUltimo(u => ({ ...u, cantidad: n })) }
-  const fijar = async (valor) => { if (valor === '' || Number.isNaN(Number(valor))) return; const n = await capturar({ productoId: ultimo.producto.id, delta: 0, cantidad: Number(valor), metodo: 'manual' }); if (n != null) setUltimo(u => ({ ...u, cantidad: n })) }
+  const enviar = e => { e.preventDefault(); const c = codigo; setCodigo(''); leerCodigo(c, 'escaner') }
+  const cerrarHoja = () => { setHoja(null); setTimeout(enfocar, 80) }
+
+  // Precio de venta: nunca pisa un precio vigente distinto sin confirmar; queda como versión nueva en el histórico de precios.
+  const fijarPrecio = async (productoId, nombre, precio) => {
+    let r = await rpc('conteo_precio_fijar', { p_conteo: conteoId, p_producto: productoId, p_precio: precio, p_confirmar: false })
+    if (r.error) { sonido('error'); toast.error(msgError(r.error)); return false }
+    if (r.data?.requiere_confirmacion) {
+      if (!(await confirmar({ titulo: 'Cambiar el precio de venta', mensaje: `«${nombre}» ya tiene precio vigente de ${moneda(r.data.anterior)}. ¿Cambiarlo a ${moneda(precio)}? El anterior queda en el histórico de Catálogo y precios.`, textoConfirmar: 'Cambiar precio' }))) return false
+      r = await rpc('conteo_precio_fijar', { p_conteo: conteoId, p_producto: productoId, p_precio: precio, p_confirmar: true })
+      if (r.error) { sonido('error'); toast.error(msgError(r.error)); return false }
+    }
+    return true
+  }
+  const guardarHoja = async () => {
+    const h = hoja; const cant = num(h.cantidad)
+    if (h.cantidad === '' || !(cant >= 0)) return toast.error('Escribe cuántas piezas hay.')
+    const precio = h.precio === '' ? null : num(h.precio)
+    if (!h.producto && !h.nombre.trim()) return toast.error('Escribe el nombre del producto.')
+    if (!h.producto && puedePrecio && !(precio > 0)) return toast.error('Escribe el precio de venta.')
+    setGuardando(true)
+    try {
+      const nombre = h.nombre.trim() || h.producto?.nombre; let precioFinal = h.precioAct
+      if (!h.producto) {
+        const r = await rpc('producto_provisional_crear', { p_conteo: conteoId, p_zona: zonaId, p_codigo: h.codigo, p_nombre: h.nombre, p_cantidad: cant, p_foto_path: null, p_precio: puedePrecio && precio > 0 ? precio : null })
+        if (r.error) { sonido('error'); return toast.error(msgError(r.error)) }
+        precioFinal = puedePrecio && precio > 0 ? precio : null
+      } else {
+        if (await capturar({ productoId: h.producto.id, cantidad: cant, metodo: h.metodo }) == null) return
+        if (puedePrecio && precio > 0 && precio !== h.precioAct) { if (await fijarPrecio(h.producto.id, nombre, precio)) precioFinal = precio }
+      }
+      sonido('ok'); vibrar('ok'); refrescar()
+      setUltimoGuardado({ nombre, cantidad: cant, precio: precioFinal })
+      setHoja(null)   // la cámara (si está encendida) vuelve a abrirse sola para el siguiente producto
+    } finally { setGuardando(false) }
+  }
 
   // ── zonas ──
   const abrirZona = async () => {
     const nombre = zonaNueva.trim(); if (!nombre) return toast.error('Escribe el nombre del anaquel o zona.')
     const id = await correr(() => rpc('conteo_zona_abrir', { p_conteo: conteoId, p_nombre: nombre }))
-    if (id && id !== true) { setZonaId(id); setZonaNueva('') }
+    if (id && id !== true) { await zonas.refrescar(); setZonaNueva(''); elegirZona(id) }   // primero se recarga la lista, si no la zona recién creada se descarta
   }
   const cerrarZona = async () => {
     if (await confirmar({ titulo: `Cerrar «${zona.nombre}»`, mensaje: `Se contaron ${zona.productos} productos (${qty(zona.piezas)} piezas). Una zona cerrada ya no recibe conteos.`, textoConfirmar: 'Cerrar zona' }))
-      if (await correr(() => rpc('conteo_zona_cerrar', { p_zona: zona.id }), 'Zona cerrada')) setUltimo(null)
+      if (await correr(() => rpc('conteo_zona_cerrar', { p_zona: zona.id }), 'Zona cerrada')) { setUltimoGuardado(null); setZonaId(null) }
   }
-  const reabrirZona = async (z) => { await correr(() => rpc('conteo_zona_reabrir', { p_zona: z.id }), 'Zona reabierta') }
+  const reabrirZona = async (z) => { if (await correr(() => rpc('conteo_zona_reabrir', { p_zona: z.id }), 'Zona reabierta')) { await zonas.refrescar(); elegirZona(z.id) } }
 
   // ── conteo ──
   const iniciar = async () => {
@@ -106,149 +167,133 @@ export default function ConteoInicial() {
     if (await confirmar({ titulo: 'Cancelar conteo', peligro: true, mensaje: 'No se genera inventario y se levanta el corte de la sucursal.', textoConfirmar: 'Cancelar conteo' }))
       await correr(() => rpc('conteo_inicial_cancelar', { p_conteo: conteoId }), 'Conteo cancelado')
   }
-  const borrarCaptura = async (c) => { if (await confirmar({ titulo: 'Borrar conteo', peligro: true, mensaje: `${c.producto_nombre}: se quitan ${qty(c.cantidad)} piezas de «${c.zona_nombre}».`, textoConfirmar: 'Borrar' })) { await correr(() => rpc('conteo_captura_borrar', { p_captura: c.id })); setUltimo(u => (u?.producto.id === c.producto_id ? null : u)) } }
-  const editarCaptura = async (c, valor) => { if (valor === '' || Number(valor) === num(c.cantidad)) return; await capturar({ productoId: c.producto_id, delta: 0, cantidad: Number(valor), metodo: 'manual', zona: c.zona_id }) }
+  const borrarCaptura = async (c) => { if (await confirmar({ titulo: 'Borrar conteo', peligro: true, mensaje: `${c.producto_nombre}: se quitan ${qty(c.cantidad)} piezas de «${c.zona_nombre}».`, textoConfirmar: 'Borrar' })) await correr(() => rpc('conteo_captura_borrar', { p_captura: c.id })) }
+  const editarCaptura = async (c, valor) => { if (valor === '' || Number(valor) === num(c.cantidad)) return; await capturar({ productoId: c.producto_id, cantidad: Number(valor), zona: c.zona_id }) }
 
   const error = res.error
+  const pendientes = conteo ? conteo.zonas_total - conteo.zonas_cerradas : 0
   if (!sede && !res.cargando) return <div className="pagina"><PageHeader titulo="Conteo inicial" /><div className="card"><EmptyState icon={MapPin} title="Sin sucursal" description="No tienes sucursales asignadas." /></div></div>
 
   return (
-    <div className="pagina">
+    <div className="pagina" style={{ maxWidth: 560, margin: '0 auto', paddingBottom: 90 }}>
       {dialogo}
-      <PageHeader titulo="Conteo inicial de inventario" subtitulo="Cuenta con la cámara o un escáner Bluetooth; cada lectura suma 1 pieza"
-        acciones={sedes.length > 1 && !sedeActivaId ? <select value={sedeId ?? ''} onChange={e => { setSedeId(e.target.value); setZonaId(null); setUltimo(null) }}>{sedes.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}</select> : null} />
+      <PageHeader titulo="Conteo inicial" subtitulo="Escanea, pon el precio y las piezas, y guarda"
+        acciones={sedes.length > 1 && !sedeActivaId ? <select value={sedeId ?? ''} onChange={e => { setSedeId(e.target.value); setZonaId(null) }}>{sedes.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}</select> : null} />
       {error && <div className="card" style={{ color: 'var(--red)', marginBottom: 10 }}>{msgError(error)}</div>}
       {res.cargando && <LoadingSpinner />}
 
       {!res.cargando && !conteo && (
         <div className="card"><EmptyState icon={ScanLine} title={`${sede?.nombre ?? 'La sucursal'} aún no tiene inventario inicial`}
           description="Se cuenta en un corte: un día y una hora sin ventas ni traspasos. Solo se cuenta lo que hay físicamente; lo que no se cuente quedará en 0."
-          action={puedeIniciar ? <button className="btn" disabled={ocupado} onClick={iniciar}>Iniciar conteo inicial</button> : <span style={{ color: 'var(--muted)' }}>Lo inicia Administración o la supervisión.</span>} /></div>
+          action={puedeIniciar ? <button className="btn" style={GRANDE} disabled={ocupado} onClick={iniciar}>Iniciar conteo inicial</button> : <span style={{ color: 'var(--muted)' }}>Lo inicia Administración o la supervisión.</span>} /></div>
       )}
 
       {conteo && (
         <>
-          <div className="card" style={{ marginBottom: 12 }}>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <b>{sede?.nombre}</b> <StatusBadge estado={conteo.estado} label={ESTADO[conteo.estado]} /> <span style={{ color: 'var(--muted)', fontSize: 12.5 }}>{conteo.folio} · corte {fechaCorta(conteo.corte_en ?? conteo.created_at)}</span>
+          <div className="card" style={{ marginBottom: 10, padding: 12 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <b>{sede?.nombre}</b> <StatusBadge estado={conteo.estado} label={ESTADO[conteo.estado]} /> <span style={{ color: 'var(--muted)', fontSize: 12.5 }}>{conteo.folio} · {conteo.productos_contados} productos · {qty(conteo.piezas)} piezas</span>
             </div>
-            {abierto && <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'var(--gold-light, #fdf0d6)', fontSize: 13 }}><Lock size={13} style={{ verticalAlign: -2 }} /> Corte activo: esta sucursal no registra ventas ni traspasos hasta aprobar o cancelar el conteo.</div>}
-            <div className="grid-kpis" style={{ marginTop: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))' }}>
-              <Dato t="Productos contados" v={conteo.productos_contados} /><Dato t="Piezas" v={qty(conteo.piezas)} />
-              <Dato t="Provisionales" v={conteo.provisionales} alerta={conteo.provisionales > 0} /><Dato t="Zonas cerradas" v={`${conteo.zonas_cerradas} de ${conteo.zonas_total}`} />
-              <Dato t="Del catálogo sin contar" v={conteo.sin_contar} sub="quedarán en 0" />
-            </div>
+            {abierto && <div style={{ marginTop: 6, fontSize: 12.5, color: 'var(--muted)' }}><Lock size={12} style={{ verticalAlign: -2 }} /> Corte activo: la sucursal no registra ventas ni traspasos hasta aprobar o cancelar.</div>}
           </div>
 
           {abierto && (
             <>
-              <div className="card" style={{ marginBottom: 12 }}>
-                <h3 style={{ marginBottom: 8 }}>1 · Anaquel o zona</h3>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-                  {zonas.filas.map(z => (
-                    <button key={z.id} className={`btn ${z.id === zonaId ? '' : 'o'} sm`} onClick={() => { setZonaId(z.id); setUltimo(null); setNoEncontrado(null) }}>
-                      {z.estado === 'cerrada' && <Lock size={11} style={{ verticalAlign: -1 }} />} {z.nombre} · {z.productos}
-                    </button>))}
-                  {!zonas.filas.length && <span style={{ color: 'var(--muted)', fontSize: 13 }}>Sin zonas todavía: escribe el nombre del primer anaquel.</span>}
+              {/* zona compacta */}
+              <div className="card" style={{ marginBottom: 10, padding: 12 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <MapPin size={18} /> <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 12, color: 'var(--muted)' }}>Zona o anaquel</div><b data-testid="zona-actual">{zona ? zona.nombre : zonas.cargando ? '…' : 'Sin zona abierta'}</b></div>
+                  <button className="btn o" style={{ minHeight: 44 }} onClick={() => setCambiandoZona(v => !v)}>Cambiar <ChevronDown size={14} style={{ verticalAlign: -2 }} /></button>
                 </div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <input style={{ flex: 1, minWidth: 0 }} placeholder="Nueva zona (ej. Anaquel 1, Vitrina)" value={zonaNueva} onChange={e => setZonaNueva(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') abrirZona() }} />
-                  <button className="btn o" disabled={ocupado} onClick={abrirZona}>Abrir zona</button>
-                </div>
-                {zona?.estado === 'cerrada' && <div style={{ marginTop: 8, fontSize: 13 }}>La zona «{zona.nombre}» está cerrada. {puedeIniciar && <button className="btn o sm" onClick={() => reabrirZona(zona)}>Reabrir</button>}</div>}
+                {cambiandoZona && (
+                  <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
+                    {zonas.filas.map(z => (
+                      <button key={z.id} className={`btn ${z.id === zonaId ? '' : 'o'}`} style={{ minHeight: 48, justifyContent: 'flex-start' }} onClick={() => (z.estado === 'abierta' ? elegirZona(z.id) : reabrirZona(z))}>
+                        {z.estado === 'cerrada' && <Lock size={13} />} {z.nombre} · {z.productos} productos{z.estado === 'cerrada' ? ' · cerrada (reabrir)' : ''}
+                      </button>))}
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input style={{ flex: 1, minWidth: 0, minHeight: 48, fontSize: 16 }} placeholder="Nueva zona (ej. Vitrina)" value={zonaNueva} onChange={e => setZonaNueva(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') abrirZona() }} />
+                      <button className="btn" style={{ minHeight: 48 }} disabled={ocupado} onClick={abrirZona}>Abrir</button>
+                    </div>
+                  </div>)}
               </div>
 
-              <div className="card" style={{ marginBottom: 12 }}>
-                <h3 style={{ marginBottom: 8 }}>2 · Escanear {zona ? `— ${zona.nombre}` : ''}</h3>
-                <form onSubmit={enviar} style={{ display: 'flex', gap: 6 }}>
-                  <input ref={campo} value={codigo} onChange={e => setCodigo(e.target.value)} autoFocus autoComplete="off" autoCapitalize="off" spellCheck={false}
-                    inputMode={tecladoVirtual ? 'text' : 'none'} placeholder={zona?.estado === 'abierta' ? 'Escanea o escribe el código y Enter' : 'Primero elige una zona abierta'}
-                    disabled={!zona || zona.estado !== 'abierta'} style={{ flex: 1, minWidth: 0, fontSize: 18, padding: '12px 10px' }} aria-label="Código de barras" />
-                  <button type="button" className="btn o" title="Teclado en pantalla" onClick={() => { setTecladoVirtual(v => !v); setTimeout(enfocar, 50) }}><Keyboard size={16} /></button>
-                  <button type="button" className={`btn ${camara ? '' : 'o'}`} disabled={!zona || zona.estado !== 'abierta'} onClick={() => setCamara(v => !v)}>{camara ? <CameraOff size={16} /> : <Camera size={16} />}</button>
+              {/* captura */}
+              <div className="card" style={{ marginBottom: 10, padding: 12 }}>
+                <button className={`btn ${camara ? 'red' : ''}`} style={{ width: '100%', minHeight: 64, fontSize: 20, fontWeight: 800 }} disabled={!zonaAbierta} onClick={() => setCamara(v => !v)} data-testid="boton-escanear">
+                  {camara ? <><CameraOff size={22} style={{ verticalAlign: -4 }} /> Apagar cámara</> : <><Camera size={22} style={{ verticalAlign: -4 }} /> Escanear</>}
+                </button>
+                {camara && !hoja && <Camara onCodigo={c => leerCodigo(c, 'camara')} onError={m => { toast.error(m); setCamara(false) }} />}
+                <form onSubmit={enviar} style={{ marginTop: 10 }}>
+                  <input ref={campo} value={codigo} onChange={e => setCodigo(e.target.value)} autoComplete="off" autoCapitalize="off" spellCheck={false} inputMode="text"
+                    placeholder={zonaAbierta ? 'Escáner Bluetooth o escribe el código y Enter' : 'Elige una zona abierta'} disabled={!zonaAbierta} aria-label="Código de barras" style={{ width: '100%', minHeight: 52, fontSize: 17 }} />
                 </form>
-                {camara && <Camara onCodigo={c => leerCodigo(c, 'camara')} onError={m => { toast.error(m); setCamara(false) }} />}
-
-                {noEncontrado && (
-                  <div role="alert" style={{ marginTop: 10, padding: 12, borderRadius: 10, background: '#fde4e4', border: '2px solid #b53030', color: '#5c1717' }}>
-                    <b><AlertTriangle size={16} style={{ verticalAlign: -3 }} /> El código {noEncontrado} no está en el catálogo.</b>
-                    <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <button className="btn" onClick={() => setAlta({ codigo: noEncontrado, nombre: '', cantidad: '1', foto: '' })}>Agregar producto</button>
-                      <button className="btn o" onClick={() => { setNoEncontrado(null); enfocar() }}>Omitir</button>
-                    </div>
-                  </div>)}
-
-                {ultimo && (
-                  <div style={{ marginTop: 10, padding: 12, borderRadius: 10, background: '#e3f3dc', border: '2px solid #3b6d11', color: '#173404' }}>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                      <Foto path={ultimo.producto.imagen_path} />
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.2 }}>{ultimo.producto.nombre}</div>
-                        <div style={{ fontSize: 12.5, opacity: .85 }}>{ultimo.producto.sku}{ultimo.producto.marca ? ` · ${ultimo.producto.marca}` : ''}{ultimo.producto.estado === 'provisional' ? ' · PROVISIONAL' : ''}</div>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'center', marginTop: 10 }}>
-                      <button className="btn o" style={{ width: 64, height: 56 }} onClick={() => ajustar(-1)} aria-label="Restar uno"><Minus size={26} /></button>
-                      <input key={`${ultimo.producto.id}-${ultimo.cantidad}`} type="number" min="0" step="any" defaultValue={ultimo.cantidad} aria-label="Cantidad contada"
-                        onBlur={e => fijar(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur() } }}
-                        style={{ width: 110, height: 56, fontSize: 30, fontWeight: 800, textAlign: 'center' }} />
-                      <button className="btn" style={{ width: 64, height: 56 }} onClick={() => ajustar(1)} aria-label="Sumar uno"><Plus size={26} /></button>
-                    </div>
+                {ultimoGuardado && (
+                  <div role="status" style={{ marginTop: 10, padding: 10, borderRadius: 10, background: '#e3f3dc', border: '2px solid #3b6d11', color: '#173404' }} data-testid="ultimo-guardado">
+                    <CheckCircle2 size={16} style={{ verticalAlign: -3 }} /> <b>{ultimoGuardado.nombre}</b> guardado: {qty(ultimoGuardado.cantidad)} piezas{ultimoGuardado.precio != null ? ` · ${moneda(ultimoGuardado.precio)}` : ' · SIN PRECIO'}
                   </div>)}
               </div>
-
-              {zona?.estado === 'abierta' && <div style={{ marginBottom: 12 }}><button className="btn" style={{ width: '100%', padding: 12 }} disabled={ocupado} onClick={cerrarZona}><Lock size={15} style={{ verticalAlign: -2 }} /> Cerrar zona «{zona.nombre}» · {zona.productos} productos, {qty(zona.piezas)} piezas</button></div>}
             </>
           )}
 
-          <div className="card" style={{ marginBottom: 12 }}>
-            <h3 style={{ marginBottom: 8 }}>Últimos conteos</h3>
-            {!recientes.filas.length && <div style={{ color: 'var(--muted)', fontSize: 13 }}>{recientes.cargando ? 'Cargando…' : 'Todavía no hay conteos.'}</div>}
-            {recientes.filas.map(c => (
-              <div key={c.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 0', borderTop: '1px solid var(--border)' }}>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.producto_nombre}{c.producto_estado === 'provisional' && <span className="bd o" style={{ marginLeft: 6 }}>Provisional</span>}</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>{c.zona_nombre} · {c.actualizado_por_nombre ?? '—'} · {fechaCorta(c.actualizado_en)} · {c.metodo}</div>
-                </div>
-                {abierto && c.zona_estado === 'abierta'
-                  ? <><input key={`${c.id}-${c.cantidad}`} type="number" min="0" step="any" defaultValue={num(c.cantidad)} style={{ width: 80, textAlign: 'right', fontWeight: 700 }} aria-label={`Cantidad de ${c.producto_nombre}`}
-                      onBlur={e => editarCaptura(c, e.target.value)} onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }} />
-                      <button className="btn o sm" onClick={() => borrarCaptura(c)} aria-label="Borrar"><Trash2 size={14} /></button></>
-                  : <b>{qty(c.cantidad)}</b>}
-              </div>))}
-          </div>
+          <button className="btn o" style={{ width: '100%', minHeight: 52, marginBottom: 10 }} onClick={() => setResumen(v => !v)} data-testid="boton-resumen">
+            <ListChecks size={18} style={{ verticalAlign: -4 }} /> {resumen ? 'Ocultar resumen' : `Resumen del conteo · ${conteo.productos_contados} productos`}
+          </button>
 
-          <div className="card" style={{ marginBottom: 12 }}>
-            <h3 style={{ marginBottom: 8 }}>Zonas</h3>
-            <div className="tabla-wrap"><table><thead><tr><th>Zona</th><th>Estado</th><th style={{ textAlign: 'right' }}>Productos</th><th style={{ textAlign: 'right' }}>Piezas</th><th>Abrió</th><th>Cerró</th></tr></thead>
-              <tbody>{zonas.filas.map(z => <tr key={z.id}><td>{z.nombre}</td><td>{z.estado === 'cerrada' ? 'Cerrada' : 'Abierta'}</td><td style={{ textAlign: 'right' }}>{z.productos}</td><td style={{ textAlign: 'right' }}>{qty(z.piezas)}</td><td>{z.abierta_por_nombre ?? '—'}</td><td>{z.cerrada_en ? fechaCorta(z.cerrada_en) : '—'}</td></tr>)}
-                {!zonas.filas.length && <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--muted)', padding: 12 }}>Sin zonas</td></tr>}</tbody></table></div>
-          </div>
+          {resumen && (
+            <div data-testid="resumen">
+              <div className="grid-kpis" style={{ marginBottom: 10, gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                <Dato t="Productos contados" v={conteo.productos_contados} /><Dato t="Piezas" v={qty(conteo.piezas)} />
+                <Dato t="Provisionales" v={conteo.provisionales} alerta={conteo.provisionales > 0} /><Dato t="Zonas cerradas" v={`${conteo.zonas_cerradas} de ${conteo.zonas_total}`} />
+                <Dato t="Del catálogo sin contar" v={conteo.sin_contar} sub="quedarán en 0" />
+              </div>
 
-          {abierto && (
-            <div className="card">
-              <h3 style={{ marginBottom: 6 }}>Cierre y aprobación</h3>
-              <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 10 }}>
-                {conteo.zonas_total === 0 ? 'Abre y cuenta al menos una zona.' : conteo.zonas_cerradas < conteo.zonas_total ? `Faltan ${conteo.zonas_total - conteo.zonas_cerradas} zona(s) por cerrar.` : 'Todas las zonas están cerradas.'}
-                {conteo.provisionales > 0 && ` Hay ${conteo.provisionales} producto(s) provisional(es): después completa su precio, marca y categoría en «Productos provisionales».`}
+              <div className="card" style={{ marginBottom: 10, padding: 12 }}>
+                <h3 style={{ marginBottom: 8 }}>Últimos conteos</h3>
+                {!recientes.filas.length && <div style={{ color: 'var(--muted)', fontSize: 13 }}>{recientes.cargando ? 'Cargando…' : 'Todavía no hay conteos.'}</div>}
+                {recientes.filas.map(c => (
+                  <div key={c.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '10px 0', borderTop: '1px solid var(--border)' }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontWeight: 600 }}>{c.producto_nombre}{c.producto_estado === 'provisional' && <span className="bd o" style={{ marginLeft: 6 }}>Provisional</span>}</div>
+                      <div style={{ fontSize: 12, color: 'var(--muted)' }}>{c.zona_nombre} · {fechaCorta(c.actualizado_en)} · {c.metodo}</div>
+                    </div>
+                    {abierto && c.zona_estado === 'abierta'
+                      ? <><input key={`${c.id}-${c.cantidad}`} type="number" inputMode="decimal" min="0" step="any" defaultValue={num(c.cantidad)} style={{ width: 84, minHeight: 48, fontSize: 18, textAlign: 'right', fontWeight: 700 }} aria-label={`Cantidad de ${c.producto_nombre}`}
+                          onBlur={e => editarCaptura(c, e.target.value)} onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }} />
+                        <button className="btn o" style={{ minHeight: 48, minWidth: 48 }} onClick={() => borrarCaptura(c)} aria-label="Borrar"><Trash2 size={16} /></button></>
+                      : <b>{qty(c.cantidad)}</b>}
+                  </div>))}
               </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {esAdmin ? <button className="btn" disabled={ocupado || conteo.zonas_total === 0 || conteo.zonas_cerradas < conteo.zonas_total} onClick={aprobar}><CheckCircle2 size={15} style={{ verticalAlign: -2 }} /> Aprobar inventario inicial</button>
-                  : <span style={{ color: 'var(--muted)', fontSize: 13 }}>La aprobación es de Administración.</span>}
-                {puedeIniciar && <button className="btn red" disabled={ocupado} onClick={cancelar}>Cancelar conteo</button>}
+
+              <div className="card" style={{ marginBottom: 10, padding: 12 }}>
+                <h3 style={{ marginBottom: 8 }}>Zonas</h3>
+                {!zonas.filas.length && <div style={{ color: 'var(--muted)', fontSize: 13 }}>Sin zonas</div>}
+                {zonas.filas.map(z => (
+                  <div key={z.id} style={{ padding: '10px 0', borderTop: '1px solid var(--border)' }}>
+                    <b>{z.nombre}</b> <span style={{ color: 'var(--muted)', fontSize: 12.5 }}>· {z.estado === 'cerrada' ? 'Cerrada' : 'Abierta'} · {z.productos} productos · {qty(z.piezas)} piezas</span>
+                  </div>))}
+                {abierto && zonaAbierta && <button className="btn" style={{ width: '100%', minHeight: 52, marginTop: 10 }} disabled={ocupado} onClick={cerrarZona}><Lock size={15} style={{ verticalAlign: -2 }} /> Cerrar zona «{zona.nombre}» · {zona.productos} productos, {qty(zona.piezas)} piezas</button>}
               </div>
-            </div>)}
+
+              {abierto && (
+                <div className="card" style={{ padding: 12 }}>
+                  <h3 style={{ marginBottom: 6 }}>Cierre y aprobación</h3>
+                  <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 10 }}>
+                    {conteo.zonas_total === 0 ? 'Abre y cuenta al menos una zona.' : pendientes > 0 ? `Faltan ${pendientes} zona(s) por cerrar.` : 'Todas las zonas están cerradas.'}
+                    {conteo.provisionales > 0 && ` Hay ${conteo.provisionales} producto(s) provisional(es): después completa su categoría en «Productos provisionales».`}
+                  </div>
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    {esAdmin ? <button className="btn" style={{ minHeight: 52 }} disabled={ocupado || conteo.zonas_total === 0 || pendientes > 0} onClick={aprobar}><CheckCircle2 size={15} style={{ verticalAlign: -2 }} /> Aprobar inventario inicial</button>
+                      : <span style={{ color: 'var(--muted)', fontSize: 13 }}>La aprobación es de Administración.</span>}
+                    {puedeIniciar && <button className="btn red" style={{ minHeight: 52 }} disabled={ocupado} onClick={cancelar}>Cancelar conteo</button>}
+                  </div>
+                </div>)}
+            </div>
+          )}
         </>
       )}
 
-      {alta && <ModalAlta alta={alta} setAlta={setAlta} cerrar={() => { setAlta(null); setTimeout(enfocar, 80) }}
-        guardar={async () => {
-          const r = await rpc('producto_provisional_crear', { p_conteo: conteoId, p_zona: zonaId, p_codigo: alta.codigo, p_nombre: alta.nombre, p_cantidad: num(alta.cantidad), p_foto_path: alta.foto || null })
-          if (r.error) { sonido('error'); return toast.error(msgError(r.error)) }
-          toast.success('Producto provisional agregado y contado'); sonido('ok'); vibrar('ok')
-          setUltimo({ producto: { id: r.data.id, nombre: r.data.nombre, sku: r.data.sku, estado: 'provisional' }, cantidad: num(alta.cantidad) })
-          setNoEncontrado(null); setAlta(null); refrescar(); setTimeout(enfocar, 80)
-        }} />}
+      {hoja && <HojaCaptura hoja={hoja} setHoja={setHoja} zona={zona} puedePrecio={puedePrecio} guardando={guardando} guardar={guardarHoja} cerrar={cerrarHoja} />}
     </div>
   )
 }
@@ -264,19 +309,53 @@ function Foto({ path }) {
   return <img src={url} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, flex: 'none' }} />
 }
 
-function ModalAlta({ alta, setAlta, guardar, cerrar }) {
-  const [ocupado, setOcupado] = useState(false)
-  const ok = alta.nombre.trim().length > 0 && alta.cantidad !== '' && num(alta.cantidad) >= 0
+/** Hoja de captura a pantalla completa: producto, precio de venta y existencia con − / + y teclado numérico; «Guardar» en un solo paso. */
+function HojaCaptura({ hoja, setHoja, zona, puedePrecio, guardando, guardar, cerrar }) {
+  const nuevo = !hoja.producto
+  const cant = hoja.cantidad === '' ? 0 : num(hoja.cantidad)
+  const mover = d => setHoja(h => ({ ...h, cantidad: String(Math.max(0, (h.cantidad === '' ? 0 : num(h.cantidad)) + d)) }))
+  const grande = { width: '100%', minHeight: 64, fontSize: 30, fontWeight: 800, textAlign: 'center' }
   return (
-    <Modal open onClose={cerrar} title="Agregar producto (provisional)" size="sm" cerrarAlClicFuera={false}
-      footer={<><button className="btn o" onClick={cerrar}>Cancelar</button><button className="btn" disabled={!ok || ocupado} onClick={async () => { setOcupado(true); try { await guardar() } finally { setOcupado(false) } }}>Agregar y contar</button></>}>
-      <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 0 }}>Queda como provisional: después Administración completa precio, marca y categoría y revisa que no sea un duplicado.</p>
-      <FormField label="Código leído" value={alta.codigo} readOnly />
-      <FormField label="Nombre del producto" required value={alta.nombre} autoFocus onChange={e => setAlta({ ...alta, nombre: e.target.value })} placeholder="Ej. Tobillera neopreno chica" />
-      <FormField label="Cantidad contada" required type="number" min="0" step="any" value={alta.cantidad} onChange={e => setAlta({ ...alta, cantidad: e.target.value })} />
-      <div style={{ marginTop: 6 }}><div style={{ fontSize: 12.5, marginBottom: 4 }}>Foto de la etiqueta</div>
-        <SubirComprobante carpeta="conteo" capture="environment" etiqueta="Tomar foto" valor={alta.foto} onSubida={({ ruta }) => setAlta(a => ({ ...a, foto: ruta }))} /></div>
-    </Modal>
+    <div role="dialog" aria-label="Captura del producto" data-testid="hoja-captura"
+      style={{ position: 'fixed', inset: 0, zIndex: 900, background: 'var(--bg, #fff)', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderBottom: '1px solid var(--border)', background: 'var(--card, #fff)' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 12, color: 'var(--muted)' }}>{zona?.nombre ?? ''} · código {hoja.codigo}</div>
+          <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.2 }}>{nuevo ? 'Producto nuevo' : hoja.producto.nombre}</div>
+          {!nuevo && <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>{hoja.producto.sku}{hoja.producto.marca ? ` · ${hoja.producto.marca}` : ''}{hoja.producto.estado === 'provisional' ? ' · PROVISIONAL' : ''}</div>}
+        </div>
+        {!nuevo && <Foto path={hoja.producto.imagen_path} />}
+        <button className="btn o" style={{ minHeight: 48, minWidth: 48 }} onClick={cerrar} aria-label="Cancelar captura"><X size={20} /></button>
+      </div>
+
+      <div style={{ flex: 1, overflow: 'auto', padding: 14, display: 'grid', gap: 16, alignContent: 'start' }}>
+        {nuevo && (
+          <label style={{ display: 'grid', gap: 6, fontWeight: 600 }}>Nombre del producto
+            <input value={hoja.nombre} onChange={e => setHoja(h => ({ ...h, nombre: e.target.value }))} placeholder="Ej. Tobillera neopreno chica" autoComplete="off" style={{ minHeight: 56, fontSize: 20 }} />
+            <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--muted)' }}>Código no registrado: queda como provisional hasta que Administración le asigne categoría.</span>
+          </label>)}
+
+        {puedePrecio
+          ? <label style={{ display: 'grid', gap: 6, fontWeight: 600 }}>Precio de venta (con IVA){nuevo ? ' *' : ''}
+              <input type="number" inputMode="decimal" min="0" step="0.01" value={hoja.precio} onChange={e => setHoja(h => ({ ...h, precio: e.target.value }))} placeholder="$ 0.00" aria-label="Precio de venta" style={grande} />
+              {!nuevo && <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--muted)' }}>{hoja.precioAct != null ? `Precio vigente ${moneda(hoja.precioAct)}; si lo cambias se pide confirmación y queda en el histórico.` : 'Este producto no tiene precio de venta todavía.'}</span>}
+            </label>
+          : <div style={{ fontSize: 13.5 }}>Precio de venta: <b>{hoja.precioAct != null ? moneda(hoja.precioAct) : 'sin precio'}</b> <span style={{ color: 'var(--muted)' }}>(lo pone Administración)</span></div>}
+
+        <div style={{ display: 'grid', gap: 6, fontWeight: 600 }}>Existencia (piezas)
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <button type="button" className="btn o" style={{ width: 72, minHeight: 64 }} onClick={() => mover(-1)} aria-label="Restar una pieza"><Minus size={28} /></button>
+            <input type="number" inputMode="decimal" min="0" step="any" value={hoja.cantidad} onChange={e => setHoja(h => ({ ...h, cantidad: e.target.value }))} aria-label="Existencia en piezas" style={{ ...grande, flex: 1, minWidth: 0 }} />
+            <button type="button" className="btn" style={{ width: 72, minHeight: 64 }} onClick={() => mover(1)} aria-label="Sumar una pieza"><Plus size={28} /></button>
+          </div>
+          {hoja.existente != null && <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--muted)' }}>Ya tenías {qty(hoja.existente)} en esta zona; la cantidad de arriba la reemplaza.</span>}
+        </div>
+      </div>
+
+      <div style={{ padding: '12px 14px calc(14px + env(safe-area-inset-bottom, 0px))', borderTop: '1px solid var(--border)', background: 'var(--card, #fff)' }}>
+        <button className="btn" style={{ width: '100%', minHeight: 60, fontSize: 20, fontWeight: 800 }} disabled={guardando} onClick={guardar}>{guardando ? 'Guardando…' : `Guardar · ${qty(cant)} piezas`}</button>
+      </div>
+    </div>
   )
 }
 
