@@ -136,7 +136,13 @@ export default function ConteoInicial() {
         precioFinal = puedePrecio && precio > 0 ? precio : null
       } else {
         if (await capturar({ productoId: h.producto.id, cantidad: cant, metodo: h.metodo }) == null) return
-        if (puedePrecio && precio > 0 && precio !== h.precioAct) { if (await fijarPrecio(h.producto.id, nombre, precio)) precioFinal = precio }
+        if (puedePrecio && precio > 0 && precio !== h.precioAct) {
+          if (await fijarPrecio(h.producto.id, nombre, precio)) precioFinal = precio
+          else {   // las piezas ya quedaron guardadas, pero el precio no: la hoja sigue abierta para que se vea y se pueda reintentar o cancelar
+            toast.error(`Las ${qty(cant)} piezas se guardaron, pero el precio NO se cambió. Revisa el aviso rojo o toca Cancelar para dejar el precio como estaba.`, { duration: 7000 })
+            setHoja(x => (x ? { ...x, existente: cant, totalConteo: (x.totalConteo ?? 0) - (x.existente ?? 0) + cant } : x)); refrescar(); return
+          }
+        }
       }
       sonido('ok'); vibrar('ok'); refrescar()
       setUltimoGuardado({ nombre, cantidad: cant, precio: precioFinal })
@@ -369,7 +375,10 @@ function HojaCaptura({ hoja, setHoja, zona, puedePrecio, guardando, guardar, cer
       </div>
 
       <div style={{ padding: '12px 14px calc(14px + env(safe-area-inset-bottom, 0px))', borderTop: '1px solid var(--border)', background: 'var(--card, #fff)' }}>
-        <button className="btn" style={{ width: '100%', minHeight: 60, fontSize: 20, fontWeight: 800 }} disabled={guardando} onClick={guardar}>{guardando ? 'Guardando…' : `Guardar · ${qty(cant)} piezas`}</button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="btn o" style={{ flex: '1 1 0', minHeight: 60, fontSize: 18, fontWeight: 700 }} disabled={guardando} onClick={cerrar} aria-label="Cancelar sin guardar">Cancelar</button>
+          <button className="btn" style={{ flex: '2 1 0', minHeight: 60, fontSize: 20, fontWeight: 800 }} disabled={guardando} onClick={guardar}>{guardando ? 'Guardando…' : `Guardar · ${qty(cant)} piezas`}</button>
+        </div>
       </div>
     </div>
   )
