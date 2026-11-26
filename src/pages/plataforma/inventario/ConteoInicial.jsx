@@ -99,11 +99,13 @@ export default function ConteoInicial() {
     if (!r.data) { setHoja({ codigo: c, producto: null, nombre: '', cantidad: '1', precio: '', precioAct: null, existente: null, metodo }); return }
     const [p, k] = await Promise.all([
       leer('prp_productos', { sedeCol: false, filtros: { id: r.data.id }, columnas: 'id,precio_lista', limite: 1 }),
-      leer('prp_conteo_capturas', { sedeCol: false, filtros: { conteo_id: conteoId, zona_id: zonaId, producto_id: r.data.id }, columnas: 'id,cantidad', limite: 1 }),
+      leer('prp_conteo_capturas', { sedeCol: false, filtros: { conteo_id: conteoId, producto_id: r.data.id }, columnas: 'id,cantidad,zona_id', limite: 50 }),
     ])
     const precioAct = p.data?.[0]?.precio_lista ?? null
-    const existente = k.data?.[0] ? num(k.data[0].cantidad) : null
-    setHoja({ codigo: c, producto: r.data, nombre: r.data.nombre, cantidad: String(existente != null ? existente + 1 : 1), precio: precioAct != null ? String(Number(precioAct)) : '', precioAct: precioAct != null ? Number(precioAct) : null, existente, metodo })
+    const enZona = (k.data ?? []).find(x => x.zona_id === zonaId)
+    const existente = enZona ? num(enZona.cantidad) : null
+    const totalConteo = (k.data ?? []).reduce((a, x) => a + num(x.cantidad), 0)
+    setHoja({ codigo: c, producto: r.data, nombre: r.data.nombre, cantidad: String(existente != null ? existente : 1), precio: precioAct != null ? String(Number(precioAct)) : '', precioAct: precioAct != null ? Number(precioAct) : null, existente, totalConteo, metodo })
   }
   const enviar = e => { e.preventDefault(); const c = codigo; setCodigo(''); leerCodigo(c, 'escaner') }
   const cerrarHoja = () => { setHoja(null); setTimeout(enfocar, 80) }
@@ -335,20 +337,34 @@ function HojaCaptura({ hoja, setHoja, zona, puedePrecio, guardando, guardar, cer
             <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--muted)' }}>Código no registrado: queda como provisional hasta que Administración le asigne categoría.</span>
           </label>)}
 
-        {puedePrecio
-          ? <label style={{ display: 'grid', gap: 6, fontWeight: 600 }}>Precio de venta (con IVA){nuevo ? ' *' : ''}
-              <input type="number" inputMode="decimal" min="0" step="0.01" value={hoja.precio} onChange={e => setHoja(h => ({ ...h, precio: e.target.value }))} placeholder="$ 0.00" aria-label="Precio de venta" style={grande} />
-              {!nuevo && <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--muted)' }}>{hoja.precioAct != null ? `Precio vigente ${moneda(hoja.precioAct)}; si lo cambias se pide confirmación y queda en el histórico.` : 'Este producto no tiene precio de venta todavía.'}</span>}
-            </label>
-          : <div style={{ fontSize: 13.5 }}>Precio de venta: <b>{hoja.precioAct != null ? moneda(hoja.precioAct) : 'sin precio'}</b> <span style={{ color: 'var(--muted)' }}>(lo pone Administración)</span></div>}
+        {!nuevo && (
+          <div data-testid="registrado" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="card" style={{ padding: 12 }}>
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>Existencia registrada</div>
+              <div style={{ fontSize: 28, fontWeight: 800 }}>{qty(hoja.totalConteo ?? 0)} <span style={{ fontSize: 14, fontWeight: 600 }}>pzas</span></div>
+              <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>en este conteo{hoja.existente != null ? ` · ${qty(hoja.existente)} en esta zona` : ''}</div>
+            </div>
+            <div className="card" style={{ padding: 12 }}>
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>Precio de venta registrado</div>
+              <div style={{ fontSize: 28, fontWeight: 800 }}>{hoja.precioAct != null ? moneda(hoja.precioAct) : 'sin precio'}</div>
+              <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>precio vigente con IVA</div>
+            </div>
+          </div>)}
 
-        <div style={{ display: 'grid', gap: 6, fontWeight: 600 }}>Existencia (piezas)
+        {puedePrecio
+          ? <label style={{ display: 'grid', gap: 6, fontWeight: 600 }}>{nuevo ? 'Precio de venta (con IVA) *' : 'Nuevo precio de venta (con IVA)'}
+              <input type="number" inputMode="decimal" min="0" step="0.01" value={hoja.precio} onChange={e => setHoja(h => ({ ...h, precio: e.target.value }))} placeholder="$ 0.00" aria-label="Precio de venta" style={grande} />
+              {!nuevo && <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--muted)' }}>{hoja.precioAct != null ? 'Déjalo igual para conservar el precio; si lo cambias se pide confirmación y queda en el histórico.' : 'Este producto no tiene precio de venta todavía: captúralo aquí.'}</span>}
+            </label>
+          : <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>El precio de venta solo lo cambia Administración.</div>}
+
+        <div style={{ display: 'grid', gap: 6, fontWeight: 600 }}>{nuevo ? 'Existencia (piezas)' : 'Nueva existencia (piezas)'}
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <button type="button" className="btn o" style={{ width: 72, minHeight: 64 }} onClick={() => mover(-1)} aria-label="Restar una pieza"><Minus size={28} /></button>
             <input type="number" inputMode="decimal" min="0" step="any" value={hoja.cantidad} onChange={e => setHoja(h => ({ ...h, cantidad: e.target.value }))} aria-label="Existencia en piezas" style={{ ...grande, flex: 1, minWidth: 0 }} />
             <button type="button" className="btn" style={{ width: 72, minHeight: 64 }} onClick={() => mover(1)} aria-label="Sumar una pieza"><Plus size={28} /></button>
           </div>
-          {hoja.existente != null && <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--muted)' }}>Ya tenías {qty(hoja.existente)} en esta zona; la cantidad de arriba la reemplaza.</span>}
+          {hoja.existente != null && <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--muted)' }}>Lo que pongas aquí reemplaza las {qty(hoja.existente)} que ya tenías registradas en esta zona.</span>}
         </div>
       </div>
 
