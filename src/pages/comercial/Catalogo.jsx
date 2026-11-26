@@ -7,6 +7,7 @@ import toast from 'react-hot-toast'
 import { Plus } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { usePermiso } from '../../lib/permisos'
+import { colCosto, columnasVisibles } from '../../lib/plataforma/visibilidadCostos'
 import { actualizar, insertar, leer } from '../../lib/api'
 import { fecha, hoyISO, moneda } from '../../lib/formato'
 import PageHeader from '../../components/ui/PageHeader'
@@ -28,6 +29,7 @@ export default function Catalogo() {
   const { sedes } = useApp()
   const qc = useQueryClient()
   const puedeEditar = usePermiso('catalogo.editar')
+  const verCostos = usePermiso('inventario.ver_costos')   // recepción ve el precio de venta; costo y margen solo dueños y supervisor
   const [tab, setTab] = useState('servicios')
   const [filtro, setFiltro] = useState({ cat: '', tipo: '', estado: 'activo', sede: '' })
   const [edit, setEdit] = useState(null)       // { kind:'servicio'|'producto', fila }
@@ -66,17 +68,17 @@ export default function Catalogo() {
       <div style={{ display: 'flex', gap: 4 }}>{puedeEditar && <button className="btn o" onClick={() => setEdit({ kind: 'servicio', fila: s })}>Editar</button>}<button className="btn o" onClick={() => setHist({ tipo: 'servicio', id: s.id, nombre: s.nombre })}>Historial</button>
         {puedeEditar && <button className="btn o" onClick={() => alternar('servicio', s)}>{s.estado === 'pausado' ? 'Reactivar' : 'Pausar'}</button>}</div>) },
   ]
-  const colProd = [
+  const colProd = columnasVisibles([
     { key: 'sku', label: 'SKU' }, { key: 'nombre', label: 'Producto' }, { key: 'categoria', label: 'Categoría', filtro: true }, { key: 'marca', label: 'Marca' },
-    { key: 'precio_lista', label: 'Precio venta', align: 'right', render: p => moneda(p.precio_lista), valor: p => Number(p.precio_lista ?? 0) }, { key: 'costo_promedio', label: 'Costo prom.', align: 'right', render: p => moneda(p.costo_promedio), valor: p => Number(p.costo_promedio) },
-    { key: 'margen_pct', label: 'Margen', align: 'right', render: p => (p.margen_pct == null ? '—' : `${Math.round(p.margen_pct)} %`), valor: p => Number(p.margen_pct ?? 0) },
+    { key: 'precio_lista', label: 'Precio venta', align: 'right', render: p => moneda(p.precio_lista), valor: p => Number(p.precio_lista ?? 0) }, colCosto({ key: 'costo_promedio', label: 'Costo prom.', align: 'right', render: p => moneda(p.costo_promedio), valor: p => Number(p.costo_promedio) }),
+    colCosto({ key: 'margen_pct', label: 'Margen', align: 'right', render: p => (p.margen_pct == null ? '—' : `${Math.round(p.margen_pct)} %`), valor: p => Number(p.margen_pct ?? 0) }),
     { key: 'iva_tipo', label: 'IVA', render: p => IVA.find(i => i[0] === p.iva_tipo)?.[1] },
     { key: 'existencia', label: 'Existencia', align: 'right', render: p => (existencia[p.id] ?? (inv.error ? '—' : 0)), valor: p => existencia[p.id] ?? 0 },
     { key: 'precio_por_sede', label: 'Precio por sede', render: p => (p.precio_por_sede ? 'Sí' : 'No') },
     { key: 'estado', label: 'Estatus', render: p => <StatusBadge estado={p.estado} />, filtro: true },
     { key: 'acc', label: '', sortable: false, exportar: false, render: p => (
       <div style={{ display: 'flex', gap: 4 }}>{puedeEditar && <button className="btn o" onClick={() => setEdit({ kind: 'producto', fila: p })}>Editar</button>}<button className="btn o" onClick={() => setHist({ tipo: 'producto', id: p.id, nombre: p.nombre })}>Historial</button></div>) },
-  ]
+  ], verCostos)
 
   return (
     <div className="pagina">

@@ -17,6 +17,7 @@ import StatusBadge from '../../../components/ui/StatusBadge'
 import ImprimirHoja from '../../../components/ui/ImprimirHoja'
 import LoadingSpinner from '../../../components/ui/LoadingSpinner'
 import { useConfirmacion } from '../../../components/ui/ConfirmDialog'
+import { colCosto, columnasVisibles } from '../../../lib/plataforma/visibilidadCostos'
 import { useLectura, useProductos, useAccion, msgError, SelectorProducto, num, qty } from './comun'
 
 const ESTADOS = { borrador: 'Borrador', enviado: 'Enviado (en tránsito)', recibido_completo: 'Recibido completo', recibido_con_diferencias: 'Recibido con diferencias', cancelado: 'Cancelado' }
@@ -24,6 +25,7 @@ const ESTADOS = { borrador: 'Borrador', enviado: 'Enviado (en tránsito)', recib
 export default function Traspasos() {
   const { sedes } = useApp()
   const puedeOperar = usePermiso('inventario.operar')
+  const verCostos = usePermiso('inventario.ver_costos')
   const [editor, setEditor] = useState(null)   // { id|null }
   const [detalle, setDetalle] = useState(null) // id
   const [mes, setMes] = useState('')
@@ -32,23 +34,24 @@ export default function Traspasos() {
   const k = useMemo(() => ({
     borr: t.filas.filter(f => f.estado === 'borrador').length, trans: t.filas.filter(f => f.estado === 'enviado').length,
     dif: t.filas.filter(f => f.estado === 'recibido_con_diferencias').length, valorTrans: t.filas.filter(f => f.estado === 'enviado').reduce((s, f) => s + num(f.valor_total), 0),
+    unidadesTrans: t.filas.filter(f => f.estado === 'enviado').reduce((s, f) => s + num(f.unidades), 0),
   }), [t.filas])
-  const cols = [
+  const cols = columnasVisibles([
     { key: 'folio', label: 'Folio', render: f => <b>{f.folio}</b> },
     { key: 'created_at', label: 'Fecha', render: f => fecha((f.fecha_envio ?? f.created_at ?? '').slice(0, 10)), valor: f => f.created_at },
     { key: 'sede_origen', label: 'Origen', filtro: true }, { key: 'sede_destino', label: 'Destino', filtro: true },
     { key: 'partidas', label: 'Partidas', align: 'right' }, { key: 'unidades', label: 'Unidades', align: 'right', render: f => qty(f.unidades) },
-    { key: 'valor_total', label: 'Valor (costo prom.)', align: 'right', render: f => moneda(f.valor_total) },
+    colCosto({ key: 'valor_total', label: 'Valor (costo prom.)', align: 'right', render: f => moneda(f.valor_total) }),
     { key: 'estadoTxt', label: 'Estado', filtro: true, render: f => <><StatusBadge estado={f.estado} label={ESTADOS[f.estado]} variante={f.estado === 'enviado' ? 'b' : undefined} />{num(f.partidas_con_diferencia) > 0 && <span className="bd r" style={{ marginLeft: 4 }}>{f.partidas_con_diferencia} dif.</span>}</> },
     { key: 'recibido_en', label: 'Recibido', render: f => (f.recibido_en ? fechaHora(f.recibido_en) : '—') },
-  ]
+  ], verCostos)
   return (
     <div className="pagina">
       <PageHeader titulo="Traspasos entre sucursales" subtitulo="Al enviar se descuenta del origen a costo promedio; al recibir se suma al destino y las diferencias generan una reclamación"
         acciones={puedeOperar && <button className="btn" onClick={() => setEditor({ id: null })}><Plus size={14} /> Nuevo traspaso</button>} />
       <div className="grid-kpis" style={{ marginBottom: 14 }}>
         <KPICard title="Borradores" value={k.borr} icon={FileEdit} loading={t.cargando} />
-        <KPICard title="En tránsito" value={k.trans} subtitle={moneda(k.valorTrans)} icon={Truck} color="var(--gold)" loading={t.cargando} />
+        <KPICard title="En tránsito" value={k.trans} subtitle={verCostos ? moneda(k.valorTrans) : `${qty(k.unidadesTrans)} unidades`} icon={Truck} color="var(--gold)" loading={t.cargando} />
         <KPICard title="Con diferencias" value={k.dif} icon={AlertTriangle} color="var(--red)" subtitle="Ver reclamaciones en Mermas y conteos" loading={t.cargando} />
         <KPICard title="Traspasos totales" value={t.filas.length} icon={Boxes} color="var(--green)" loading={t.cargando} />
       </div>
@@ -62,6 +65,7 @@ export default function Traspasos() {
 }
 
 function Editor({ id, sedes, onClose, onVer }) {
+  const verCostos = usePermiso('inventario.ver_costos')
   const { sedeActivaId } = useApp()
   const { productos, mapa } = useProductos()
   const { correr, ocupado } = useAccion()
@@ -156,13 +160,14 @@ function Editor({ id, sedes, onClose, onVer }) {
               <td style={{ textAlign: 'right' }}><input type="number" min="0" step="any" value={l.cantidad} style={{ width: 90 }} onChange={e => setF(x => ({ ...x, lineas: x.lineas.map((y, j) => (j === i ? { ...y, cantidad: e.target.value } : y)) }))} /></td>
               <td><button className="btn o sm" onClick={() => setF(x => ({ ...x, lineas: x.lineas.filter((_, j) => j !== i) }))}>✕</button></td></tr>) })}
         </tbody></table></div>
-      <div style={{ marginTop: 8, fontSize: 13 }}><b>Partidas {f.lineas.length}</b> · Unidades {qty(f.lineas.reduce((s, l) => s + num(l.cantidad), 0))} · Costo del traspaso (a costo promedio) <b>{moneda(costo)}</b></div>
+      <div style={{ marginTop: 8, fontSize: 13 }}><b>Partidas {f.lineas.length}</b> · Unidades {qty(f.lineas.reduce((s, l) => s + num(l.cantidad), 0))}{verCostos && <> · Costo del traspaso (a costo promedio) <b>{moneda(costo)}</b></>}</div>
       {errores.length > 0 && <ul style={{ color: 'var(--red)', fontSize: 12, margin: '6px 0 0 16px' }}>{errores.map((e, i) => <li key={i}>{e}</li>)}</ul>}
     </Modal>
   )
 }
 
 function Detalle({ id, sedes, onClose, onEditar }) {
+  const verCostos = usePermiso('inventario.ver_costos')
   const { mapa } = useProductos()
   const { correr, ocupado } = useAccion()
   const { confirmar, dialogo } = useConfirmacion()
@@ -184,7 +189,7 @@ function Detalle({ id, sedes, onClose, onEditar }) {
           <p>{tr.sede_origen} → {tr.sede_destino} · Estado: {ESTADOS[tr.estado]} · Fecha estimada: {tr.fecha_estimada ? fecha(tr.fecha_estimada) : '—'} · Transporte: {tr.transporte ?? '—'}</p>
           <table><thead><tr><th>Producto</th><th>Enviada</th><th>Recibida</th><th>Diferencia</th></tr></thead>
             <tbody>{l.filas.map(x => <tr key={x.id}><td>{mapa[x.producto_id]?.nombre}</td><td>{qty(x.cantidad_enviada)}</td><td>{x.cantidad_recibida == null ? '' : qty(x.cantidad_recibida)}</td><td>{num(x.diferencia) ? qty(x.diferencia) : ''}</td></tr>)}</tbody></table>
-          <p>Costo (a costo promedio): {moneda(tr.valor_total)}</p><p style={{ marginTop: 40 }}>Entregó: ____________________ &nbsp;&nbsp; Recibió: ____________________</p>
+          {verCostos && <p>Costo (a costo promedio): {moneda(tr.valor_total)}</p>}<p style={{ marginTop: 40 }}>Entregó: ____________________ &nbsp;&nbsp; Recibió: ____________________</p>
         </ImprimirHoja>
         {tr.estado === 'borrador' && puedeOperar && <><button className="btn o" onClick={onEditar}>Editar</button><button className="btn" disabled={ocupado} onClick={enviar}>Enviar</button></>}
         {tr.estado === 'enviado' && puedeOperar && <button className="btn" disabled={ocupado} onClick={() => setRecibiendo(true)}>Recibir en destino</button>}
@@ -200,13 +205,13 @@ function Detalle({ id, sedes, onClose, onEditar }) {
       {tr.comentarios && <div style={{ fontSize: 13, marginBottom: 8 }}>{tr.comentarios}</div>}
       {tr.cancelado_motivo && <div className="bd r" style={{ marginBottom: 8 }}>Cancelado: {tr.cancelado_motivo}</div>}
       <DataTable sinPaginacion buscador={false} cargando={l.cargando} error={msgError(l.error)} filas={l.filas}
-        columnas={[
+        columnas={columnasVisibles([
           { key: 'p', label: 'Producto', valor: x => mapa[x.producto_id]?.nombre ?? '—' }, { key: 'sku', label: 'SKU', valor: x => mapa[x.producto_id]?.sku ?? '' },
           { key: 'cantidad_enviada', label: 'Enviada', align: 'right', render: x => qty(x.cantidad_enviada) },
           { key: 'cantidad_recibida', label: 'Recibida', align: 'right', render: x => (x.cantidad_recibida == null ? '—' : qty(x.cantidad_recibida)) },
           { key: 'diferencia', label: 'Diferencia', align: 'right', render: x => (num(x.diferencia) ? <b style={{ color: 'var(--red)' }}>−{qty(x.diferencia)}</b> : '—') },
-          { key: 'motivo_diferencia', label: 'Motivo' }, { key: 'valor', label: 'Valor', align: 'right', render: x => moneda(x.valor) },
-        ]} vacio={{ title: 'Sin partidas' }} />
+          { key: 'motivo_diferencia', label: 'Motivo' }, colCosto({ key: 'valor', label: 'Valor', align: 'right', render: x => moneda(x.valor) }),
+        ], verCostos)} vacio={{ title: 'Sin partidas' }} />
       {tr.estado === 'recibido_con_diferencias' && <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>Las diferencias quedaron como reclamación pendiente en Mermas y conteos (no vuelven a descontar inventario, P-080).</div>}
       {recibiendo && <Recepcion tr={tr} lineas={l.filas} mapa={mapa} onClose={() => { setRecibiendo(false) }} correr={correr} ocupado={ocupado} />}
     </Modal>

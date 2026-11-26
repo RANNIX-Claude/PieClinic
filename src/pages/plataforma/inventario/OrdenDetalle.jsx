@@ -15,6 +15,7 @@ import StatusBadge from '../../../components/ui/StatusBadge'
 import ImprimirHoja from '../../../components/ui/ImprimirHoja'
 import LoadingSpinner from '../../../components/ui/LoadingSpinner'
 import { useConfirmacion } from '../../../components/ui/ConfirmDialog'
+import { colCosto, columnasVisibles } from '../../../lib/plataforma/visibilidadCostos'
 import { useLectura, useProductos, useAccion, msgError, num, qty, hoy } from './comun'
 import { umbralCompra } from './OrdenEditor'
 
@@ -29,10 +30,11 @@ export default function OrdenDetalle({ id, onClose, onEditar }) {
   const { confirmar, dialogo } = useConfirmacion()
   const puedeEditar = usePermiso('compras.editar')
   const puedeRecibir = usePermiso('inventario.operar')
+  const verCostos = usePermiso('inventario.ver_costos')   // recepción recibe mercancía pero NO ve costos, totales ni cuentas por pagar
   const oc = useLectura('oc-det', 'prp_ordenes_compra', { sedeCol: false, filtros: { id } }).filas[0]
   const lineas = useLectura('oc-det-l', 'prp_oc_lineas', { sedeCol: false, filtros: { oc_id: id } })
   const recs = useLectura('oc-det-r', 'prp_recepciones', { sedeCol: false, filtros: { oc_id: id } })
-  const cxp = useLectura('oc-det-cxp', 'prp_cuentas_pagar', { sedeCol: false, filtros: { oc_id: id } })
+  const cxp = useLectura('oc-det-cxp', 'prp_cuentas_pagar', { sedeCol: false, filtros: { oc_id: id } }, verCostos)
   const [recibiendo, setRecibiendo] = useState(false)
   const [devolviendo, setDevolviendo] = useState(false)
   if (!oc) return <Modal open onClose={onClose} title="Orden de compra"><LoadingSpinner /></Modal>
@@ -49,9 +51,11 @@ export default function OrdenDetalle({ id, onClose, onEditar }) {
       footer={<>
         <ImprimirHoja titulo={`Orden de compra ${oc.folio}`} entidad="ordenes_compra" entidadId={id} etiqueta="Imprimir / PDF" className="btn o" sedeId={oc.sede_id}>
           <p>Proveedor: {oc.proveedor_nombre} · Sucursal que recibe: {oc.sede_nombre} · Fecha: {fecha(oc.fecha)} · Entrega esperada: {oc.entrega_esperada ? fecha(oc.entrega_esperada) : '—'}</p>
-          <table><thead><tr><th>Producto</th><th>Cant.</th><th>Costo</th><th>Desc.</th><th>IVA</th><th>Importe</th></tr></thead>
-            <tbody>{lineas.filas.map(l => <tr key={l.id}><td>{mapa[l.producto_id]?.nombre}</td><td>{qty(l.cantidad)}</td><td>{moneda(l.costo_unitario)}</td><td>{l.descuento_pct} %</td><td>{l.iva_pct} %</td><td>{moneda(l.importe)}</td></tr>)}</tbody></table>
-          <p>Subtotal {moneda(oc.subtotal)} · Descuento {moneda(oc.descuento)} · IVA {moneda(oc.iva)} · <b>Total {moneda(oc.total)}</b></p>{oc.notas && <p>Notas: {oc.notas}</p>}
+          {verCostos ? <>
+            <table><thead><tr><th>Producto</th><th>Cant.</th><th>Costo</th><th>Desc.</th><th>IVA</th><th>Importe</th></tr></thead>
+              <tbody>{lineas.filas.map(l => <tr key={l.id}><td>{mapa[l.producto_id]?.nombre}</td><td>{qty(l.cantidad)}</td><td>{moneda(l.costo_unitario)}</td><td>{l.descuento_pct} %</td><td>{l.iva_pct} %</td><td>{moneda(l.importe)}</td></tr>)}</tbody></table>
+            <p>Subtotal {moneda(oc.subtotal)} · Descuento {moneda(oc.descuento)} · IVA {moneda(oc.iva)} · <b>Total {moneda(oc.total)}</b></p></> : <table><thead><tr><th>Producto</th><th>Pedida</th><th>Recibida</th><th>Pendiente</th></tr></thead>
+            <tbody>{lineas.filas.map(l => <tr key={l.id}><td>{mapa[l.producto_id]?.nombre}</td><td>{qty(l.cantidad)}</td><td>{qty(l.cantidad_recibida)}</td><td>{qty(l.pendiente)}</td></tr>)}</tbody></table>}{oc.notas && <p>Notas: {oc.notas}</p>}
         </ImprimirHoja>
         {oc.estado === 'borrador' && puedeEditar && <button className="btn o" onClick={onEditar}>Editar</button>}
         {oc.pendiente_autorizacion && puedeEditar && <button className="btn" disabled={ocupado} onClick={autorizar}>Autorizar</button>}
@@ -62,42 +66,42 @@ export default function OrdenDetalle({ id, onClose, onEditar }) {
       </>}>
       {dialogo}
       <div className="grid2" style={{ marginBottom: 10 }}>
-        <div><small>Proveedor</small><div><b style={{ cursor: 'pointer' }} onClick={() => nav(`/proveedores/${oc.proveedor_id}`)}>{oc.proveedor_nombre}</b></div></div>
+        <div><small>Proveedor</small><div><b style={{ cursor: verCostos ? 'pointer' : undefined }} onClick={verCostos ? () => nav(`/proveedores/${oc.proveedor_id}`) : undefined}>{oc.proveedor_nombre}</b></div></div>
         <div><small>Sucursal que recibe</small><div><b>{oc.sede_nombre}</b></div></div>
         <div><small>Fecha / entrega esperada</small><div>{fecha(oc.fecha)} / {oc.entrega_esperada ? fecha(oc.entrega_esperada) : '—'}</div></div>
-        <div><small>Pago</small><div>{oc.condiciones_pago}{num(oc.dias_credito) ? ` · ${oc.dias_credito} días` : ''} · {ESTADO_PAGO[oc.estado_pago]}</div></div>
+        {verCostos && <div><small>Pago</small><div>{oc.condiciones_pago}{num(oc.dias_credito) ? ` · ${oc.dias_credito} días` : ''} · {ESTADO_PAGO[oc.estado_pago]}</div></div>}
         <div><small>Estado</small><div><StatusBadge estado={oc.estado} label={ESTADO_OC[oc.estado]} />{oc.pendiente_autorizacion && <span className="bd a" style={{ marginLeft: 6 }}>Pendiente de autorización</span>}{oc.requiere_autorizacion && oc.autorizada_por && <span className="bd v" style={{ marginLeft: 6 }}>Autorizada</span>}</div></div>
-        <div><small>Total</small><div><b style={{ fontSize: 16 }}>{moneda(oc.total)}</b> <small>({moneda(oc.subtotal)} + IVA {moneda(oc.iva)} − desc. {moneda(oc.descuento)})</small></div></div>
+        {verCostos && <div><small>Total</small><div><b style={{ fontSize: 16 }}>{moneda(oc.total)}</b> <small>({moneda(oc.subtotal)} + IVA {moneda(oc.iva)} − desc. {moneda(oc.descuento)})</small></div></div>}
       </div>
       {oc.estado === 'borrador' && !envio.ok && <div className="bd a" style={{ display: 'block', whiteSpace: 'normal', marginBottom: 8 }}>No se puede enviar: {envio.motivo}.</div>}
       {oc.cancelada_motivo && <div className="bd r" style={{ marginBottom: 8 }}>Cancelada: {oc.cancelada_motivo}</div>}
       {oc.notas && <div style={{ fontSize: 13, marginBottom: 8 }}>{oc.notas}</div>}
       <DataTable sinPaginacion buscador={false} cargando={lineas.cargando} error={msgError(lineas.error)} filas={lineas.filas}
-        columnas={[
+        columnas={columnasVisibles([
           { key: 'p', label: 'Producto', valor: l => mapa[l.producto_id]?.nombre ?? '—', render: l => <><b>{mapa[l.producto_id]?.nombre}</b><div style={{ fontSize: 11, color: 'var(--muted)' }}>{l.descripcion}</div></> },
           { key: 'cantidad', label: 'Pedida', align: 'right', render: l => qty(l.cantidad) }, { key: 'cantidad_recibida', label: 'Recibida', align: 'right', render: l => qty(l.cantidad_recibida) },
           { key: 'pendiente', label: 'Pendiente', align: 'right', render: l => (num(l.pendiente) > 0 ? <b>{qty(l.pendiente)}</b> : '0') },
-          { key: 'costo_unitario', label: 'Costo unit.', align: 'right', render: l => moneda(l.costo_unitario) },
-          { key: 'variacion_pct', label: 'Var. vs último', align: 'right', render: l => (l.variacion_pct == null ? '—' : <span style={{ color: l.variacion_pct > 0 ? 'var(--red)' : 'var(--green)' }}>{l.variacion_pct > 0 ? '+' : ''}{l.variacion_pct} %</span>) },
-          { key: 'descuento_pct', label: 'Desc.', align: 'right', render: l => `${l.descuento_pct} %` }, { key: 'iva_pct', label: 'IVA', align: 'right', render: l => `${l.iva_pct} %` },
-          { key: 'importe', label: 'Importe', align: 'right', render: l => moneda(l.importe) },
-        ]} vacio={{ title: 'Sin partidas' }} />
+          colCosto({ key: 'costo_unitario', label: 'Costo unit.', align: 'right', render: l => moneda(l.costo_unitario) }),
+          colCosto({ key: 'variacion_pct', label: 'Var. vs último', align: 'right', render: l => (l.variacion_pct == null ? '—' : <span style={{ color: l.variacion_pct > 0 ? 'var(--red)' : 'var(--green)' }}>{l.variacion_pct > 0 ? '+' : ''}{l.variacion_pct} %</span>) }),
+          colCosto({ key: 'descuento_pct', label: 'Desc.', align: 'right', render: l => `${l.descuento_pct} %` }), colCosto({ key: 'iva_pct', label: 'IVA', align: 'right', render: l => `${l.iva_pct} %` }),
+          colCosto({ key: 'importe', label: 'Importe', align: 'right', render: l => moneda(l.importe) }),
+        ], verCostos)} vacio={{ title: 'Sin partidas' }} />
       {recs.filas.length > 0 && <>
         <h4 style={{ margin: '12px 0 4px' }}>Recepciones</h4>
         <DataTable sinPaginacion buscador={false} filas={recs.filas} columnas={[
           { key: 'folio', label: 'Folio' }, { key: 'fecha', label: 'Fecha', render: r => fecha(r.fecha) }, { key: 'estado', label: 'Estado', render: r => <StatusBadge estado={r.estado === 'completa' ? 'recibida' : 'recibida_parcial'} label={r.estado === 'completa' ? 'Completa' : 'Parcial'} /> },
-          { key: 'factura_numero', label: 'Factura', render: r => r.factura_numero ?? '—' }, { key: 'factura_importe', label: 'Importe factura', align: 'right', render: r => (r.factura_importe == null ? '—' : moneda(r.factura_importe)) },
-          { key: 'factura_vencimiento', label: 'Vence', render: r => (r.factura_vencimiento ? fecha(r.factura_vencimiento) : '—') },
-        ]} />
+          { key: 'factura_numero', label: 'Factura', render: r => r.factura_numero ?? '—' }, colCosto({ key: 'factura_importe', label: 'Importe factura', align: 'right', render: r => (r.factura_importe == null ? '—' : moneda(r.factura_importe)) }),
+          colCosto({ key: 'factura_vencimiento', label: 'Vence', render: r => (r.factura_vencimiento ? fecha(r.factura_vencimiento) : '—') }),
+        ].filter(c => verCostos || !c.costo)} />
       </>}
       {cxp.filas.length > 0 && <div style={{ fontSize: 13, marginTop: 8 }}>Cuenta por pagar generada: {cxp.filas.map(c => <span key={c.id} className="bd m" style={{ marginRight: 6, cursor: 'pointer' }} onClick={() => nav('/cuentas')}>{c.folio_factura ?? 's/f'} · saldo {moneda(c.saldo)} · {c.estado}</span>)}</div>}
-      {recibiendo && <Recepcion oc={oc} lineas={lineas.filas.filter(l => num(l.pendiente) > 0)} mapa={mapa} onClose={() => setRecibiendo(false)} correr={correr} ocupado={ocupado} />}
+      {recibiendo && <Recepcion verCostos={verCostos} oc={oc} lineas={lineas.filas.filter(l => num(l.pendiente) > 0)} mapa={mapa} onClose={() => setRecibiendo(false)} correr={correr} ocupado={ocupado} />}
       {devolviendo && <Devolucion oc={oc} lineas={lineas.filas.filter(l => num(l.cantidad_recibida) > 0)} recepciones={recs.filas} mapa={mapa} onClose={() => setDevolviendo(false)} correr={correr} ocupado={ocupado} />}
     </Modal>
   )
 }
 
-function Recepcion({ oc, lineas, mapa, onClose, correr, ocupado }) {
+function Recepcion({ oc, lineas, mapa, onClose, correr, ocupado, verCostos }) {
   const { organizacion } = useApp()
   const venc = new Date(Date.now() + num(oc.dias_credito) * 86400000).toISOString().slice(0, 10)
   const [v, setV] = useState(() => Object.fromEntries(lineas.map(l => [l.id, { cant: num(l.pendiente), lote: '', cad: '', costo: num(l.costo_unitario) }])))
@@ -126,7 +130,7 @@ function Recepcion({ oc, lineas, mapa, onClose, correr, ocupado }) {
       }
       return rpc('recepcion_registrar', {
         p_oc: oc.id,
-        p_lineas: elegidas.map(l => ({ oc_linea_id: l.id, cantidad_recibida: num(v[l.id].cant), numero_lote: v[l.id].lote || null, caducidad: v[l.id].cad || null, costo_real: num(v[l.id].costo) })),
+        p_lineas: elegidas.map(l => ({ oc_linea_id: l.id, cantidad_recibida: num(v[l.id].cant), numero_lote: v[l.id].lote || null, caducidad: v[l.id].cad || null, ...(verCostos ? { costo_real: num(v[l.id].costo) } : {}) })),
         p_factura: fac.numero ? { numero: fac.numero, importe: num(fac.importe), url, vencimiento: fac.vencimiento || null, cfdi_uuid: fac.cfdi || null, nota: fac.nota || null } : null,
       })
     }, fac.numero ? 'Recepción registrada: la cuenta por pagar nació de la factura' : 'Recepción registrada')
@@ -136,25 +140,25 @@ function Recepcion({ oc, lineas, mapa, onClose, correr, ocupado }) {
     <Modal open onClose={onClose} title={`Recepción de mercancía · ${oc.folio}`} size="wide" cerrarAlClicFuera={false}
       footer={<><button className="btn o" onClick={onClose}>Cancelar</button><button className="btn" disabled={ocupado || errores.length > 0} onClick={confirmar}>Confirmar recepción</button></>}>
       <div className="tabla-wrap"><table>
-        <thead><tr><th>Producto</th><th style={{ textAlign: 'right' }}>Pendiente</th><th style={{ textAlign: 'right' }}>Recibe ahora</th><th>Lote</th><th>Caducidad</th><th style={{ textAlign: 'right' }}>Costo real</th><th style={{ textAlign: 'right' }}>Var.</th></tr></thead>
+        <thead><tr><th>Producto</th><th style={{ textAlign: 'right' }}>Pendiente</th><th style={{ textAlign: 'right' }}>Recibe ahora</th><th>Lote</th><th>Caducidad</th>{verCostos && <><th style={{ textAlign: 'right' }}>Costo real</th><th style={{ textAlign: 'right' }}>Var.</th></>}</tr></thead>
         <tbody>{lineas.map(l => { const p = mapa[l.producto_id], x = v[l.id], vr = variacionCosto(l.costo_unitario, x.costo); return (
           <tr key={l.id}><td><b>{p?.nombre}</b>{(p?.maneja_lote || p?.maneja_caducidad) && <div style={{ fontSize: 11, color: 'var(--muted)' }}>{p.maneja_lote ? 'Lote obligatorio ' : ''}{p.maneja_caducidad ? 'Caducidad obligatoria' : ''}</div>}</td>
             <td style={{ textAlign: 'right' }}>{qty(l.pendiente)}</td>
             <td style={{ textAlign: 'right' }}><input type="number" min="0" step="any" style={{ width: 80 }} value={x.cant} onChange={e => set(l.id, 'cant', e.target.value)} /></td>
             <td><input style={{ width: 100 }} value={x.lote} onChange={e => set(l.id, 'lote', e.target.value)} /></td>
             <td><input type="date" value={x.cad} onChange={e => set(l.id, 'cad', e.target.value)} /></td>
-            <td style={{ textAlign: 'right' }}><input type="number" min="0" step="any" style={{ width: 90 }} value={x.costo} onChange={e => set(l.id, 'costo', e.target.value)} /></td>
-            <td style={{ textAlign: 'right', color: vr > 0 ? 'var(--red)' : 'var(--green)' }}>{vr == null || vr === 0 ? '—' : `${vr > 0 ? '+' : ''}${vr} %`}</td></tr>) })}</tbody></table></div>
+            {verCostos && <><td style={{ textAlign: 'right' }}><input type="number" min="0" step="any" style={{ width: 90 }} value={x.costo} onChange={e => set(l.id, 'costo', e.target.value)} /></td>
+            <td style={{ textAlign: 'right', color: vr > 0 ? 'var(--red)' : 'var(--green)' }}>{vr == null || vr === 0 ? '—' : `${vr > 0 ? '+' : ''}${vr} %`}</td></>}</tr>) })}</tbody></table></div>
       <h4 style={{ margin: '12px 0 4px' }}>Factura o remisión del proveedor</h4>
       <div className="grid2">
         <FormField label="Número de factura" value={fac.numero} onChange={e => setFac({ ...fac, numero: e.target.value })} hint="Con factura nace la cuenta por pagar (P-081)" />
-        <FormField label="Importe de la factura" type="number" min="0" step="any" value={fac.importe} onChange={e => setFac({ ...fac, importe: e.target.value })} hint={`Sugerido por lo recibido: ${moneda(sugerido)}`} />
+        <FormField label="Importe de la factura" type="number" min="0" step="any" value={fac.importe} onChange={e => setFac({ ...fac, importe: e.target.value })} hint={verCostos ? `Sugerido por lo recibido: ${moneda(sugerido)}` : 'Captura el importe que dice la factura del proveedor'} />
         <FormField label="Vence" type="date" value={fac.vencimiento} onChange={e => setFac({ ...fac, vencimiento: e.target.value })} />
         <FormField label="UUID del CFDI (opcional)" value={fac.cfdi} onChange={e => setFac({ ...fac, cfdi: e.target.value })} />
       </div>
       <FormField label="Archivo de la factura (PDF, XML o imagen)"><input type="file" accept=".pdf,.xml,image/*" onChange={e => setArchivo(e.target.files?.[0] ?? null)} /></FormField>
       <FormField label="Nota" value={fac.nota} onChange={e => setFac({ ...fac, nota: e.target.value })} />
-      <div style={{ fontSize: 12, color: 'var(--muted)' }}>Al recibir: suma existencias a la sede, recalcula el costo promedio y guarda el costo en el histórico. Si queda pendiente, la orden queda «Recibida parcial».</div>
+      <div style={{ fontSize: 12, color: 'var(--muted)' }}>Al recibir: suma existencias a la sede{verCostos ? ', recalcula el costo promedio y guarda el costo en el histórico' : ''}. Si queda pendiente, la orden queda «Recibida parcial».</div>
       {errores.length > 0 && <ul style={{ color: 'var(--red)', fontSize: 12, margin: '6px 0 0 16px' }}>{errores.map((e, i) => <li key={i}>{e}</li>)}</ul>}
     </Modal>
   )

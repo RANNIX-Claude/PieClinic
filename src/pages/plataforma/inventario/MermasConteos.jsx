@@ -15,6 +15,7 @@ import FormField from '../../../components/ui/FormField'
 import StatusBadge from '../../../components/ui/StatusBadge'
 import LoadingSpinner from '../../../components/ui/LoadingSpinner'
 import { useConfirmacion } from '../../../components/ui/ConfirmDialog'
+import { colCosto, columnasVisibles } from '../../../lib/plataforma/visibilidadCostos'
 import { useLectura, useProductos, useAccion, msgError, SelectorProducto, num, qty, hoy } from './comun'
 
 const TIPO_MERMA = { merma: 'Merma', caducidad: 'Caducidad', danio: 'Daño', reclamacion_traspaso: 'Reclamación de traspaso', otro: 'Otro' }
@@ -40,12 +41,14 @@ function Mermas({ sp }) {
   const { confirmar, dialogo } = useConfirmacion()
   const esAdmin = usePermiso('inventario.autorizar')
   const puedeOperar = usePermiso('inventario.operar')
+  const verCostos = usePermiso('inventario.ver_costos')   // sin ella no se ve el valor al costo de las mermas: solo piezas
   const m = useLectura('mermas', 'prp_mermas', { orden: { columna: 'created_at', asc: false }, limite: 2000 })
   const [nueva, setNueva] = useState(sp.get('nueva') ? { sede: sp.get('sede'), producto: sp.get('producto'), lote: sp.get('lote') } : null)
   const filas = m.filas.map(x => ({ ...x, producto: mapa[x.producto_id]?.nombre ?? '—', tipoTxt: TIPO_MERMA[x.tipo] ?? x.tipo, estadoTxt: ESTADO_MERMA[x.estado] ?? x.estado }))
   const k = useMemo(() => {
     const pend = m.filas.filter(x => x.estado === 'pendiente')
-    return { pend: pend.length, valor: pend.reduce((s, x) => s + num(x.valor_estimado), 0), recl: pend.filter(x => x.es_reclamacion).length,
+    const esMes = x => x.estado === 'autorizada' && !x.es_reclamacion && (x.autorizado_en ?? '').startsWith(hoy().slice(0, 7))
+    return { pend: pend.length, piezasPend: pend.reduce((s, x) => s + num(x.cantidad), 0), mesN: m.filas.filter(esMes).length, valor: pend.reduce((s, x) => s + num(x.valor_estimado), 0), recl: pend.filter(x => x.es_reclamacion).length,
       mes: m.filas.filter(x => x.estado === 'autorizada' && !x.es_reclamacion && (x.autorizado_en ?? '').startsWith(hoy().slice(0, 7))).reduce((s, x) => s + num(x.valor_estimado), 0) }
   }, [m.filas])
   const resolver = async (x, autorizar) => {
@@ -58,20 +61,20 @@ function Mermas({ sp }) {
       {dialogo}
       <div className="grid-kpis" style={{ marginBottom: 14 }}>
         <KPICard title="Pendientes de autorizar" value={k.pend} icon={Trash2} color="var(--gold)" loading={m.cargando} />
-        <KPICard title="Valor estimado pendiente" value={moneda(k.valor)} loading={m.cargando} />
+        {verCostos ? <KPICard title="Valor estimado pendiente" value={moneda(k.valor)} loading={m.cargando} /> : <KPICard title="Piezas pendientes" value={qty(k.piezasPend)} loading={m.cargando} />}
         <KPICard title="Reclamaciones de traspaso" value={k.recl} icon={AlertTriangle} color="var(--red)" subtitle="Diferencias en recepción" loading={m.cargando} />
-        <KPICard title="Mermas autorizadas del mes" value={moneda(k.mes)} color="var(--accent)" loading={m.cargando} />
+        <KPICard title="Mermas autorizadas del mes" value={verCostos ? moneda(k.mes) : k.mesN} color="var(--accent)" loading={m.cargando} />
       </div>
       <DataTable cargando={m.cargando} error={msgError(m.error)} filas={filas} exportarNombre="mermas"
         acciones={puedeOperar && <button className="btn" onClick={() => setNueva({ sede: sedeActivaId })}><Plus size={14} /> Registrar merma</button>}
-        columnas={[
+        columnas={columnasVisibles([
           { key: 'folio', label: 'Folio', render: x => <b>{x.folio}</b> }, { key: 'created_at', label: 'Fecha', render: x => fechaHora(x.created_at) },
           { key: 'producto', label: 'Producto' }, { key: 'sede_nombre', label: 'Sede', filtro: true }, { key: 'cantidad', label: 'Cant.', align: 'right', render: x => qty(x.cantidad) },
-          { key: 'tipoTxt', label: 'Tipo', filtro: true }, { key: 'traspaso_folio', label: 'Traspaso', render: x => x.traspaso_folio ?? '—' }, { key: 'motivo', label: 'Motivo' }, { key: 'valor_estimado', label: 'Valor est.', align: 'right', render: x => moneda(x.valor_estimado) },
+          { key: 'tipoTxt', label: 'Tipo', filtro: true }, { key: 'traspaso_folio', label: 'Traspaso', render: x => x.traspaso_folio ?? '—' }, { key: 'motivo', label: 'Motivo' }, colCosto({ key: 'valor_estimado', label: 'Valor est.', align: 'right', render: x => moneda(x.valor_estimado) }),
           { key: 'estadoTxt', label: 'Estado', filtro: true, render: x => <StatusBadge estado={x.estado} label={ESTADO_MERMA[x.estado]} variante={x.estado === 'pendiente' ? 'a' : undefined} /> },
           ...(esAdmin ? [{ key: 'acc', label: '', sortable: false, exportar: false, render: x => x.estado === 'pendiente' && (
             <div style={{ display: 'flex', gap: 4 }}><button className="btn sm" disabled={ocupado} onClick={() => resolver(x, true)}>Autorizar</button><button className="btn o sm" disabled={ocupado} onClick={() => resolver(x, false)}>Rechazar</button></div>) }] : []),
-        ]} vacio={{ title: 'Sin mermas', description: 'Registra productos caducados, dañados o perdidos; Administración los autoriza antes de descontar.' }} />
+        ], verCostos)} vacio={{ title: 'Sin mermas', description: 'Registra productos caducados, dañados o perdidos; Administración los autoriza antes de descontar.' }} />
       {nueva && <ModalMerma ini={nueva} onClose={() => setNueva(null)} />}
     </>
   )

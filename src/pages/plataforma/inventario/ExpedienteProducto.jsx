@@ -12,6 +12,7 @@ import DataTable from '../../../components/ui/DataTable'
 import EmptyState from '../../../components/ui/EmptyState'
 import LoadingSpinner from '../../../components/ui/LoadingSpinner'
 import StatusBadge from '../../../components/ui/StatusBadge'
+import { colCosto, columnasVisibles, pestanasVisibles, valorAPrecioLista } from '../../../lib/plataforma/visibilidadCostos'
 import { useLectura, useProductos, useProveedores, msgError, BadgeExist, TIPO_MOV, ACCION_LOTE, ESTADO_LOTE, num, qty } from './comun'
 
 export default function ExpedienteProducto() {
@@ -19,7 +20,7 @@ export default function ExpedienteProducto() {
   const nav = useNavigate()
   const [sp, setSp] = useSearchParams()
   const tab = sp.get('tab') || 'resumen'
-  const verCostos = usePermiso('compras.ver')
+  const verCostos = usePermiso('inventario.ver_costos')   // recepción y podología: solo precio de lista, sin costos, márgenes, proveedores ni compras
   const { mapa, cargando, error } = useProductos()
   const p = mapa[id]
   const inv = useLectura('exp-inv', 'prp_inventario', { filtros: { producto_id: id } })
@@ -34,7 +35,7 @@ export default function ExpedienteProducto() {
 
   const ocMapa = useMemo(() => Object.fromEntries(ocs.filas.map(o => [o.id, o])), [ocs.filas])
   const total = inv.filas.reduce((s, i) => s + num(i.existencia), 0)
-  const valor = inv.filas.reduce((s, i) => s + num(i.valor), 0)
+  const valor = verCostos ? inv.filas.reduce((s, i) => s + num(i.valor), 0) : valorAPrecioLista(inv.filas.map(i => ({ ...i, sede_nombre: '' })), mapa).total
 
   if (cargando) return <div className="pagina"><LoadingSpinner /></div>
   if (error || !p) return <div className="pagina"><EmptyState title={error ? 'No se pudo cargar' : 'Producto no encontrado'} description={error ? msgError(error) : 'El producto no existe o no pertenece a esta clínica.'}
@@ -45,18 +46,18 @@ export default function ExpedienteProducto() {
     <div className="pagina">
       <PageHeader titulo={p.nombre} subtitulo={`${p.sku} · ${p.categoria}${p.marca ? ` · ${p.marca}` : ''}`}
         acciones={<button className="btn o" onClick={() => nav('/inventario')}><ArrowLeft size={14} /> Inventario</button>} />
-      <Tabs value={tab} onChange={t => setSp({ tab: t })} items={[
+      <Tabs value={tab} onChange={t => setSp({ tab: t })} items={pestanasVisibles([
         { id: 'resumen', label: 'Resumen' }, { id: 'datos', label: 'Datos del producto' }, { id: 'sedes', label: 'Existencia por sede' },
         { id: 'lotes', label: 'Lotes', badge: lotes.filas.length || null }, { id: 'kardex', label: 'Kardex' },
-        { id: 'costos', label: 'Costos', oculto: !verCostos }, { id: 'proveedores', label: 'Proveedores', oculto: !verCostos, badge: provProd.filas.length || null },
-        { id: 'compras', label: 'Compras', oculto: !verCostos },
-      ]} />
+        { id: 'costos', label: 'Costos', costo: true }, { id: 'proveedores', label: 'Proveedores', costo: true, badge: provProd.filas.length || null },
+        { id: 'compras', label: 'Compras', costo: true },
+      ], verCostos)} />
       {tab === 'resumen' && (
         <div className="grid-kpis">
           <KPICard title="Existencia total" value={qty(total)} subtitle={`${inv.filas.length} sede(s)`} icon={Package} loading={inv.cargando} />
-          <KPICard title="Valor en inventario" value={moneda(valor)} icon={Wallet} color="var(--green)" loading={inv.cargando} />
-          <KPICard title="Costo promedio" value={moneda(p.costo_promedio)} icon={TrendingUp} color="var(--gold)" subtitle="Promedio ponderado (P-083)" />
-          <KPICard title="Precio de lista" value={p.precio_lista == null ? '—' : moneda(p.precio_lista)} icon={Layers} subtitle={p.margen_pct == null ? 'Sin precio vigente' : `Margen ${porcentaje(p.margen_pct)}`} />
+          <KPICard title={verCostos ? 'Valor en inventario' : 'Valor a precio de lista'} value={moneda(valor)} icon={Wallet} color="var(--green)" loading={inv.cargando || cargando} />
+          {verCostos && <KPICard title="Costo promedio" value={moneda(p.costo_promedio)} icon={TrendingUp} color="var(--gold)" subtitle="Promedio ponderado (P-083)" />}
+          <KPICard title="Precio de lista" value={p.precio_lista == null ? '—' : moneda(p.precio_lista)} icon={Layers} subtitle={p.precio_lista == null ? 'Sin precio vigente' : verCostos && p.margen_pct != null ? `Margen ${porcentaje(p.margen_pct)}` : undefined} />
         </div>
       )}
       {tab === 'datos' && (
@@ -67,22 +68,23 @@ export default function ExpedienteProducto() {
             {dato('IVA', { exento: 'Exento', '16': '16 %', tasa0: 'Tasa 0' }[p.iva_tipo] ?? p.iva_tipo)}{dato('Maneja lote', p.maneja_lote ? 'Sí' : 'No')}
             {dato('Maneja caducidad', p.maneja_caducidad ? 'Sí' : 'No')}{dato('Estado', <StatusBadge estado={p.estado} />)}
             {dato('Clave SAT', p.clave_sat)}{dato('Renglón del EDR', p.renglon_edr)}
+            {dato('Precio de lista', p.precio_lista == null ? '—' : moneda(p.precio_lista))}{dato('Precio web', p.precio_web == null ? '—' : moneda(p.precio_web))}{dato('Precio por sede', p.precio_por_sede ? 'Sí (ver Catálogo y precios)' : 'No')}
           </div>
           <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>El alta y edición del producto y sus precios se hace en Catálogo y precios (Ventas); aquí se consulta su operación de inventario.</div>
         </div>
       )}
       {tab === 'sedes' && <DataTable sinPaginacion buscador={false} cargando={inv.cargando} error={msgError(inv.error)} filas={inv.filas} exportarNombre={`existencia_${p.sku}`}
-        columnas={[
+        columnas={columnasVisibles([
           { key: 'sede_nombre', label: 'Sede' },
           { key: 'existencia', label: 'Existencia', align: 'right', render: i => <b>{qty(i.existencia)}</b>, valor: i => num(i.existencia) },
           { key: 'minimo', label: 'Mínimo', align: 'right', render: i => qty(i.minimo) },
           { key: 'maximo', label: 'Máximo', align: 'right', render: i => (i.maximo == null ? '—' : qty(i.maximo)) },
           { key: 'ubicacion', label: 'Ubicación' },
           { key: 'proxima_caducidad', label: 'Próx. caducidad', render: i => (i.proxima_caducidad ? fecha(i.proxima_caducidad) : '—') },
-          { key: 'valor', label: 'Valor', align: 'right', render: i => moneda(i.valor) },
+          colCosto({ key: 'valor', label: 'Valor', align: 'right', render: i => moneda(i.valor) }),
           { key: 'ultimo_conteo', label: 'Último conteo', render: i => (i.ultimo_conteo ? fecha(i.ultimo_conteo) : '—') },
           { key: 'estado', label: 'Estado', render: i => <BadgeExist estado={i.estado} /> },
-        ]} vacio={{ title: 'No se maneja en ninguna sede', description: 'Asígnalo a una sede desde Inventario → «Producto en sede».' }} />}
+        ], verCostos)} vacio={{ title: 'No se maneja en ninguna sede', description: 'Asígnalo a una sede desde Inventario → «Producto en sede».' }} />}
       {tab === 'lotes' && <DataTable sinPaginacion cargando={lotes.cargando} error={msgError(lotes.error)} filas={lotes.filas} exportarNombre={`lotes_${p.sku}`}
         columnas={[
           { key: 'numero_lote', label: 'Lote', render: l => l.numero_lote ?? '—' }, { key: 'sede_nombre', label: 'Sede', filtro: true },
@@ -93,20 +95,20 @@ export default function ExpedienteProducto() {
           { key: 'estado', label: 'Estado', render: l => <StatusBadge estado={l.estado} label={ESTADO_LOTE[l.estado]} variante={l.estado === 'bloqueado' ? 'r' : l.estado === 'agotado' ? 'n' : 'v'} /> },
         ]} vacio={{ title: 'Sin lotes', description: p.maneja_lote || p.maneja_caducidad ? 'Aún no se recibe mercancía con lote.' : 'Este producto no maneja lote ni caducidad.' }} />}
       {tab === 'kardex' && <DataTable cargando={kardex.cargando} error={msgError(kardex.error)} filas={kardex.filas} exportarNombre={`kardex_${p.sku}`} tamanoPagina={30}
-        columnas={[
+        columnas={columnasVisibles([
           { key: 'fecha', label: 'Fecha', render: m => fechaHora(m.fecha) }, { key: 'tipo', label: 'Tipo', filtro: true, valor: m => TIPO_MOV[m.tipo] ?? m.tipo },
           { key: 'sede_nombre', label: 'Sede', filtro: true },
           { key: 'cantidad', label: 'Cant.', align: 'right', valor: m => num(m.cantidad), render: m => <b style={{ color: num(m.cantidad) < 0 ? 'var(--red)' : 'var(--green)' }}>{num(m.cantidad) > 0 ? '+' : ''}{qty(m.cantidad)}</b> },
-          { key: 'costo_unitario', label: 'Costo unit.', align: 'right', render: m => (m.costo_unitario == null ? '—' : moneda(m.costo_unitario)) },
+          colCosto({ key: 'costo_unitario', label: 'Costo unit.', align: 'right', render: m => (m.costo_unitario == null ? '—' : moneda(m.costo_unitario)) }),
           { key: 'referencia_folio', label: 'Referencia', render: m => m.referencia_folio ?? '—' }, { key: 'nota', label: 'Nota' },
-        ]} vacio={{ title: 'Sin movimientos', description: 'Aún no hay entradas ni salidas de este producto.' }} />}
-      {tab === 'costos' && <DataTable cargando={costos.cargando} error={msgError(costos.error)} filas={costos.filas} exportarNombre={`costos_${p.sku}`}
+        ], verCostos)} vacio={{ title: 'Sin movimientos', description: 'Aún no hay entradas ni salidas de este producto.' }} />}
+      {verCostos && tab === 'costos' && <DataTable cargando={costos.cargando} error={msgError(costos.error)} filas={costos.filas} exportarNombre={`costos_${p.sku}`}
         columnas={[
           { key: 'fecha', label: 'Fecha', render: c => fecha(c.fecha) }, { key: 'proveedor', label: 'Proveedor', valor: c => provs[c.proveedor_id]?.nombre ?? '—' },
           { key: 'costo', label: 'Costo de la compra', align: 'right', render: c => moneda(c.costo), valor: c => num(c.costo) },
           { key: 'costo_promedio', label: 'Promedio resultante', align: 'right', render: c => moneda(c.costo_promedio), valor: c => num(c.costo_promedio) },
         ]} vacio={{ title: 'Sin histórico de costo', description: 'Cada compra recibida deja su costo y el promedio resultante.' }} />}
-      {tab === 'proveedores' && <DataTable sinPaginacion cargando={provProd.cargando} error={msgError(provProd.error)} filas={provProd.filas} exportarNombre={`proveedores_${p.sku}`}
+      {verCostos && tab === 'proveedores' && <DataTable sinPaginacion cargando={provProd.cargando} error={msgError(provProd.error)} filas={provProd.filas} exportarNombre={`proveedores_${p.sku}`}
         onFila={f => nav(`/proveedores/${f.proveedor_id}`)}
         columnas={[
           { key: 'prov', label: 'Proveedor', valor: f => provs[f.proveedor_id]?.nombre ?? '—', render: f => <b>{provs[f.proveedor_id]?.nombre ?? '—'}</b> },
@@ -114,7 +116,7 @@ export default function ExpedienteProducto() {
           { key: 'ultimo_costo', label: 'Último costo', align: 'right', render: f => (f.ultimo_costo == null ? '—' : moneda(f.ultimo_costo)) },
           { key: 'ultima_compra', label: 'Última compra', render: f => (f.ultima_compra ? fecha(f.ultima_compra) : '—') },
         ]} vacio={{ title: 'Sin proveedores vinculados', description: 'El proveedor se vincula al producto desde su expediente.' }} />}
-      {tab === 'compras' && <DataTable cargando={compras.cargando || ocs.cargando} error={msgError(compras.error)} filas={compras.filas} exportarNombre={`compras_${p.sku}`}
+      {verCostos && tab === 'compras' && <DataTable cargando={compras.cargando || ocs.cargando} error={msgError(compras.error)} filas={compras.filas} exportarNombre={`compras_${p.sku}`}
         onFila={f => nav(`/compras?oc=${f.oc_id}`)}
         columnas={[
           { key: 'folio', label: 'Orden', valor: l => ocMapa[l.oc_id]?.folio ?? '—' }, { key: 'fecha', label: 'Fecha', valor: l => ocMapa[l.oc_id]?.fecha ?? '', render: l => fecha(ocMapa[l.oc_id]?.fecha) },

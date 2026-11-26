@@ -19,7 +19,7 @@ export const FUNCIONES = { caja: 'Caja (cobrar)', recepcion_mercancia: 'Recepci�
 // No cambia precios, catálogo ni configuración. La autoridad real es el RLS (073).
 export const CAPS_SUPERVISOR = new Set([
   'agenda.ver', 'ventas.ver', 'inventario.ver', 'compras.ver', 'catalogo.ver', 'dashboard.ver', 'reportes.ver', 'mantenimiento.solicitar',
-  'conteo.operar', 'conteo.iniciar', 'conteo.provisionales',
+  'conteo.operar', 'conteo.iniciar', 'conteo.provisionales', 'inventario.ver_costos',
 ])
 export const RUTAS_SUPERVISOR = [
   '/dashboard', '/resumen-semanal', '/analisis/ejecutivo', '/operacion-dia', '/reportes', '/agenda', '/catalogo',
@@ -78,7 +78,7 @@ export const CAPACIDADES = {
   'conteo.provisionales':     cap([A], true),
   'compras.ver':              cap([A, R]),
   'compras.editar':           cap([A], true),
-  'proveedores.ver':          cap([A, R]),
+  'proveedores.ver':          cap([A]),                     // el directorio de proveedores y sus saldos/precios son costos: recepción ya no entra
   'proveedores.editar':       cap([A], true),
   // Finanzas (4.4): solo Administración
   'finanzas.ver':             cap([A]),
@@ -105,6 +105,8 @@ export const CAPACIDADES = {
   'suscripcion.ver':          cap([A]),
   'suscripcion.editar':       cap([A], true),
   // Panel RANNIX (solo metadatos de uso y cobro; nunca datos de salud)
+  // Costos: dueños y supervisor. Recepción y podología ven solo el PRECIO DE LISTA (migración 270 en la base).
+  'inventario.ver_costos':    cap([A, X]),
   'rannix.panel':             cap([X], true),
 }
 

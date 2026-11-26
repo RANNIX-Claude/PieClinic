@@ -11,6 +11,7 @@ import KPICard from '../../../components/ui/KPICard'
 import Tabs from '../../../components/ui/Tabs'
 import DataTable from '../../../components/ui/DataTable'
 import StatusBadge from '../../../components/ui/StatusBadge'
+import { colCosto, columnasVisibles } from '../../../lib/plataforma/visibilidadCostos'
 import { useLectura, useProductos, useProveedores, msgError, num, qty } from './comun'
 import OrdenEditor from './OrdenEditor'
 import OrdenDetalle, { ESTADO_OC, ESTADO_PAGO } from './OrdenDetalle'
@@ -19,10 +20,11 @@ export default function Compras() {
   const [sp, setSp] = useSearchParams()
   const tab = sp.get('tab') || 'ordenes'
   const puedeEditar = usePermiso('compras.editar')
+  const verCostos = usePermiso('inventario.ver_costos')   // recepción ve órdenes y recibe mercancía, sin totales, pagos ni cuentas por pagar
   const [editor, setEditor] = useState(sp.get('nueva') ? { id: null, inicial: { proveedor_id: sp.get('proveedor') ?? '' } } : null)
   const [detalle, setDetalle] = useState(sp.get('oc'))
   const ordenes = useLectura('ordenes', 'prp_ordenes_compra', { orden: { columna: 'fecha', asc: false }, limite: 2000 })
-  const cxp = useLectura('cxp-compras', 'prp_cuentas_pagar', { limite: 3000 })
+  const cxp = useLectura('cxp-compras', 'prp_cuentas_pagar', { limite: 3000 }, verCostos)
   const [mes, setMes] = useState('')
 
   const k = useMemo(() => {
@@ -47,50 +49,50 @@ export default function Compras() {
       <PageHeader titulo="Compras a proveedores" subtitulo="Órdenes de compra con autorización por monto, recepción parcial y cuenta por pagar automática"
         acciones={puedeEditar && <button className="btn" onClick={() => setEditor({ id: null })}><Plus size={14} /> Nueva orden de compra</button>} />
       <div className="grid-kpis" style={{ marginBottom: 14 }}>
-        <KPICard title="Órdenes abiertas" value={k.abiertas} subtitle={moneda(k.totalAbiertas)} icon={ShoppingCart} loading={ordenes.cargando} />
+        <KPICard title="Órdenes abiertas" value={k.abiertas} subtitle={verCostos ? moneda(k.totalAbiertas) : undefined} icon={ShoppingCart} loading={ordenes.cargando} />
         <KPICard title="Por recibir esta semana" value={k.porRecibir} icon={CalendarClock} color="var(--gold)" loading={ordenes.cargando} />
-        <KPICard title="Compras del mes" value={moneda(k.mes)} icon={Wallet} color="var(--green)" trend={trend} loading={ordenes.cargando} />
+        {verCostos && <KPICard title="Compras del mes" value={moneda(k.mes)} icon={Wallet} color="var(--green)" trend={trend} loading={ordenes.cargando} />}
         <KPICard title="Pendientes de autorizar" value={k.pendAut} icon={FileClock} color={k.pendAut ? 'var(--red)' : undefined} loading={ordenes.cargando} />
-        <KPICard title="Cuentas por pagar" value={moneda(k.cxp)} subtitle={k.prox ? `próximo vencimiento ${fecha(k.prox)}` : undefined} icon={Wallet} color="var(--accent)" loading={cxp.cargando} />
+        {verCostos && <KPICard title="Cuentas por pagar" value={moneda(k.cxp)} subtitle={k.prox ? `próximo vencimiento ${fecha(k.prox)}` : undefined} icon={Wallet} color="var(--accent)" loading={cxp.cargando} />}
       </div>
       <Tabs value={tab} onChange={t => setSp({ tab: t })} items={[
         { id: 'ordenes', label: 'Órdenes', badge: ordenes.filas.length || null }, { id: 'recepciones', label: 'Recepciones' },
-        { id: 'devoluciones', label: 'Devoluciones', oculto: !puedeEditar }, { id: 'analisis', label: 'Análisis por proveedor', oculto: !puedeEditar },
+        { id: 'devoluciones', label: 'Devoluciones', oculto: !puedeEditar || !verCostos }, { id: 'analisis', label: 'Análisis por proveedor', oculto: !puedeEditar || !verCostos },
       ]} />
       {tab === 'ordenes' && (
         <DataTable cargando={ordenes.cargando} error={msgError(ordenes.error)} filas={filas} exportarNombre="ordenes_compra" placeholderBusqueda="Buscar folio o proveedor…" onFila={o => setDetalle(o.id)}
           acciones={<input type="month" value={mes} onChange={e => setMes(e.target.value)} aria-label="Mes" />}
-          columnas={[
+          columnas={columnasVisibles([
             { key: 'folio', label: 'Folio', render: o => <b>{o.folio}</b> }, { key: 'fecha', label: 'Fecha', render: o => fecha(o.fecha) },
             { key: 'proveedor_nombre', label: 'Proveedor', filtro: true }, { key: 'sede_nombre', label: 'Sede', filtro: true },
-            { key: 'total', label: 'Total', align: 'right', render: o => moneda(o.total), valor: o => num(o.total) },
+            colCosto({ key: 'total', label: 'Total', align: 'right', render: o => moneda(o.total), valor: o => num(o.total) }),
             { key: 'estadoTxt', label: 'Estado', filtro: true, render: o => <><StatusBadge estado={o.estado} label={ESTADO_OC[o.estado]} />{o.pendiente_autorizacion && <span className="bd a" style={{ marginLeft: 4 }}>Por autorizar</span>}</> },
-            { key: 'estado_pago', label: 'Pago', render: o => ESTADO_PAGO[o.estado_pago] ?? o.estado_pago },
+            colCosto({ key: 'estado_pago', label: 'Pago', render: o => ESTADO_PAGO[o.estado_pago] ?? o.estado_pago }),
             { key: 'entrega_esperada', label: 'Entrega', render: o => (o.entrega_esperada ? fecha(o.entrega_esperada) : '—') },
             { key: 'unidades_pendientes', label: 'Pend.', align: 'right', render: o => (['enviada', 'recibida_parcial'].includes(o.estado) ? qty(o.unidades_pendientes) : '—') },
-          ]} vacio={{ title: 'Sin órdenes de compra', description: 'Crea una orden para comprar a un proveedor y recibir la mercancía en la sucursal.' }} />
+          ], verCostos)} vacio={{ title: 'Sin órdenes de compra', description: 'Crea una orden para comprar a un proveedor y recibir la mercancía en la sucursal.' }} />
       )}
-      {tab === 'recepciones' && <Recepciones />}
-      {tab === 'devoluciones' && <Devoluciones />}
-      {tab === 'analisis' && <Analisis />}
+      {tab === 'recepciones' && <Recepciones verCostos={verCostos} />}
+      {verCostos && tab === 'devoluciones' && <Devoluciones />}
+      {verCostos && tab === 'analisis' && <Analisis />}
       {editor && <OrdenEditor id={editor.id} inicial={editor.inicial} onClose={() => setEditor(null)} onGuardada={id => { setEditor(null); setDetalle(id) }} />}
       {detalle && <OrdenDetalle id={detalle} onClose={() => setDetalle(null)} onEditar={() => { const i = detalle; setDetalle(null); setEditor({ id: i }) }} />}
     </div>
   )
 }
 
-function Recepciones() {
+function Recepciones({ verCostos }) {
   const { mapa: provs } = useProveedores()
   const { sedes } = useApp()
   const r = useLectura('recepciones', 'prp_recepciones', { orden: { columna: 'fecha', asc: false }, limite: 2000 })
   return <DataTable cargando={r.cargando} error={msgError(r.error)} filas={r.filas} exportarNombre="recepciones"
-    columnas={[
+    columnas={columnasVisibles([
       { key: 'folio', label: 'Folio', render: x => <b>{x.folio}</b> }, { key: 'fecha', label: 'Fecha', render: x => fecha(x.fecha) }, { key: 'oc_folio', label: 'Orden' },
       { key: 'prov', label: 'Proveedor', filtro: true, valor: x => provs[x.proveedor_id]?.nombre ?? '—' }, { key: 'sede', label: 'Sede', filtro: true, valor: x => sedes.find(s => s.id === x.sede_id)?.nombre ?? '—' },
       { key: 'partidas', label: 'Partidas', align: 'right' }, { key: 'estado', label: 'Estado', render: x => <StatusBadge estado={x.estado === 'completa' ? 'recibida' : 'recibida_parcial'} label={x.estado === 'completa' ? 'Completa' : 'Parcial'} /> },
-      { key: 'factura_numero', label: 'Factura', render: x => x.factura_numero ?? '—' }, { key: 'factura_importe', label: 'Importe', align: 'right', render: x => (x.factura_importe == null ? '—' : moneda(x.factura_importe)) },
-      { key: 'factura_vencimiento', label: 'Vence', render: x => (x.factura_vencimiento ? fecha(x.factura_vencimiento) : '—') },
-    ]} vacio={{ title: 'Sin recepciones', description: 'Se registran desde el detalle de una orden enviada.' }} />
+      { key: 'factura_numero', label: 'Factura', render: x => x.factura_numero ?? '—' }, colCosto({ key: 'factura_importe', label: 'Importe', align: 'right', render: x => (x.factura_importe == null ? '—' : moneda(x.factura_importe)) }),
+      colCosto({ key: 'factura_vencimiento', label: 'Vence', render: x => (x.factura_vencimiento ? fecha(x.factura_vencimiento) : '—') }),
+    ], verCostos)} vacio={{ title: 'Sin recepciones', description: 'Se registran desde el detalle de una orden enviada.' }} />
 }
 
 function Devoluciones() {

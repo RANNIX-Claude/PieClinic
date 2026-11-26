@@ -14,6 +14,7 @@ import Modal from '../../../components/ui/Modal'
 import FormField from '../../../components/ui/FormField'
 import StatusBadge from '../../../components/ui/StatusBadge'
 import { useConfirmacion } from '../../../components/ui/ConfirmDialog'
+import { colCosto, columnasVisibles, kpiValorInventario } from '../../../lib/plataforma/visibilidadCostos'
 import { useLectura, useProductos, useAccion, msgError, BadgeExist, etiquetaEstadoExist, PRIORIDAD_EXIST, TIPO_MOV, ACCION_LOTE, ESTADO_LOTE, SelectorProducto, num, qty } from './comun'
 
 export default function Inventario() {
@@ -23,6 +24,7 @@ export default function Inventario() {
   const tab = sp.get('tab') || 'existencias'
   const puedeMinimos = usePermiso('inventario.autorizar')
   const puedeOperar = usePermiso('inventario.operar')
+  const verCostos = usePermiso('inventario.ver_costos')   // sin ella (recepción, podología): solo precio de lista, nunca costo
   const { productos, mapa, cargando: cp, error: ep } = useProductos()
   const inv = useLectura('inventario', 'prp_inventario')
   const lotes = useLectura('lotes', 'prp_lotes')
@@ -38,11 +40,9 @@ export default function Inventario() {
     const bajo = inv.filas.filter(i => i.estado === 'bajo_minimo').length
     const criticos = inv.filas.filter(i => i.estado === 'bajo_minimo' && num(i.existencia) <= num(i.minimo) / 2).length
     const caducan = lotes.filas.filter(l => num(l.existencia) > 0 && l.dias_para_caducar != null && l.dias_para_caducar <= 90).length
-    const porSede = {}
-    inv.filas.forEach(i => { porSede[i.sede_nombre] = (porSede[i.sede_nombre] ?? 0) + num(i.valor) })
-    const valor = Object.values(porSede).reduce((s, v) => s + v, 0)
-    return { conExist: conExist.size, total: productos.length, sinExist, bajo, criticos, caducan, valor, porSede }
-  }, [inv.filas, lotes.filas, productos])
+    const { total: valor, porSede, titulo: tituloValor, alCosto } = kpiValorInventario(inv.filas, mapa, verCostos)
+    return { conExist: conExist.size, total: productos.length, sinExist, bajo, criticos, caducan, valor, porSede, tituloValor, alCosto }
+  }, [inv.filas, lotes.filas, productos, mapa, verCostos])
 
   return (
     <div className="pagina">
@@ -57,18 +57,18 @@ export default function Inventario() {
         <KPICard title="Productos con existencia" value={`${kpis.conExist} de ${kpis.total}`} subtitle={`${kpis.sinExist} producto-sede sin existencia`} icon={Package} loading={inv.cargando || cp} />
         <KPICard title="Bajo mínimo (producto-sede)" value={kpis.bajo} subtitle={`${kpis.criticos} críticos (≤ mitad del mínimo)`} icon={AlertTriangle} color="var(--gold)" loading={inv.cargando} />
         <KPICard title="Próximos a caducar (90 d)" value={`${kpis.caducan} lotes`} icon={Clock} color="var(--red)" loading={lotes.cargando} />
-        <KPICard title="Valor de inventario" value={moneda(kpis.valor)} icon={Wallet} color="var(--green)" loading={inv.cargando}
+        <KPICard title={kpis.tituloValor} value={moneda(kpis.valor)} icon={Wallet} color="var(--green)" loading={inv.cargando || cp}
           subtitle={Object.entries(kpis.porSede).map(([s, v]) => `${s} ${moneda(v)}`).join(' · ') || undefined}
-          ayuda="Existencia × costo promedio vigente (P-083). La existencia negativa se muestra y se alerta, pero resta al valor." />
+          ayuda={kpis.alCosto ? 'Existencia × costo promedio vigente (P-083). La existencia negativa se muestra y se alerta, pero resta al valor.' : 'Existencia × precio de lista vigente. La existencia negativa se muestra y se alerta, pero resta al valor.'} />
       </div>
       <Tabs value={tab} onChange={t => setSp({ tab: t })} items={[
         { id: 'existencias', label: 'Existencias' }, { id: 'matriz', label: '¿Qué hay en cada tienda?' },
         { id: 'lotes', label: 'Lotes y caducidad', badge: kpis.caducan || null }, { id: 'kardex', label: 'Kardex' },
       ]} />
-      {tab === 'existencias' && <Existencias {...{ productos, inv, sedesVista, nav, puedeMinimos, setEditar, error, cargando: inv.cargando || cp }} />}
+      {tab === 'existencias' && <Existencias {...{ productos, inv, sedesVista, nav, puedeMinimos, setEditar, error, cargando: inv.cargando || cp, verCostos }} />}
       {tab === 'matriz' && <Matriz {...{ productos, inv, sedesVista, nav }} />}
       {tab === 'lotes' && <Lotes {...{ lotes, mapa, puedeOperar: puedeMinimos, nav }} />}
-      {tab === 'kardex' && <Kardex {...{ mapa, productos }} />}
+      {tab === 'kardex' && <Kardex {...{ mapa, productos, verCostos }} />}
       {editar && <ModalMinimos productoId={editar} producto={mapa[editar]} inv={inv.filas} sedes={sedes} onClose={() => setEditar(null)} />}
       {asignar && <ModalAsignar productos={productos} sedes={sedes} inv={inv.filas} onClose={() => setAsignar(false)} />}
     </div>
@@ -88,16 +88,16 @@ function pivote(productos, invFilas, sedesVista) {
       id: p.id, sku: p.sku, nombre: p.nombre, categoria: p.categoria, porSede, estado,
       total: filas.reduce((s, i) => s + num(i.existencia), 0),
       minimos: sedesVista.map(s => (porSede[s.id] ? qty(porSede[s.id].minimo) : '—')).join(' / '),
-      caducidad: cads[0] ?? null, costo: num(p.costo_promedio), valor: filas.reduce((s, i) => s + num(i.valor), 0),
+      caducidad: cads[0] ?? null, precio: p.precio_lista == null ? null : num(p.precio_lista), costo: num(p.costo_promedio), valor: filas.reduce((s, i) => s + num(i.valor), 0),
       negativa: filas.some(i => i.existencia_negativa),
     }
   })
 }
 
-function Existencias({ productos, inv, sedesVista, nav, puedeMinimos, setEditar, error, cargando }) {
+function Existencias({ productos, inv, sedesVista, nav, puedeMinimos, setEditar, error, cargando, verCostos }) {
   const [soloBajo, setSoloBajo] = useState(false)
   const filas = useMemo(() => pivote(productos, inv.filas, sedesVista).filter(f => !soloBajo || ['bajo_minimo', 'sin_existencia'].includes(f.estado)), [productos, inv.filas, sedesVista, soloBajo])
-  const cols = [
+  const cols = columnasVisibles([
     { key: 'sku', label: 'SKU' },
     { key: 'nombre', label: 'Producto', render: f => <b>{f.nombre}</b> },
     { key: 'categoria', label: 'Categoría', filtro: true },
@@ -110,11 +110,12 @@ function Existencias({ productos, inv, sedesVista, nav, puedeMinimos, setEditar,
     { key: 'total', label: 'Total', align: 'right', render: f => <b>{qty(f.total)}</b>, valor: f => f.total },
     { key: 'minimos', label: `Mínimo ${sedesVista.map(s => s.clave ?? s.nombre.slice(0, 1)).join('/')}`, sortable: false },
     { key: 'caducidad', label: 'Próx. caducidad', render: f => (f.caducidad ? fecha(f.caducidad) : '—') },
-    { key: 'costo', label: 'Costo prom.', align: 'right', render: f => moneda(f.costo) },
-    { key: 'valor', label: 'Valor', align: 'right', render: f => moneda(f.valor) },
+    { key: 'precio', label: 'Precio de lista', align: 'right', render: f => (f.precio == null ? '—' : moneda(f.precio)), valor: f => f.precio ?? 0 },
+    colCosto({ key: 'costo', label: 'Costo prom.', align: 'right', render: f => moneda(f.costo) }),
+    colCosto({ key: 'valor', label: 'Valor', align: 'right', render: f => moneda(f.valor) }),
     { key: 'estadoTxt', label: 'Estado', filtro: true, valor: f => etiquetaEstadoExist(f.estado), render: f => <><BadgeExist estado={f.estado} />{f.negativa && <span className="bd r" style={{ marginLeft: 4 }} title="Existencia negativa: revisar ventas sin existencia">Negativa</span>}</> },
     ...(puedeMinimos ? [{ key: 'acc', label: '', sortable: false, exportar: false, render: f => <button className="btn o sm" onClick={e => { e.stopPropagation(); setEditar(f.id) }}>Mín/Máx</button> }] : []),
-  ]
+  ], verCostos)
   return <DataTable columnas={cols} filas={filas} cargando={cargando} error={msgError(error)} exportarNombre="inventario_por_sucursal"
     placeholderBusqueda="Buscar SKU o producto…" onFila={f => nav(`/inventario/producto/${f.id}`)} tamanoPagina={30}
     vacio={{ title: 'Sin productos', description: 'No hay productos en el catálogo o no tienes sedes asignadas.' }}
@@ -184,20 +185,20 @@ function Lotes({ lotes, mapa, puedeOperar, nav }) {
 }
 
 const TIPOS_FILTRO = Object.values(TIPO_MOV)
-function Kardex({ mapa, productos }) {
+function Kardex({ mapa, productos, verCostos }) {
   const [producto, setProducto] = useState('')
   const k = useLectura('kardex', 'prp_kardex', { orden: { columna: 'fecha', asc: false }, limite: 1000, filtros: producto ? { producto_id: producto } : {} })
   const filas = k.filas.map(m => ({ ...m, producto: mapa[m.producto_id]?.nombre ?? '—', tipoTxt: TIPO_MOV[m.tipo] ?? m.tipo }))
-  const cols = [
+  const cols = columnasVisibles([
     { key: 'fecha', label: 'Fecha', render: m => fechaHora(m.fecha), valor: m => m.fecha },
     { key: 'tipoTxt', label: 'Tipo', filtro: true },
     { key: 'producto', label: 'Producto' },
     { key: 'sede_nombre', label: 'Sede', filtro: true },
     { key: 'cantidad', label: 'Cant.', align: 'right', valor: m => num(m.cantidad), render: m => <b style={{ color: num(m.cantidad) < 0 ? 'var(--red)' : 'var(--green)' }}>{num(m.cantidad) > 0 ? '+' : ''}{qty(m.cantidad)}</b> },
-    { key: 'costo_unitario', label: 'Costo unit.', align: 'right', render: m => (m.costo_unitario == null ? '—' : moneda(m.costo_unitario)) },
+    colCosto({ key: 'costo_unitario', label: 'Costo unit.', align: 'right', render: m => (m.costo_unitario == null ? '—' : moneda(m.costo_unitario)) }),
     { key: 'referencia_folio', label: 'Referencia', render: m => m.referencia_folio ?? m.referencia_tipo ?? '—' },
     { key: 'nota', label: 'Nota', render: m => m.nota ?? '' },
-  ]
+  ], verCostos)
   return <DataTable columnas={cols} filas={filas} cargando={k.cargando} error={msgError(k.error)} exportarNombre="kardex" tamanoPagina={30}
     acciones={<div style={{ minWidth: 260 }}><SelectorProducto productos={productos} value={producto} onChange={setProducto} placeholder="Filtrar por producto…" /></div>}
     vacio={{ title: 'Sin movimientos', description: 'El kardex registra cada entrada y salida. Ningún movimiento se edita ni se borra.' }} />
