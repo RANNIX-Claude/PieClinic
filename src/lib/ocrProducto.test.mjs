@@ -47,3 +47,9 @@ test('generarCodigoInterno da un EAN-13 válido que empieza con 2', () => {
     assert.match(c, /^2\d{12}$/); assert.equal(ean13Valido(c), true)
   }
 })
+test('codigosDeTexto también reconoce códigos alfanuméricos de proveedor', () => {
+  const r = codigosDeTexto('Collarín cervical\nSKU: T0COC05-3\nModelo SC-675')
+  assert.ok(r.includes('T0COC05-3'))
+  assert.ok(r.includes('SC-675'))
+  assert.ok(!r.includes('COLLARÍN'))
+})

@@ -27,6 +27,11 @@ export function codigosDeTexto(texto) {
     const c = m[0].replace(/\D/g, '')
     if (c.length >= 8 && c.length <= 14 && !salida.includes(c)) salida.push(c)
   }
+  // Códigos alfanuméricos de proveedor (p. ej. T0COC05-3, SC-675, PF-CC-002): letras y números juntos, con guiones opcionales.
+  for (const m of String(texto ?? '').toUpperCase().matchAll(/\b(?=[A-Z0-9-]*\d)(?=[A-Z0-9-]*[A-Z])[A-Z0-9]{1,10}(?:-[A-Z0-9]{1,8}){0,3}\b/g)) {
+    const c = m[0]
+    if (c.length >= 5 && c.length <= 20 && !salida.includes(c)) salida.push(c)
+  }
   return salida.sort((a, b) => Number(ean13Valido(b)) - Number(ean13Valido(a)))
 }
 
