@@ -17,6 +17,9 @@ export const DEFINICIONES = {
   cancelacion_ventana_dias: { tipo: 'num', omision: 7, minimo: 1 },
   sustitucion_relacion_costo: { tipo: 'num', omision: 3, minimo: 1 },
   alertas_techo_diario: { tipo: 'num', omision: 10, minimo: 1 },
+  aleatoria_excluir_horas: { tipo: 'num', omision: 24, minimo: 0, tope: 168 },
+  relevo_espera_min: { tipo: 'num', omision: 30, minimo: 1, tope: 480 },
+  relevo_ventana_horas: { tipo: 'num', omision: 12, minimo: 1, tope: 48 },
 }
 
 /**

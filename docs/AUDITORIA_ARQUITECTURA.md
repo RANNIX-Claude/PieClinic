@@ -110,3 +110,14 @@ Reglas duras (en base de datos):
 - Longitud del PIN (4–8 vs. 4–6 de la especificación).
 - Podólogo con capacidad de captura (la especificación no lo lista; se asumió que sí por el control de servicios y kits).
 - La cuenta de soporte (`a@g.com`) pierde en este módulo sus facultades de dueño.
+
+## 8. Etapa 4 (checklist y cierres) — anexo
+
+Detalle completo en [`AUDITORIA_ETAPA4.md`](AUDITORIA_ETAPA4.md) (migraciones 230–235). Lo que las etapas siguientes deben respetar:
+- Las tablas nuevas siguen el patrón de la Etapa 0: `ctl_entrega_firma` y `ctl_cierre_corte` son solo inserción, `ctl_entrega` tiene estado (`ctl_transicion`), todas con RLS `ver_directo`; **quien captura un cierre solo recibe `{ok, folio, estado}`**; el esperado vive en `ctl_cierre_calculo`/`ctl_cierre_corte`.
+- Regla «el entrante no puede vender hasta aceptar»: `piefirme.ctl_puede_vender(sucursal)` y trigger `t_ctl_bloqueo_entrega` sobre `ventas`; el fondo inicial del turno siguiente lo fija `t_ctl_fondo_entrega` sobre `turnos_caja`. Ambos son inertes mientras no exista una entrega del módulo.
+- Un caso nacido de un cierre usa `origen_tipo = 'cierre_captura'` (o `'entrega_firma'` para `diferencia_relevo`), sin `producto_id` (no es un ajuste de inventario).
+- Los contadores de folio (`ctl_folio_seq`) bloquean la fila hasta el fin de la transacción: dos corridas de pruebas del módulo con transacción abierta se esperan entre sí.
+
+## 9. Etapa 2 (motor de conteo) — qué cambia para las etapas siguientes
+Detalle en [`AUDITORIA_ETAPA2.md`](AUDITORIA_ETAPA2.md). Migraciones 210–213. Las RPC de captura leen el origen con funciones internas `piefirme_app.ctl_o_*` (no con las `v_ctl_*`, que devuelven cero filas a sucursal); el caso nace de la sesión con `usuario_captura`, `contexto` (cancelación ligada, sustitución de código, firmas del relevo) y `cantidad` = física − sistema. Caja debe consultar `piefirme.ctl_entrega_pendiente(turno)` antes de vender. La única respuesta de sucursal con diferencias es el relevo que no cuadra (llave `diferencia_relevo`, decisión revisable).
