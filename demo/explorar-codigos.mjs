@@ -1,0 +1,13 @@
+import { chromium } from '@playwright/test'
+const b = await chromium.launch({ channel: 'chrome', headless: true })
+const p = await (await b.newContext({ viewport: { width: 1280, height: 900 } })).newPage()
+p.on('pageerror', e => console.log('PAGEERROR', String(e).slice(0, 300)))
+await p.goto('http://localhost:5174/app/login', { timeout: 150000, waitUntil: 'domcontentloaded' })
+await p.locator('#pf-email').waitFor({ timeout: 150000 })
+await p.locator('#pf-email').fill('m@g.com'); await p.locator('#pf-pass').fill('123456')
+await p.getByRole('button', { name: 'Iniciar sesión' }).click()
+await p.locator('header').waitFor({ timeout: 90000 }); await p.waitForTimeout(2500)
+await p.goto('http://localhost:5174/app/utilerias/codigos-productos', { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(5000)
+console.log('SVGS', await p.locator('svg[aria-label^="Código de barras"]').count(), '| TXT', (await p.locator('.pagina').innerText()).replace(/\n+/g, ' | ').slice(0, 300))
+await p.screenshot({ path: process.env.TEMP + '/codigos.png' })
+await b.close()

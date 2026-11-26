@@ -10,6 +10,7 @@ export default [
   { path: '/utilerias/validacion', element: lazy(() => import('../pages/utilerias/Validacion.jsx')), roles, titulo: 'Validación del sistema', cap: 'utilerias.usar' },
   { path: '/utilerias/catalogos', element: lazy(() => import('../pages/utilerias/Catalogos.jsx')), roles, titulo: 'Catálogos', cap: 'utilerias.usar' },
   { path: '/utilerias/consulta-bd', element: lazy(() => import('../pages/utilerias/ConsultaBD.jsx')), roles, titulo: 'Consulta a base de datos', cap: 'utilerias.usar' },
+  { path: '/utilerias/codigos-productos', element: lazy(() => import('../pages/utilerias/CodigosProductos.jsx')), roles, titulo: 'Códigos de productos', cap: 'utilerias.usar' },
   { path: '/utilerias/entrega', element: lazy(() => import('../pages/utilerias/Entrega.jsx')), roles, titulo: 'Entrega del proyecto', cap: 'utilerias.usar' },
   { path: '/utilerias/asistente', element: lazy(() => import('../pages/utilerias/ConsultaAsistente.jsx')), roles, titulo: 'Consulta del asistente', cap: 'utilerias.usar' },
   { path: '/utilerias/salud', element: lazy(() => import('../pages/utilerias/Salud.jsx')), roles, titulo: 'Salud del sistema y errores', cap: 'utilerias.usar' },
