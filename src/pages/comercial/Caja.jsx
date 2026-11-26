@@ -1,5 +1,5 @@
 // Caja y tickets (mockup 17): turno de caja, cobro, tickets del día y corte de caja. Lee prp_turnos_caja y delega en las pestañas.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Lock, Unlock } from 'lucide-react'
@@ -15,19 +15,35 @@ import CajaTickets from './componentes/CajaTickets'
 import CajaCorte from './componentes/CajaCorte'
 import { useLeer, useLeerOffline, AvisoError, ejecutar } from './componentes/comun'
 import CajaOffline from './componentes/CajaOffline'
+import CajaCajon from './componentes/CajaCajon'
 import CajaPedidos from '../plataforma/pedidos/CajaPedidos'
+import { puedeVender, entregaPendiente, avisoEntregaPendiente } from '../../lib/comercial/cajaControl'
 
 export default function Caja() {
   const { user, sedes, sedeActivaId, sedeActiva, soloLectura } = useApp()
   const qc = useQueryClient()
   const [sp, setSp] = useSearchParams()
   const puedeTurno = usePermiso('caja.turno')
+  const puedeCobrar = usePermiso('ventas.cobrar')
   const [tab, setTab] = useState(sp.get('tab') ?? 'cobro')
   const [apertura, setApertura] = useState({ caja: 'Caja 1', nombre: '', fondo: '0' })
   const [ocupado, setOcupado] = useState(false)
   const turnoQ = useLeerOffline('turno-abierto', 'prp_turnos_caja', { filtros: { estado: 'abierto', cajero_id: user?.id }, limite: 5 }, !!sedeActivaId && !!user)
   const turno = turnoQ.filas[0] ?? null
   const refrescar = () => qc.invalidateQueries({ queryKey: ['comercial'] })
+  // Relevo de turno (Etapa 4): «El turno anterior no ha sido aceptado». El candado de verdad es del servidor (trigger sobre ventas); esto solo avisa ANTES de teclear el ticket,
+  // al abrir el turno y cada 20 s. Nunca muestra montos ni diferencias.
+  const [bloqueo, setBloqueo] = useState(null)
+  useEffect(() => {
+    if (!sedeActivaId || !turno?.id || !navigator.onLine) { setBloqueo(null); return }
+    let vivo = true
+    const revisar = async () => {
+      const [a, b] = await Promise.all([puedeVender(sedeActivaId), entregaPendiente(turno.id)])
+      if (vivo) setBloqueo(avisoEntregaPendiente(a.data, b.data))
+    }
+    revisar(); const t = setInterval(revisar, 20000)
+    return () => { vivo = false; clearInterval(t) }
+  }, [sedeActivaId, turno?.id])
 
   const abrir = async () => {
     if (!(Number(apertura.fondo) >= 0)) return toast.error('Fondo inicial inválido')
@@ -44,13 +60,15 @@ export default function Caja() {
         <div className="cj-barra-info"><b>Caja y tickets</b>{sedeActivaId ? <span>Sede {sedeActiva?.nombre}{turno ? ` · ${turno.caja} · turno abierto ${fechaHora(turno.apertura_en)} · fondo ${moneda(turno.fondo_inicial)}` : ' · sin turno abierto'}</span> : <span>Elige una sede en el encabezado</span>}
           {turno && <span className="bd v"><Unlock size={12} style={{ verticalAlign: -1 }} /> Turno abierto</span>}</div>
         {sedeActivaId && <CajaOffline />}
-        {sedeActivaId && <Tabs items={[{ id: 'cobro', label: 'Cobro' }, { id: 'tickets', label: 'Tickets del día' }, { id: 'pedidos', label: 'Pedidos' }, { id: 'corte', label: 'Corte de turno' }]} value={tab} onChange={cambiarTab} />}
+        {sedeActivaId && turno && puedeCobrar && <CajaCajon sedeId={sedeActivaId} turno={turno} deshabilitado={soloLectura || !navigator.onLine} />}
+        {sedeActivaId && <Tabs items={[{ id: 'cobro', label: 'Cobro' }, { id: 'tickets', label: 'Tickets del día' }, { id: 'pedidos', label: 'Pedidos' }, { id: 'corte', label: 'Corte de turno' }]} value={tab} onChange={cambiarTab} />}
       </div>
       {!sedeActivaId ? (
         <div className="card" style={{ textAlign: 'center', padding: 30 }}>Caja opera por sede. Elige una sede en el selector del encabezado{sedes.length ? '' : ' (no tienes sedes asignadas)'}.</div>
       ) : (
         <>
           <AvisoError error={turnoQ.error} titulo="No se pudo leer el turno de caja" />
+          {bloqueo && <div className="card" role="alert" style={{ borderLeft: '4px solid var(--red)', marginBottom: 10, fontWeight: 600 }}>{bloqueo} No se pueden registrar ventas hasta que quien entra acepte la entrega del turno.</div>}
           {!turno && !turnoQ.cargando && (
             <div className="card" style={{ maxWidth: 560, marginBottom: 10 }}>
               <h3 style={{ marginBottom: 8 }}><Lock size={16} style={{ verticalAlign: -3 }} /> Abrir turno de caja</h3>
@@ -64,7 +82,7 @@ export default function Caja() {
             </div>
           )}
           <div style={{ marginTop: 10 }}>
-            {tab === 'cobro' && <CajaCobro turno={turno} onListo={refrescar} onTickets={() => cambiarTab('tickets')} />}
+            {tab === 'cobro' && <CajaCobro turno={turno} bloqueo={bloqueo} onListo={refrescar} onTickets={() => cambiarTab('tickets')} />}
             {tab === 'tickets' && <CajaTickets turno={turno} onCambio={refrescar} onRetomar={id => { const n = new URLSearchParams(sp); n.set('venta', id); n.set('tab', 'cobro'); setSp(n); setTab('cobro') }} />}
             {tab === 'pedidos' && <CajaPedidos turno={turno} />}
             {tab === 'corte' && <CajaCorte turno={turno} onCambio={refrescar} />}

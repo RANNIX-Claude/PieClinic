@@ -24,9 +24,9 @@ export const CAPS_SUPERVISOR = new Set([
 ])
 export const RUTAS_SUPERVISOR = [
   '/dashboard', '/resumen-semanal', '/analisis/ejecutivo', '/operacion-dia', '/reportes', '/agenda', '/catalogo',
-  '/inventario', '/traspasos', '/compras', '/mermas-conteos', '/conteo-inicial', '/productos-provisionales', '/catalogo/codigos', '/catalogo/codigos-productos', '/inventario/analisis', '/mi-pin',
+  '/inventario', '/inventario/analisis', '/traspasos', '/compras', '/mermas-conteos', '/conteo-inicial', '/productos-provisionales', '/catalogo/codigos', '/catalogo/codigos-productos', '/mi-pin',
   // Control y Auditoría: el supervisor captura, ve diferencias e investiga (NO autoriza ni configura; ver lib/auditoria/roles.js)
-  '/auditoria', '/auditoria/diferencias', '/auditoria/casos', '/auditoria/conteos', '/auditoria/cierres',
+  '/auditoria', '/auditoria/diferencias', '/auditoria/casos', '/auditoria/reportes', '/auditoria/alertas', '/auditoria/conteos', '/auditoria/cierres', '/auditoria/custodia', '/auditoria/custodia/recepcion', '/auditoria/servicios',
 ]
 export const TODOS_LOS_ROLES = ['administrador', 'podologo', 'recepcion', 'supervisor', 'rannix']
 
@@ -75,6 +75,9 @@ export const CAPACIDADES = {
   'inventario.ver':           cap([A, P, R]),
   'inventario.operar':        cap([A, R], true),
   'inventario.autorizar':     cap([A], true),
+  // Costos (costo promedio, valor al costo, margen, historial de costos, precios de proveedor, montos de compra): dueños y supervisor.
+  // Recepción y podología ven solo el PRECIO DE LISTA. La base (migración 270) devuelve NULL en las vistas prp_* para esos roles.
+  'inventario.ver_costos':    cap([A, X]),
   // Conteo inicial (078): cuenta quien opera inventario; inicia y reabre Administración o la supervisión; los provisionales los completa Administración o la supervisión
   'conteo.operar':            cap([A, R], true),
   'conteo.iniciar':           cap([A], true),
@@ -116,8 +119,6 @@ export const CAPACIDADES = {
   'auditoria.autorizar':       cap([A], true),               // solo el dueño (contraseña completa)
   'auditoria.configurar':      cap([A], true),               // dueño y soporte RANNIX
   // Panel RANNIX (solo metadatos de uso y cobro; nunca datos de salud)
-  // Costos: dueños y supervisor. Recepción y podología ven solo el PRECIO DE LISTA (migración 270 en la base).
-  'inventario.ver_costos':    cap([A, X]),
   'rannix.panel':             cap([X], true),
 }
 

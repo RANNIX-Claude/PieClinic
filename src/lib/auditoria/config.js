@@ -20,6 +20,15 @@ export const DEFINICIONES = {
   aleatoria_excluir_horas: { tipo: 'num', omision: 24, minimo: 0, tope: 168 },
   relevo_espera_min: { tipo: 'num', omision: 30, minimo: 1, tope: 480 },
   relevo_ventana_horas: { tipo: 'num', omision: 12, minimo: 1, tope: 48 },
+  sello_peso_tolerancia_pct: { tipo: 'num', omision: 5, minimo: 0, tope: 25 },
+  caidas_frecuentes_n: { tipo: 'num', omision: 3, minimo: 2 },
+  caidas_ventana_dias: { tipo: 'num', omision: 30, minimo: 7, tope: 180 },
+  caida_baja_venta_pct: { tipo: 'num', omision: 50, minimo: 1, tope: 100 },
+  // Etapa 1 · cambios en el origen (la Caja): interruptores 0/1 que nacen apagados y espera de la cancelación
+  precio_abierto_con_clave: { tipo: 'num', omision: 0, minimo: 0, tope: 1 },
+  descuento_motivo_cerrado: { tipo: 'num', omision: 0, minimo: 0, tope: 1 },
+  cancelacion_con_bloqueo: { tipo: 'num', omision: 0, minimo: 0, tope: 1 },
+  cancelacion_espera_seg: { tipo: 'num', omision: 60, minimo: 10, tope: 600 },
 }
 
 /**

@@ -16,7 +16,7 @@ export function textoError(e) {
   const m = String(e.message ?? e)
   if (/descuento_requiere_pin/.test(m)) return 'Más del límite de descuento: requiere PIN de Administrador.'
   if (/turnos_una_abierta_por_caja/.test(m)) return 'Esa caja ya tiene un turno abierto (de otra persona). Pide que lo cierre con su corte, o escribe otro nombre en el campo Caja (por ejemplo «Caja 2»).'
-  return m.replace(/^PF\d+:?\s*/, '')
+  return m.replace(/^PF\d+:?\s*/, '').replace(/^(precio_no_editable|precio_abierto_requiere_clave|descuento_motivo_cerrado|cancelacion_con_bloqueo):\s*/i, '')   // controles de Caja (Etapa 1)
 }
 
 /**

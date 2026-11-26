@@ -22,6 +22,8 @@ import FormField from '../../components/ui/FormField'
 import StatusBadge from '../../components/ui/StatusBadge'
 import { useDatos, EstadoConsulta, errMsg } from './comun'
 import { Puntos as PuntosControl, TomasFijas, ConsumoEsperado } from './cierres/PuntosControl'
+import CatalogoControl from './custodia/CatalogoControl'
+import MotivosCaja from './MotivosCaja'
 
 export default function Configuracion() {
   const { rol, sedes } = useApp()
@@ -35,16 +37,18 @@ export default function Configuracion() {
         subtitulo={`Parámetros, topes y catálogos del módulo de Control y Auditoría · tu rol aquí: ${miRol}`} />
       {!puedeEditar && <div className="card" style={{ marginBottom: 10, fontSize: 13 }}>Tu rol puede consultar esta configuración pero no cambiarla.</div>}
       <Tabs value={tab} onChange={setTab} items={[
-        { id: 'parametros', label: 'Parámetros' }, { id: 'causas', label: 'Causas' }, { id: 'puntos', label: 'Puntos de control' }, { id: 'tomas', label: 'Tomas fijas' }, { id: 'consumo', label: 'Consumo de insumos' },
-        { id: 'custodia', label: 'Custodia' }, { id: 'historial', label: 'Historial de cambios' }, { id: 'consultas', label: 'Consultas a reportes' },
+        { id: 'parametros', label: 'Parámetros' }, { id: 'causas', label: 'Causas' }, { id: 'motivos', label: 'Motivos de caja' }, { id: 'puntos', label: 'Puntos de control' }, { id: 'tomas', label: 'Tomas fijas' }, { id: 'consumo', label: 'Consumo de insumos' },
+        { id: 'custodia', label: 'Custodia' }, { id: 'catalogo', label: 'Catálogo de control' }, { id: 'historial', label: 'Historial de cambios' }, { id: 'consultas', label: 'Consultas a reportes' },
       ]} />
       <div style={{ marginTop: 12 }}>
         {tab === 'parametros' && <Parametros sedes={sedes} puedeEditar={puedeEditar} />}
         {tab === 'causas' && <Causas puedeEditar={puedeEditar} />}
+        {tab === 'motivos' && <MotivosCaja puedeEditar={puedeEditar} />}
         {tab === 'puntos' && <PuntosControl puedeEditar={puedeEditar} />}
         {tab === 'tomas' && <TomasFijas puedeEditar={puedeEditar} />}
         {tab === 'consumo' && <ConsumoEsperado puedeEditar={puedeEditar} />}
         {tab === 'custodia' && <Custodia sedes={sedes} puedeEditar={puedeEditar} />}
+        {tab === 'catalogo' && <CatalogoControl puedeEditar={puedeEditar} />}
         {tab === 'historial' && <Historial sedes={sedes} nombreSede={nombreSede} />}
         {tab === 'consultas' && <Consultas />}
       </div>

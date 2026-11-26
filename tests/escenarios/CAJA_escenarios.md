@@ -32,5 +32,9 @@ Ambiente: https://pieclinic.netlify.app/app/caja · Cuentas de prueba (clave 123
 | ESC-CAJA-08 | recepción | Cierre del turno con efectivo contado | Diferencia calculada y justificada | `turnos_caja`, `cortes_caja` |
 | ESC-CAJA-09 | podólogo | Entrar a Caja | Sin acceso (o solo lo que tenga habilitado) | — |
 | ESC-CAJA-10 | supervisor | Ver ventas y cortes de su sucursal | Solo lectura | RLS |
+| ESC-CAJA-11 | recepción | Control y Auditoría E1 · el precio de un producto de catálogo no se edita (ni por la API) y la línea guarda el precio vigente | Con precio distinto: rechazado `precio_no_editable`; con el de catálogo: cobra y queda `precio_catalogo` | `venta_lineas.precio_catalogo`; `v_ctl_ventas.precio_catalogo_al_momento` (`scripts/test-auditoria-caja-qa.mjs`) |
+| ESC-CAJA-12 | recepción + supervisor | Con `descuento_motivo_cerrado = 1`: descuento de 5 % sobre el tope sin clave (0 %) | Pide motivo del catálogo y clave de un supervisor; queda usuario, motivo, autorizador y monto | `venta_lineas.descuento_usuario_id / descuento_motivo_id / descuento_autorizado_por` |
+| ESC-CAJA-13 | recepción + supervisor | Con `cancelacion_con_bloqueo = 1`: cancelar un ticket con pieza sin escanearla, con otro código y con la pieza + foto en vivo + clave + motivo | Sin pieza o con otro código: rechazado y la pieza NO vuelve; con todo: cancelada, pieza vuelve, alerta al dueño; a los 60 s sin respuesta: `pendiente_de_validacion` | `ctl_cancelacion`, `movimientos_inventario` (`devolucion_cliente`), `ctl_alerta` |
+| ESC-CAJA-14 | recepción | «Abrir cajón (sin venta)» con motivo opcional | Queda usuario, caja, hora del servidor y motivo | `ctl_apertura_cajon`, evento `cajon_abierto_sin_venta` |
 
 Un paso solo es CUMPLE con captura y consulta a la base. Lo que falte se anota como hallazgo; no se corrige durante la corrida.

@@ -1,0 +1,11 @@
+Caja abierta con turno; botón «Abrir cajón (sin venta)»: true
+Campo de precio deshabilitado (catálogo): true
+Motivo del descuento es una lista cerrada: true
+Autorizadores listados: Supervisora Prueba · supervisor | Administrador QA · dueño | Administrador Prueba · dueño | Administrador Sintético · dueño | Administrador Sintético · dueño | Administrador Prueba · dueño | Dueño Prueba · dueño | Ricardo Villarreal Garza · dueño
+PIN incorrecto → mensaje: Clave incorrecta.
+Descuento autorizado visible: true
+Ticket cobrado: CENTENARIO-TKT-000036
+Modal de validación: Solicitud CCN-2026-00001 · responde en 1:03. Pendiente de validar: la pieza aún NO vuelve 
+Código que no corresponde → El código escaneado no corresponde a la pieza del ticket: sin la pieza presente no hay cancelación.
+Resultado final: Cancelar ticket CENTENARIO-TKT-000036 · validación Autorizada: el ticket quedó cancelado y la pieza volvió al inventario. Cerrar
+Errores de consola/página: ninguno

@@ -16,19 +16,21 @@ import { redondear, suma } from '../../../lib/comercial/dinero'
 import { COBRO_TERMINAL_AVISO } from '../../../lib/adaptadores/clip'
 import PacienteBuscador from './PacienteBuscador'
 import PinModal from './PinModal'
+import ClaveSupervisorModal from './ClaveSupervisorModal'
+import { parametrosCaja, PARAMETROS_CAJA_OMISION, topeSinClave, precioNecesitaClave } from '../../../lib/comercial/cajaControl'
 import CajaCaracteristicas, { recomponer } from './CajaCaracteristicas'
 import { imprimirTicketDe } from './ticketDatos'
 import { useLeer, useLeerOffline, usePodologos, AvisoError, BannerSimulado, ejecutar, textoError, nombrePerfil } from './comun'
 import { ticketHtml, imprimirHtml } from './ticket'
 import { encolarTicket, nuevoUuid, folioProvisional } from '../../../lib/offline/cola'
-import { guardarSnapshot } from '../../../lib/offline/almacen'
+import { guardarSnapshot, leerSnapshot } from '../../../lib/offline/almacen'
 
 const METODOS = [['efectivo', 'Efectivo'], ['tarjeta', 'Tarjeta (terminal)'], ['transferencia', 'Transferencia SPEI'], ['clip', 'Clip (liga / terminal)'], ['gift_card', 'Gift card'], ['cortesia', 'Cortesía (sin cobro)']]
 const MOTIVOS = ['Cortesía', 'Promoción', 'Cliente frecuente', 'Otro']
 let _k = 0
 const nuevaClave = () => `l${++_k}`
 
-export default function CajaCobro({ turno, onListo, onTickets }) {
+export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null }) {
   const { sedeActivaId, sedeActiva, organizacion, rol, perfil, user } = useApp()
   const nav = useNavigate()
   const [sp, setSp] = useSearchParams()
@@ -36,6 +38,9 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
   const parametros = organizacion?.parametros ?? {}
   const maxPct = param(parametros, 'descuento_recepcion_max_pct')
   const esAdmin = rol === 'administrador'
+  // Controles de Caja del módulo de auditoría (Etapa 1): lo que cambia la operación nace apagado; con internet se leen de la base y se guardan para el modo sin conexión
+  const [params, setParams] = useState(PARAMETROS_CAJA_OMISION)
+  const maxPctEf = topeSinClave(params, maxPct)
 
   const [ventaId, setVentaId] = useState(null)
   const [cita, setCita] = useState(null)
@@ -43,7 +48,7 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
   const [clienteGeneral, setClienteGeneral] = useState(false) // el cliente no quiere dar su nombre (regla del dueño 2026-11-25)
   const [podologoId, setPodologoId] = useState('')
   const [lineas, setLineas] = useState([])
-  const [global, setGlobal] = useState({ tipo: 'pct', valor: '', motivo: '', aut: null })
+  const [global, setGlobal] = useState({ tipo: 'pct', valor: '', motivo: '', motivo_id: '', aut: null })
   const [anticiposSel, setAnticiposSel] = useState([])
   const [pagos, setPagos] = useState([])
   const [requiereFactura, setRequiereFactura] = useState(false)
@@ -56,6 +61,12 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
   const [panel, setPanel] = useState(null)       // 'citas' | 'mas' | null
   const [abiertas, setAbiertas] = useState(() => new Set())  // líneas con el detalle de precio/descuento abierto
   const buscaRef = useRef(null)
+  useEffect(() => {
+    if (!sedeActivaId) return
+    const clave = `caja-parametros-${sedeActivaId}`
+    if (!navigator.onLine) { leerSnapshot(clave).then(p => p && setParams(p)); return }
+    parametrosCaja(sedeActivaId).then(r => { if (r.data) { setParams(r.data); guardarSnapshot(clave, r.data) } else leerSnapshot(clave).then(p => p && setParams(p)) })
+  }, [sedeActivaId])
 
   const podQ = usePodologos()
   const porCobrar = useLeer('citas-sin-cobro', 'prp_citas_sin_cobro', { orden: { columna: 'inicio', asc: false }, limite: 100 })
@@ -88,11 +99,13 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
     if (v.error || !v.data) return toast.error('No se encontró el ticket')
     if (!['por_cobrar', 'cuenta_abierta'].includes(v.data.estado)) return toast.error(`El ticket está ${v.data.estado}`)
     const l = await leer('prp_venta_lineas', { sedeCol: false, filtros: { venta_id: id }, orden: { columna: 'orden' } })
+    const extra = await leer('venta_lineas', { sedeCol: false, filtros: { venta_id: id }, columnas: 'id,descuento_motivo_id', limite: 200 })
+    const motivoDe = Object.fromEntries((extra.data ?? []).map(e => [e.id, e.descuento_motivo_id]))
     setVentaId(id); setRequiereFactura(v.data.requiere_factura); setPodologoId(v.data.podologo_id ?? '')
     if (v.data.paciente_id) { const p = await leerUno('prp_pacientes', { id: v.data.paciente_id }); setPaciente(p.data) }
     if (v.data.cita_id) { const c = await leerUno('prp_agenda', { id: v.data.cita_id }); setCita(c.data) }
     setLineas(l.data.map(x => ({ clave: nuevaClave(), tipo: x.tipo, servicio_id: x.servicio_id, producto_id: x.producto_id, oferta_id: x.oferta_id, plan_adquirido_id: x.plan_adquirido_id, promocion_id: x.promocion_id,
-      descripcion: x.descripcion, cantidad: Number(x.cantidad), precio_unitario: Number(x.precio_unitario), tipo_precio: x.tipo_precio, iva_tipo: x.iva_tipo, descuento_pct: Number(x.descuento_pct), descuento_motivo: x.descuento_motivo ?? '', aut: x.autorizacion_descuento_id, atendio_id: x.atendio_id, editable: false })))
+      descripcion: x.descripcion, cantidad: Number(x.cantidad), precio_unitario: Number(x.precio_unitario), tipo_precio: x.tipo_precio, iva_tipo: x.iva_tipo, descuento_pct: Number(x.descuento_pct), descuento_motivo: x.descuento_motivo ?? '', descuento_motivo_id: motivoDe[x.id] ?? null, aut: x.autorizacion_descuento_id, atendio_id: x.atendio_id, editable: false })))
   }
 
   // ── catálogo ─────────────────────────────────────────────────────────────────────────────────────
@@ -130,7 +143,7 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
     const precio = precioSrv ?? r.item?.precio_lista ?? 0
     const it = r.item
     const tipoLinea = r.t === 'oferta' ? ({ plan_multisesion: 'plan', paquete: 'paquete', gift_card: 'gift_card', membresia: 'membresia' }[it.tipo] ?? 'paquete') : r.t
-    const base = { clave: nuevaClave(), tipo: tipoLinea, descripcion: r.nombre, cantidad: 1, precio_unitario: Number(precio ?? 0), tipo_precio: 'fijo', descuento_pct: 0, descuento_motivo: '', aut: null,
+    const base = { clave: nuevaClave(), tipo: tipoLinea, descripcion: r.nombre, cantidad: 1, precio_unitario: Number(precio ?? 0), tipo_precio: 'fijo', descuento_pct: 0, descuento_motivo: '', descuento_motivo_id: null, aut: null, aut_precio: null,
       iva_tipo: r.t === 'oferta' ? (tipoLinea === 'gift_card' ? 'exento' : 'exento') : it.iva_tipo, editable: r.t === 'servicio' && ['desde', 'a_valorar', 'por_unidad'].includes(it.tipo_precio), atendio_id: podologoId || perfil?.id }
     if (r.t === 'servicio') base.servicio_id = r.id
     else if (r.t === 'producto') base.producto_id = r.id
@@ -166,9 +179,9 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
 
   const pinNecesarioLinea = l => {
     const c = calcularLinea(l)
-    return requierePin({ pct: pctEfectivo(c), maxPct, esAdmin }) && !l.aut
+    return requierePin({ pct: pctEfectivo(c), maxPct: maxPctEf, esAdmin }) && !l.aut
   }
-  const pinNecesarioGlobal = Number(global.valor) > 0 && requierePin({ pct: pctGlobalEfectivo, maxPct, esAdmin }) && !global.aut
+  const pinNecesarioGlobal = Number(global.valor) > 0 && requierePin({ pct: pctGlobalEfectivo, maxPct: maxPctEf, esAdmin }) && !global.aut
 
   // ── pagos ────────────────────────────────────────────────────────────────────────────────────────
   const agregarPago = metodo => setPagos(ps => [...ps, { clave: nuevaClave(), metodo, monto: Math.max(0, tot.saldo), referencia: '', recibido: '', ultimos4: '', codigoGift: '', gift: null }])
@@ -184,11 +197,16 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
     if (!lineas.length) return 'Agrega al menos un concepto'
     if (lineas.some(l => !(Number(l.cantidad) > 0))) return 'Revisa las cantidades'
     if (lineas.some(l => l.tipo === 'servicio' && l.editable && !(Number(l.precio_unitario) >= 0))) return 'Captura el precio del servicio'
+    const sinClavePrecio = lineas.find(l => precioNecesitaClave({ linea: l, params, esAdmin })); if (sinClavePrecio) return `El precio cotizado de «${sinClavePrecio.descripcion}» necesita la clave de un supervisor`
     const sinCar = lineas.find(l => l.admite_caracteristicas && !(l.caracteristicas ?? []).length); if (sinCar) return `Elige al menos una característica de «${sinCar.base_nombre}»`
     if (lineas.some(l => l.admite_caracteristicas && !(Number(l.precio_unitario) > 0))) return 'Captura el precio base cotizado del producto especial'
     for (const l of lineas) { const c = calcularLinea(l); if (c.descuento > 0 && !String(l.descuento_motivo).trim()) return 'Todo descuento exige motivo' }
     if (Number(global.valor) > 0 && !global.motivo.trim()) return 'El descuento global exige motivo'
-    if (lineas.some(pinNecesarioLinea) || pinNecesarioGlobal) return `Descuentos de más de ${maxPct} % requieren PIN de Administrador`
+    if (params.descuento_motivo_cerrado) {
+      if (lineas.some(l => calcularLinea(l).descuento > 0 && !l.descuento_motivo_id) && !(Number(global.valor) > 0)) return 'Elige el motivo del descuento de la lista'
+      if (Number(global.valor) > 0 && !global.motivo_id) return 'Elige el motivo del descuento global de la lista'
+    }
+    if (lineas.some(pinNecesarioLinea) || pinNecesarioGlobal) return params.descuento_motivo_cerrado ? `Los descuentos de más de ${maxPctEf} % requieren la clave de un supervisor` : `Descuentos de más de ${maxPct} % requieren PIN de Administrador`
     if (['plan', 'membresia'].some(t => lineas.some(l => l.tipo === t)) && !paciente) return 'Los planes y membresías se venden a un paciente'
     if (requiereFactura && !paciente) return 'Para facturar elige al paciente'
     if (!paciente && !clienteGeneral) return 'Elige al cliente o marca «Cliente general» si no quiere dar su nombre'
@@ -223,7 +241,8 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
     // 2) líneas
     const filas = lineas.map((l, i) => ({ venta_id: id, orden: i, tipo: l.tipo, servicio_id: l.servicio_id ?? null, producto_id: l.producto_id ?? null, oferta_id: l.oferta_id ?? null, plan_adquirido_id: l.plan_adquirido_id ?? null,
       promocion_id: l.promocion_id ?? null, descripcion: l.descripcion, atendio_id: l.atendio_id ?? null, cantidad: Number(l.cantidad), precio_unitario: Number(l.precio_unitario) || 0, tipo_precio: l.tipo_precio,
-      descuento_pct: Number(global.valor) > 0 ? 0 : Number(l.descuento_pct) || 0, descuento_motivo: Number(global.valor) > 0 ? null : l.descuento_motivo || null, autorizacion_descuento_id: Number(global.valor) > 0 ? null : l.aut ?? null }))
+      descuento_pct: Number(global.valor) > 0 ? 0 : Number(l.descuento_pct) || 0, descuento_motivo: Number(global.valor) > 0 ? null : l.descuento_motivo || null, autorizacion_descuento_id: Number(global.valor) > 0 ? null : l.aut ?? null,
+      descuento_motivo_id: Number(global.valor) > 0 ? null : l.descuento_motivo_id || null, autorizacion_precio_id: l.aut_precio ?? null }))
     const r = await insertar('venta_lineas', filas)
     if (r.error) throw new Error(textoError(r.error))
     const conCar = []
@@ -231,7 +250,7 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
     if (conCar.length) { const rc = await insertar('venta_linea_caracteristicas', conCar); if (rc.error) throw new Error(textoError(rc.error)) }
     // 3) descuento global
     if (Number(global.valor) > 0) {
-      const g = await rpc('aplicar_descuento_global', { p_venta: id, p_tipo: global.tipo, p_valor: Number(global.valor), p_motivo: global.motivo, p_autorizacion: global.aut })
+      const g = await rpc('aplicar_descuento_global', { p_venta: id, p_tipo: global.tipo, p_valor: Number(global.valor), p_motivo: global.motivo, p_autorizacion: global.aut, p_motivo_id: global.motivo_id || null })
       if (g.error) throw new Error(textoError(g.error))
     }
     if (estadoFinal === 'cuenta_abierta') await actualizar('ventas', id, { estado: 'cuenta_abierta' })
@@ -249,6 +268,8 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
   async function cobrarOffline(imprimir) {
     const e = validar(true); if (e) return toast.error(e)
     if (lineas.some(l => ['plan', 'paquete', 'gift_card', 'membresia'].includes(l.tipo) || l.oferta_id || l.plan_adquirido_id || l.promocion_id)) return toast.error('Sin internet no se venden paquetes, planes, promociones ni se usa saldo de planes. Quítalos o espera a tener conexión.')
+    if (params.descuento_motivo_cerrado && lineas.some(l => Number(l.descuento_pct) > 0)) return toast.error('Sin internet no se aplican descuentos mientras el catálogo de motivos y la clave de supervisor estén activos. Quita el descuento o espera a tener conexión.')
+    if (lineas.some(l => precioNecesitaClave({ linea: l, params, esAdmin }))) return toast.error('Sin internet no se cobra un precio cotizado que exige la clave de un supervisor. Espera a tener conexión.')
     if (cita || ventaId || anticiposElegidos.length || Number(global.valor) > 0) return toast.error('Sin internet no se cobran citas, cuentas abiertas, anticipos ni descuentos globales. Espera a tener conexión.')
     if (pagos.some(p => !['efectivo', 'tarjeta', 'transferencia'].includes(p.metodo))) return toast.error('Sin internet solo se cobra con efectivo, tarjeta o transferencia.')
     setOcupado(true)
@@ -274,6 +295,7 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
     setOcupado(false)
   }
   async function cobrar(imprimir) {
+    if (bloqueo) return toast.error(bloqueo)
     if (!navigator.onLine) return cobrarOffline(imprimir)
     const e = validar(true); if (e) return toast.error(e)
     setOcupado(true)
@@ -298,7 +320,7 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
     setOcupado(false)
   }
   function limpiar() {
-    setVentaId(null); setCita(null); setPaciente(null); setClienteGeneral(false); setLineas([]); setPagos([]); setAnticiposSel([]); setGlobal({ tipo: 'pct', valor: '', motivo: '', aut: null }); setRequiereFactura(false); setHecho(null); setPodologoId('')
+    setVentaId(null); setCita(null); setPaciente(null); setClienteGeneral(false); setLineas([]); setPagos([]); setAnticiposSel([]); setGlobal({ tipo: 'pct', valor: '', motivo: '', motivo_id: '', aut: null }); setRequiereFactura(false); setHecho(null); setPodologoId('')
     const n = new URLSearchParams(sp); n.delete('cita'); n.delete('venta'); setSp(n, { replace: true })
   }
 
@@ -403,11 +425,13 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
                 <div className="grid3">
                   <FormField label="Tipo" as="select" value={global.tipo} onChange={e => setGlobal(g => ({ ...g, tipo: e.target.value, aut: null }))} options={[{ value: 'pct', label: '%' }, { value: 'monto', label: '$ monto' }]} />
                   <FormField label="Valor" type="number" min="0" value={global.valor} onChange={e => setGlobal(g => ({ ...g, valor: e.target.value, aut: null }))} />
-                  <FormField label="Motivo" as="select" value={global.motivo} onChange={e => setGlobal(g => ({ ...g, motivo: e.target.value }))} options={MOTIVOS.map(m => ({ value: m, label: m }))} />
+                  {params.descuento_motivo_cerrado
+                    ? <FormField label="Motivo" as="select" value={global.motivo_id} onChange={e => { const m = params.motivos_descuento.find(x => x.id === e.target.value); setGlobal(g => ({ ...g, motivo_id: m?.id ?? '', motivo: m?.nombre ?? '', aut: null })) }} options={params.motivos_descuento.map(m => ({ value: m.id, label: m.nombre }))} />
+                    : <FormField label="Motivo" as="select" value={global.motivo} onChange={e => setGlobal(g => ({ ...g, motivo: e.target.value }))} options={MOTIVOS.map(m => ({ value: m, label: m }))} />}
                 </div>
                 {Number(global.valor) > 0 && <div style={{ fontSize: 12.5 }}>Descuento efectivo {pctGlobalEfectivo.toFixed(1)} % · reemplaza los descuentos por línea.
                   {pinNecesarioGlobal ? <button type="button" className="btn red" style={{ marginLeft: 8 }} onClick={() => setPin({ tipo: 'global', pct: pctGlobalEfectivo, motivo: global.motivo })}>Pedir PIN</button> : global.aut ? <span className="bd v" style={{ marginLeft: 8 }}>Autorizado</span> : null}</div>}
-                <div className="text-muted" style={{ fontSize: 12 }}>Recepción da hasta {maxPct} % sin autorización; arriba pide PIN del Administrador. Todo descuento exige motivo.</div>
+                <div className="text-muted" style={{ fontSize: 12 }}>{params.descuento_motivo_cerrado ? `Hasta ${maxPctEf} % sin clave; arriba pide la clave de un supervisor. El motivo sale del catálogo.` : `Recepción da hasta ${maxPct} % sin autorización; arriba pide PIN del Administrador. Todo descuento exige motivo.`}</div>
                 <h3 style={{ margin: '10px 0 6px' }}>Anticipo / pago previo aplicado</h3>
                 {!paciente ? <div className="text-muted" style={{ fontSize: 13 }}>Elige al paciente para ver sus anticipos.</div> : antQ.filas.length === 0 ? <div className="text-muted" style={{ fontSize: 13 }}>Sin anticipos pagados.</div> : (
                   <table><thead><tr><th>Folio</th><th>Fecha</th><th className="num">Monto</th><th>Aplicar</th></tr></thead>
@@ -454,14 +478,19 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
                   </div>
                   {(abiertas.has(l.clave) || l.editable || necesitaPin) && (
                     <div className="cj-linea-extra">
-                      <label>Precio <input type="number" min="0" step="0.01" value={l.precio_unitario} disabled={!l.editable || !!l.admite_caracteristicas} title={l.admite_caracteristicas ? 'Calculado: precio base + características' : l.editable ? 'Precio cotizado' : 'Precio congelado del catálogo'} onChange={e => setL(l.clave, { precio_unitario: e.target.value })} /></label>
+                      <label>Precio <input type="number" min="0" step="0.01" value={l.precio_unitario} disabled={!l.editable || !!l.admite_caracteristicas} title={l.admite_caracteristicas ? 'Calculado: precio base + características' : l.editable ? 'Precio cotizado' : 'Precio congelado del catálogo'} onChange={e => setL(l.clave, { precio_unitario: e.target.value, aut_precio: null })} /></label>
                       <label>Desc. % <input type="number" min="0" max="100" value={Number(global.valor) > 0 ? '' : l.descuento_pct} disabled={Number(global.valor) > 0} onChange={e => setL(l.clave, { descuento_pct: e.target.value, aut: null })} /></label>
-                      {Number(l.descuento_pct) > 0 && !(Number(global.valor) > 0) && <input placeholder="Motivo" value={l.descuento_motivo} onChange={e => setL(l.clave, { descuento_motivo: e.target.value })} />}
-                      {necesitaPin && <button type="button" className="btn red" style={{ padding: '1px 8px' }} onClick={() => setPin({ tipo: 'linea', clave: l.clave, pct: Number(l.descuento_pct), motivo: l.descuento_motivo })}>PIN</button>}
+                      {Number(l.descuento_pct) > 0 && !(Number(global.valor) > 0) && (params.descuento_motivo_cerrado
+                        ? <select aria-label="Motivo del descuento" value={l.descuento_motivo_id ?? ''} onChange={e => { const m = params.motivos_descuento.find(x => x.id === e.target.value); setL(l.clave, { descuento_motivo_id: m?.id ?? null, descuento_motivo: m?.nombre ?? '', aut: null }) }}>
+                            <option value="">Motivo del descuento…</option>{params.motivos_descuento.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}</select>
+                        : <input placeholder="Motivo" value={l.descuento_motivo} onChange={e => setL(l.clave, { descuento_motivo: e.target.value })} />)}
+                      {necesitaPin && <button type="button" className="btn red" style={{ padding: '1px 8px' }} onClick={() => setPin({ tipo: 'linea', clave: l.clave, pct: Number(l.descuento_pct), motivo: l.descuento_motivo })}>{params.descuento_motivo_cerrado ? 'Clave' : 'PIN'}</button>}
                       {l.aut && Number(l.descuento_pct) > 0 && <span className="bd v">Autorizado</span>}
+                      {precioNecesitaClave({ linea: l, params, esAdmin }) && <button type="button" className="btn red" style={{ padding: '1px 8px' }} onClick={() => setPin({ tipo: 'precio', clave: l.clave, motivo: `Precio cotizado: ${l.descripcion}` })}>Clave para el precio</button>}
+                      {l.aut_precio && <span className="bd v">Precio autorizado</span>}
                       {!(Number(global.valor) > 0) && promos.length > 0 && (l.tipo === 'servicio' || l.tipo === 'producto') && (
                         <select value={l.promocion_id ?? ''} onChange={e => aplicarPromo(l, e.target.value)}><option value="">Sin promoción</option>{promos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select>)}
-                      {l.admite_caracteristicas && <CajaCaracteristicas linea={l} catalogo={carQ.filas} onCambio={nl => setL(l.clave, nl)} />}
+                      {l.admite_caracteristicas && <CajaCaracteristicas linea={l} catalogo={carQ.filas} onCambio={nl => setL(l.clave, { ...nl, aut_precio: nl.precio_unitario === undefined || Number(nl.precio_unitario) === Number(l.precio_unitario) ? l.aut_precio : null })} />}
                     </div>
                   )}
                 </div>
@@ -519,18 +548,23 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
           </div>
         </div>
 
-        <button type="button" className="cj-cobrar" disabled={ocupado || !turno} onClick={() => cobrar(true)} title={!turno ? 'Abre tu turno de caja' : ''}>
+        <button type="button" className="cj-cobrar" disabled={ocupado || !turno || !!bloqueo} onClick={() => cobrar(true)} title={bloqueo || (!turno ? 'Abre tu turno de caja' : '')}>
           <Printer size={26} /> COBRAR E IMPRIMIR · {moneda(tot.a_cobrar)} <span>(F9)</span>
         </button>
         <div className="cj-sec">
-          <button className="btn o" disabled={ocupado || !turno} onClick={() => cobrar(false)}>Cobrar sin ticket</button>
+          <button className="btn o" disabled={ocupado || !turno || !!bloqueo} onClick={() => cobrar(false)}>Cobrar sin ticket</button>
           <button className="btn red" disabled={ocupado} onClick={() => setConfirmarLimpiar(true)}>Cancelar venta</button>
         </div>
         {!turno && <div className="text-red" style={{ fontSize: 13 }}>Abre tu turno de caja para cobrar.</div>}
+        {bloqueo && <div className="text-red" role="alert" style={{ fontSize: 13, fontWeight: 600 }}>{bloqueo}</div>}
       </div>
 
-      <PinModal open={!!pin} tipo="descuento" pctMax={pin?.pct ?? null} motivoInicial={pin?.motivo ?? ''} detalle={{ ticket: ventaId }} onClose={() => setPin(null)}
+      <PinModal open={!!pin && pin.tipo !== 'precio' && !params.descuento_motivo_cerrado} tipo="descuento" pctMax={pin?.pct ?? null} motivoInicial={pin?.motivo ?? ''} detalle={{ ticket: ventaId }} onClose={() => setPin(null)}
         onAutorizado={id => { if (pin.tipo === 'linea') setL(pin.clave, { aut: id }); else setGlobal(g => ({ ...g, aut: id })); setPin(null); toast.success('Descuento autorizado (10 min)') }} />
+      {/* clave de supervisor (Etapa 1): descuentos con catálogo cerrado y precio cotizado; deja al autorizador registrado en la línea */}
+      <ClaveSupervisorModal open={!!pin && (pin.tipo === 'precio' || params.descuento_motivo_cerrado)} tipo={pin?.tipo === 'precio' ? 'precio' : 'descuento'} pct={pin?.pct ?? null} motivoInicial={pin?.motivo ?? ''}
+        autorizadores={params.autorizadores} sedeId={sedeActivaId} onClose={() => setPin(null)}
+        onAutorizado={id => { if (pin.tipo === 'linea') setL(pin.clave, { aut: id }); else if (pin.tipo === 'precio') setL(pin.clave, { aut_precio: id }); else setGlobal(g => ({ ...g, aut: id })); setPin(null); toast.success(pin.tipo === 'precio' ? 'Precio autorizado (10 min)' : 'Descuento autorizado (10 min)') }} />
       <ConfirmDialog open={confirmarLimpiar} titulo="Cancelar venta" peligro textoConfirmar="Descartar"
         mensaje={ventaId ? 'El ticket abierto se conserva en «Tickets del día»; esta pantalla se limpia.' : 'Se descartan los conceptos capturados (aún no se guardó nada).'} onConfirm={() => { setConfirmarLimpiar(false); limpiar() }} onCancel={() => setConfirmarLimpiar(false)} />
     </div>
