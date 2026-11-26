@@ -23,7 +23,7 @@ export const CAPS_SUPERVISOR = new Set([
 ])
 export const RUTAS_SUPERVISOR = [
   '/dashboard', '/resumen-semanal', '/analisis/ejecutivo', '/operacion-dia', '/reportes', '/agenda', '/catalogo',
-  '/inventario', '/traspasos', '/compras', '/mermas-conteos', '/conteo-inicial', '/productos-provisionales', '/catalogo/codigos', '/catalogo/codigos-productos', '/mi-pin',
+  '/inventario', '/traspasos', '/compras', '/mermas-conteos', '/conteo-inicial', '/productos-provisionales', '/catalogo/codigos', '/catalogo/codigos-productos', '/inventario/analisis', '/mi-pin',
 ]
 export const TODOS_LOS_ROLES = ['administrador', 'podologo', 'recepcion', 'supervisor', 'rannix']
 
