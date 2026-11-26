@@ -10,5 +10,6 @@ export default {
     { label: 'Códigos de servicios', path: '/catalogo/codigos', icon: 'QrCode', roles: ['administrador', 'recepcion'] },
     { label: 'Códigos de productos', path: '/catalogo/codigos-productos', icon: 'ScanBarcode', roles: ['administrador', 'recepcion'] },
     { label: 'Productos provisionales', path: '/productos-provisionales', icon: 'PackageSearch', roles: ['administrador'] },
+    { label: 'Análisis de inventario', path: '/inventario/analisis', icon: 'BarChart3', roles: ['administrador', 'podologo', 'recepcion'] },
   ],
 }

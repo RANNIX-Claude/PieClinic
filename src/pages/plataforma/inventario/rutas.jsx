@@ -4,6 +4,7 @@ import { rolesCon } from '../../../lib/permisos'
 
 export default [
   { path: '/inventario', element: lazy(() => import('./Inventario.jsx')), roles: rolesCon('inventario.ver'), titulo: 'Inventario por sucursal', cap: 'inventario.ver' },
+  { path: '/inventario/analisis', element: lazy(() => import('./AnalisisInventario.jsx')), roles: rolesCon('inventario.ver'), titulo: 'Análisis de inventario', cap: 'inventario.ver' },
   { path: '/inventario/producto/:id', element: lazy(() => import('./ExpedienteProducto.jsx')), roles: rolesCon('inventario.ver'), titulo: 'Expediente de producto', cap: 'inventario.ver' },
   { path: '/traspasos', element: lazy(() => import('./Traspasos.jsx')), roles: rolesCon('inventario.operar'), titulo: 'Traspasos', cap: 'inventario.operar' },
   { path: '/compras', element: lazy(() => import('./Compras.jsx')), roles: rolesCon('compras.ver'), titulo: 'Compras', cap: 'compras.ver' },
