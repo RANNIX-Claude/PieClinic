@@ -89,7 +89,7 @@ export const CAPACIDADES = {
   'dashboard.finanzas':       cap([A]),
   'reportes.ver':             cap([A, P]),
   'asistente.usar':           cap([A, P]),
-  'utilerias.usar':           cap([A]),                    // Utilerías (cálculos, validación, catálogos, consulta a BD, entrega): solo Administración
+  'utilerias.usar':           cap([X]),                    // Utilerías (cálculos, validación, catálogos, consulta a BD, entrega): solo el Superadministrador RANNIX; el administrador de la clínica ya no ve el grupo
   // RH, comisiones, mantenimiento (4.5)
   'rh.ver':                   cap([A]),
   'rh.editar':                cap([A], true),

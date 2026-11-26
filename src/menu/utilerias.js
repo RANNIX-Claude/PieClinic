@@ -1,9 +1,9 @@
-// Grupo UTILERÍAS del menú (clon de IRP): al final de ADMIN y antes de RANNIX. Solo Administrador (y Superadministrador).
+// Grupo UTILERÍAS del menú (clon de IRP): al final de ADMIN y antes de RANNIX. Solo el Superadministrador.
 // Reúne todo lo que se necesita para operar el sistema con orden: bitácora, usuarios y roles, catálogos, configuración,
 // herramientas de datos (datos de prueba, importar, exportar, warehouse) y monitoreo (salud y errores).
 import { Calculator, ClipboardCheck, BookOpen, Database, PackageOpen, MessageSquare, History, Users, Settings, Upload, Download, HeartPulse, FlaskConical, Boxes, FileText } from 'lucide-react'
 
-const roles = ['administrador']
+const roles = ['rannix']   // solo el Superadministrador (administrador + rannix_staff); el administrador de la clínica no ve este grupo
 
 export default {
   grupo: 'UTILERÍAS', orden: 10,
