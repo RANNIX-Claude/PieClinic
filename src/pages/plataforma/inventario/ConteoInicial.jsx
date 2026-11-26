@@ -11,7 +11,9 @@ import { useApp } from '../../../context/AppContext'
 import { usePermiso } from '../../../lib/permisos'
 import { rpc, leer } from '../../../lib/api'
 import { moneda } from '../../../lib/formato'
-import { urlFirmada, BUCKETS } from '../../../lib/urlFirmada'
+import { urlFirmada, BUCKETS, rutaStorage } from '../../../lib/urlFirmada'
+import { supabase } from '../../../lib/supabase'
+import { leerFotoProducto } from '../../../lib/ocrProducto'
 import PageHeader from '../../../components/ui/PageHeader'
 import EmptyState from '../../../components/ui/EmptyState'
 import LoadingSpinner from '../../../components/ui/LoadingSpinner'
@@ -29,7 +31,7 @@ const guardarZona = (id, z) => { try { localStorage.setItem(clavesZona(id), z) }
 
 export default function ConteoInicial() {
   const qc = useQueryClient()
-  const { sedes, sedeActivaId } = useApp()
+  const { sedes, sedeActivaId, organizacion } = useApp()
   const esAdmin = usePermiso('inventario.autorizar')
   const puedeIniciar = usePermiso('conteo.iniciar')
   const puedePrecio = usePermiso('catalogo.editar')   // solo Administración fija precios (igual que Catálogo y precios)
@@ -131,7 +133,14 @@ export default function ConteoInicial() {
     try {
       const nombre = h.nombre.trim() || h.producto?.nombre; let precioFinal = h.precioAct
       if (!h.producto) {
-        const r = await rpc('producto_provisional_crear', { p_conteo: conteoId, p_zona: zonaId, p_codigo: h.codigo, p_nombre: h.nombre, p_cantidad: cant, p_foto_path: null, p_precio: puedePrecio && precio > 0 ? precio : null })
+        let fotoPath = null
+        if (h.foto?.blob) {   // la foto del producto queda como evidencia del provisional (la ve Administración al completarlo)
+          const ruta = rutaStorage(organizacion.id, 'conteo-productos', conteoId, `${crypto.randomUUID()}.jpg`)
+          const up = await supabase.storage.from(BUCKETS.comprobantes).upload(ruta, h.foto.blob, { contentType: 'image/jpeg', upsert: false })
+          if (up.error) toast.error(`La foto no se pudo subir (${up.error.message}); el producto se guarda sin foto.`)
+          else fotoPath = ruta
+        }
+        const r = await rpc('producto_provisional_crear', { p_conteo: conteoId, p_zona: zonaId, p_codigo: h.codigo, p_nombre: h.nombre, p_cantidad: cant, p_foto_path: fotoPath, p_precio: puedePrecio && precio > 0 ? precio : null })
         if (r.error) { sonido('error'); return toast.error(msgError(r.error)) }
         precioFinal = puedePrecio && precio > 0 ? precio : null
       } else {
@@ -323,6 +332,27 @@ function HojaCaptura({ hoja, setHoja, zona, puedePrecio, guardando, guardar, cer
   const cant = hoja.cantidad === '' ? 0 : num(hoja.cantidad)
   const mover = d => setHoja(h => ({ ...h, cantidad: String(Math.max(0, (h.cantidad === '' ? 0 : num(h.cantidad)) + d)) }))
   const grande = { width: '100%', minHeight: 64, fontSize: 30, fontWeight: 800, textAlign: 'center' }
+  const archivo = useRef(null)
+  const [leyendo, setLeyendo] = useState(null)   // % de avance mientras se lee la foto
+  const [sug, setSug] = useState(null)           // { nombres, codigos } sugeridos por la foto
+  // Foto del producto nuevo: se reduce, se guarda como evidencia y se lee el texto para SUGERIR nombre y código (nada se aplica solo salvo un nombre vacío).
+  const deFoto = async e => {
+    const f = e.target.files?.[0]; e.target.value = ''
+    if (!f) return
+    try {
+      const bmp = await createImageBitmap(f)
+      const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height))
+      const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k)
+      c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height)
+      const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.85))
+      if (!blob) throw new Error('no se pudo procesar')
+      setHoja(h => ({ ...h, foto: { blob, url: URL.createObjectURL(blob) } })); setSug(null); setLeyendo(0)
+      const r = await leerFotoProducto(c, { alAvanzar: setLeyendo })
+      setSug(r)
+      if (r.nombres[0]) setHoja(h => (h.nombre.trim() ? h : { ...h, nombre: r.nombres[0] }))   // solo rellena si estaba vacío
+    } catch { setSug({ nombres: [], codigos: [] }); toast.error('No se pudo leer la foto. Escribe el nombre a mano.') }
+    finally { setLeyendo(null) }
+  }
   return (
     <div role="dialog" aria-label="Captura del producto" data-testid="hoja-captura"
       style={{ position: 'fixed', inset: 0, zIndex: 900, background: 'var(--bg, #fff)', display: 'flex', flexDirection: 'column' }}>
@@ -337,6 +367,25 @@ function HojaCaptura({ hoja, setHoja, zona, puedePrecio, guardando, guardar, cer
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: 14, display: 'grid', gap: 16, alignContent: 'start' }}>
+        {nuevo && (
+          <div style={{ display: 'grid', gap: 8 }}>
+            <input ref={archivo} type="file" accept="image/*" capture="environment" onChange={deFoto} style={{ display: 'none' }} />
+            <button type="button" className="btn o" style={{ minHeight: 56, fontSize: 17, fontWeight: 700 }} disabled={leyendo != null} onClick={() => archivo.current?.click()}>
+              <Camera size={20} style={{ verticalAlign: -4 }} /> {hoja.foto ? 'Tomar otra foto del producto' : 'Foto del producto (sugiere el nombre)'}
+            </button>
+            {hoja.foto && <img src={hoja.foto.url} alt="Foto del producto" style={{ width: '100%', maxHeight: 190, objectFit: 'contain', borderRadius: 10, background: '#111' }} />}
+            {leyendo != null && <div style={{ fontSize: 13.5, color: 'var(--muted)' }}>Leyendo el texto de la foto… {leyendo}% (la primera vez descarga el lector, puede tardar)</div>}
+            {sug && (sug.nombres.length > 0 || sug.codigos.length > 0)
+              ? <div style={{ display: 'grid', gap: 6 }} data-testid="sugerencias">
+                  {sug.nombres.length > 0 && <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>Nombre sugerido (toca el que sirva, o escríbelo tú):</div>}
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {sug.nombres.map(n => <button key={n} type="button" className="btn o" style={{ minHeight: 44, textAlign: 'left' }} onClick={() => setHoja(h => ({ ...h, nombre: n }))}>{n}</button>)}
+                  </div>
+                  {sug.codigos.filter(c => c !== hoja.codigo).slice(0, 2).map(c => <button key={c} type="button" className="btn o" style={{ minHeight: 44, textAlign: 'left' }} onClick={() => setHoja(h => ({ ...h, codigo: c }))}>Código visto en la foto: {c} · usar este</button>)}
+                </div>
+              : sug && <div style={{ fontSize: 13, color: 'var(--muted)' }}>No se pudo leer texto claro en la foto: escribe el nombre a mano o toma otra foto más cerca y con buena luz.</div>}
+          </div>)}
+
         {nuevo && (
           <label style={{ display: 'grid', gap: 6, fontWeight: 600 }}>Nombre del producto
             <input value={hoja.nombre} onChange={e => setHoja(h => ({ ...h, nombre: e.target.value }))} placeholder="Ej. Tobillera neopreno chica" autoComplete="off" style={{ minHeight: 56, fontSize: 20 }} />
