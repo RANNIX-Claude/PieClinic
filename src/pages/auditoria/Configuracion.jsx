@@ -9,7 +9,7 @@ import { useApp } from '../../context/AppContext'
 import { usePermiso, esSuperadmin } from '../../lib/permisos'
 import { leer } from '../../lib/api'
 import {
-  configEfectiva, guardarParametro, restablecerParametro, valorEn, guardarCausa, guardarPuntoControl, activarCustodia, desactivarCustodia, listar,
+  configEfectiva, guardarParametro, restablecerParametro, valorEn, guardarCausa, activarCustodia, desactivarCustodia, listar,
 } from '../../lib/auditoria/api'
 import { validarParametro, puedeAgregarCustodia, TOPE_CUSTODIA } from '../../lib/auditoria/config'
 import { rolAuditoria, ROL_AUDITORIA_NOMBRE } from '../../lib/auditoria/roles'
@@ -21,16 +21,7 @@ import Modal from '../../components/ui/Modal'
 import FormField from '../../components/ui/FormField'
 import StatusBadge from '../../components/ui/StatusBadge'
 import { useDatos, EstadoConsulta, errMsg } from './comun'
-
-const TIPOS_CAPTURA = [
-  { value: 'numero', label: 'Número' }, { value: 'denominaciones', label: 'Desglose por denominación' }, { value: 'conteo_piezas', label: 'Conteo de piezas' },
-  { value: 'solo_foto', label: 'Solo foto (evidencia)' }, { value: 'numero_y_foto', label: 'Número y foto' },
-]
-const NOMBRE_TIPO = Object.fromEntries(TIPOS_CAPTURA.map(t => [t.value, t.label]))
-const FORMULAS = [
-  { value: '', label: 'Ninguna (solo evidencia)' }, { value: 'efectivo_esperado', label: 'Efectivo: fondo inicial + ventas en efectivo − retiros' },
-  { value: 'tarjeta_esperada', label: 'Tarjeta: ventas con tarjeta' }, { value: 'kits_usados', label: 'Kits usados contra servicios cobrados' },
-]
+import { Puntos as PuntosControl, TomasFijas, ConsumoEsperado } from './cierres/PuntosControl'
 
 export default function Configuracion() {
   const { rol, sedes } = useApp()
@@ -44,13 +35,15 @@ export default function Configuracion() {
         subtitulo={`Parámetros, topes y catálogos del módulo de Control y Auditoría · tu rol aquí: ${miRol}`} />
       {!puedeEditar && <div className="card" style={{ marginBottom: 10, fontSize: 13 }}>Tu rol puede consultar esta configuración pero no cambiarla.</div>}
       <Tabs value={tab} onChange={setTab} items={[
-        { id: 'parametros', label: 'Parámetros' }, { id: 'causas', label: 'Causas' }, { id: 'puntos', label: 'Puntos de control' },
+        { id: 'parametros', label: 'Parámetros' }, { id: 'causas', label: 'Causas' }, { id: 'puntos', label: 'Puntos de control' }, { id: 'tomas', label: 'Tomas fijas' }, { id: 'consumo', label: 'Consumo de insumos' },
         { id: 'custodia', label: 'Custodia' }, { id: 'historial', label: 'Historial de cambios' }, { id: 'consultas', label: 'Consultas a reportes' },
       ]} />
       <div style={{ marginTop: 12 }}>
         {tab === 'parametros' && <Parametros sedes={sedes} puedeEditar={puedeEditar} />}
         {tab === 'causas' && <Causas puedeEditar={puedeEditar} />}
-        {tab === 'puntos' && <Puntos puedeEditar={puedeEditar} />}
+        {tab === 'puntos' && <PuntosControl puedeEditar={puedeEditar} />}
+        {tab === 'tomas' && <TomasFijas puedeEditar={puedeEditar} />}
+        {tab === 'consumo' && <ConsumoEsperado puedeEditar={puedeEditar} />}
         {tab === 'custodia' && <Custodia sedes={sedes} puedeEditar={puedeEditar} />}
         {tab === 'historial' && <Historial sedes={sedes} nombreSede={nombreSede} />}
         {tab === 'consultas' && <Consultas />}
@@ -192,59 +185,6 @@ function Causas({ puedeEditar }) {
           <button className="btn" disabled={!nueva.trim()} onClick={agregar}><Plus size={14} style={{ verticalAlign: -2 }} /> Agregar</button>
         </div>
       )}
-    </>
-  )
-}
-
-// ───────────────────────────── Puntos de control ─────────────────────────────
-function Puntos({ puedeEditar }) {
-  const qc = useQueryClient()
-  const [todas, setTodas] = useState(false)
-  const [edit, setEdit] = useState(null)       // null | { id?, ...datos }
-  const q = useDatos(['ctl-puntos', todas], () => listar('ctl_punto_control', { orden: [{ columna: 'orden', asc: true }, { columna: 'version', asc: false }], limite: 500, filtros: todas ? {} : { vigente_hasta: null } }))
-  const filas = (q.data?.data ?? []).filter(p => todas || p.vigente_hasta == null)
-  async function guardar() {
-    const d = edit
-    const r = await guardarPuntoControl(d.id ?? null, {
-      nombre: d.nombre, tipo_captura: d.tipo_captura, obligatorio: d.obligatorio, aplica_turno: d.aplica_turno, aplica_dia: d.aplica_dia, aplica_semanal: d.aplica_semanal,
-      formula_esperado: d.formula_esperado || null, tolerancia: Number(d.tolerancia || 0), orden: Number(d.orden || 100), activo: d.activo,
-    })
-    if (r.error) return toast.error(errMsg(r.error))
-    toast.success(d.id ? 'Se creó una versión nueva del punto de control' : 'Punto de control creado')
-    setEdit(null); qc.invalidateQueries({ queryKey: ['ctl-puntos'] })
-  }
-  const columnas = [
-    { key: 'orden', label: '#', align: 'right' }, { key: 'nombre', label: 'Punto de control' },
-    { key: 'tipo_captura', label: 'Captura', render: p => NOMBRE_TIPO[p.tipo_captura] ?? p.tipo_captura, valor: p => NOMBRE_TIPO[p.tipo_captura] ?? p.tipo_captura },
-    { key: 'obligatorio', label: 'Obligatorio', render: p => (p.obligatorio ? 'Sí' : 'No'), valor: p => (p.obligatorio ? 'Sí' : 'No') },
-    { key: 'aplica', label: 'Aplica en', valor: p => [p.aplica_turno && 'turno', p.aplica_dia && 'día', p.aplica_semanal && 'semana'].filter(Boolean).join(', ') },
-    { key: 'tolerancia', label: 'Tolerancia', align: 'right' }, { key: 'formula_esperado', label: 'Cuadra contra', valor: p => p.formula_esperado ?? '—' },
-    { key: 'version', label: 'Versión', align: 'right', render: p => `v${p.version}${p.vigente_hasta ? ' (anterior)' : ''}` },
-    { key: 'activo', label: 'Estado', render: p => <StatusBadge variante={p.activo && !p.vigente_hasta ? 'v' : 'n'} label={p.vigente_hasta ? 'Reemplazada' : p.activo ? 'Activo' : 'Inactivo'} />, valor: p => (p.activo ? 'Activo' : 'Inactivo') },
-    { key: 'acc', label: '', exportar: false, sortable: false, render: p => puedeEditar && !p.vigente_hasta && <button className="btn o sm" onClick={() => setEdit({ ...p })}><Pencil size={13} style={{ verticalAlign: -2 }} /> Editar</button> },
-  ]
-  return (
-    <>
-      <div className="hint" style={{ marginBottom: 8 }}>El cierre es el recorrido de estos puntos: agregar un control es configuración, no desarrollo. Un punto <b>nunca se edita</b>: cada cambio crea una versión nueva y los cierres anteriores se consultan con la versión de su fecha.</div>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8 }}>
-        <label style={{ fontSize: 13 }}><input type="checkbox" checked={todas} onChange={e => setTodas(e.target.checked)} /> Ver también versiones anteriores</label>
-        {puedeEditar && <button className="btn sm" onClick={() => setEdit({ nombre: '', tipo_captura: 'numero', obligatorio: true, aplica_turno: true, aplica_dia: false, aplica_semanal: false, formula_esperado: '', tolerancia: 0, orden: 100, activo: true })}><Plus size={13} style={{ verticalAlign: -2 }} /> Nuevo punto</button>}
-      </div>
-      <EstadoConsulta q={q} />
-      {q.data && !q.data.aviso && <DataTable columnas={columnas} filas={filas} buscador={false} sinPaginacion vacio={{ title: 'Sin puntos de control', description: 'Crea el primer punto del checklist.' }} />}
-      <Modal open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? `Editar «${edit.nombre}» (crea la versión ${edit.version + 1})` : 'Nuevo punto de control'} size="sm"
-        footer={<><button className="btn o" onClick={() => setEdit(null)}>Cancelar</button><button className="btn" disabled={!edit?.nombre?.trim()} onClick={guardar}>Guardar</button></>}>
-        {edit && <>
-          <FormField label="Nombre" value={edit.nombre} onChange={e => setEdit({ ...edit, nombre: e.target.value })} />
-          <FormField label="Tipo de captura" as="select" value={edit.tipo_captura} options={TIPOS_CAPTURA} onChange={e => setEdit({ ...edit, tipo_captura: e.target.value })} />
-          <FormField label="Cuadra contra" as="select" value={edit.formula_esperado ?? ''} options={FORMULAS} onChange={e => setEdit({ ...edit, formula_esperado: e.target.value })} />
-          <FormField label="Tolerancia (±)" type="number" value={edit.tolerancia} onChange={e => setEdit({ ...edit, tolerancia: e.target.value })} />
-          <FormField label="Orden" type="number" value={edit.orden} onChange={e => setEdit({ ...edit, orden: e.target.value })} />
-          {[['obligatorio', 'Obligatorio'], ['aplica_turno', 'Aplica al cierre de turno'], ['aplica_dia', 'Aplica al cierre de día'], ['aplica_semanal', 'Aplica al cierre semanal'], ['activo', 'Activo']].map(([k, t]) => (
-            <label key={k} style={{ display: 'block', fontSize: 13, margin: '4px 0' }}><input type="checkbox" checked={!!edit[k]} onChange={e => setEdit({ ...edit, [k]: e.target.checked })} /> {t}</label>
-          ))}
-        </>}
-      </Modal>
     </>
   )
 }

@@ -252,8 +252,9 @@ test("hora del servidor: creado_en lo pone el servidor y la discrepancia > 5 min
 test("folios consecutivos sin huecos y detectables (casos, cierres, sesiones)", async () => {
   await owner();
   const f = [];
-  for (let i = 0; i < 3; i++) {
-    f.push((await uno(`insert into piefirme.ctl_sesion_conteo (organizacion_id, sucursal_id, tipo, modo_lista, folio) values ($1, $2, 'auditoria_puntual', 'libre', 'MI-FOLIO') returning folio, folio_num`, [ORG, SEDE_B])).folio_num);
+  // tres tipos distintos: desde la Etapa 2 solo puede haber una sesión abierta por sucursal y tipo (índice ctl_sesion_abierta_uq)
+  for (const tipo of ['auditoria_puntual', 'auditoria_remota', 'conteo_inicial']) {
+    f.push((await uno(`insert into piefirme.ctl_sesion_conteo (organizacion_id, sucursal_id, tipo, modo_lista, folio) values ($1, $2, $3, 'libre', 'MI-FOLIO') returning folio, folio_num`, [ORG, SEDE_B, tipo])).folio_num);
   }
   assert.equal(f[1], f[0] + 1);
   assert.equal(f[2], f[0] + 2);
@@ -346,15 +347,16 @@ test("catálogos: causas iniciales, puntos de control con versiones", async () =
   assert.equal(r.code, "PF403");
   await como("m@g.com");
   const pc = (await intentar("select id, nombre, version from piefirme.ctl_punto_control where activo and vigente_hasta is null order by orden limit 1")).rows[0];
+  const antes = (await intentar("select count(*)::int as n from piefirme.ctl_punto_control where grupo_id = (select grupo_id from piefirme.ctl_punto_control where id = $1)", [pc.id])).rows[0].n;   // las siembras de la Etapa 4 ya traen versiones previas
   r = await rpc("m@g.com", "ctl_punto_control_guardar", [pc.id, JSON.stringify({ tolerancia: 50 })]);
   assert.equal(r.ok, true, r.message);
   await como("m@g.com");
   const vers = (await intentar("select version, tolerancia, vigente_hasta from piefirme.ctl_punto_control where grupo_id = (select grupo_id from piefirme.ctl_punto_control where id = $1) order by version", [pc.id])).rows;
-  assert.equal(vers.length, 2);
-  assert.ok(vers[0].vigente_hasta, "la versión anterior queda cerrada, no editada");
-  assert.equal(vers[0].tolerancia, "20.00");
-  assert.equal(vers[1].tolerancia, "50.00");
-  assert.equal(vers[1].version, 2);
+  assert.equal(vers.length, antes + 1);
+  assert.ok(vers.at(-2).vigente_hasta, "la versión anterior queda cerrada, no editada");
+  assert.equal(vers.at(-2).tolerancia, "20.00");
+  assert.equal(vers.at(-1).tolerancia, "50.00");
+  assert.equal(vers.at(-1).version, vers.at(-2).version + 1);
 });
 
 // ═════════════════════════════ 5 · CUSTODIA: TOPE DE 30 ═════════════════════════════
