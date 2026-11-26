@@ -30,6 +30,35 @@ export function codigosDeTexto(texto) {
   return salida.sort((a, b) => Number(ean13Valido(b)) - Number(ean13Valido(a)))
 }
 
+/** Dígito verificador EAN-13 de los primeros 12 dígitos. */
+export const digitoEan13 = d12 => (10 - ([...d12].reduce((a, d, i) => a + Number(d) * (i % 2 ? 3 : 1), 0) % 10)) % 10
+
+/** Código de barras INTERNO (EAN-13 que empieza con 2, el rango que el estándar reserva para uso de la tienda) para productos sin código. */
+export function generarCodigoInterno(semilla = Date.now(), azar = Math.random) {
+  const cuerpo = `2${String(semilla).slice(-8).padStart(8, '0')}${String(Math.floor(azar() * 1000)).padStart(3, '0')}`
+  return cuerpo + digitoEan13(cuerpo)
+}
+
+/**
+ * Precios escritos en la etiqueta (a mano o impresos): primero los que traen «$»; si no hay, números sueltos de 2 a 5 dígitos que no sean
+ * parte de un código de barras, lote o medida. Devuelve [{ monto, conSigno }] sin repetir, el más probable primero. Es solo una sugerencia.
+ */
+export function preciosDeTexto(texto) {
+  const t = String(texto ?? '')
+  const salida = []
+  const poner = (monto, conSigno) => { if (monto >= 1 && monto <= 99999 && !salida.some(p => p.monto === monto)) salida.push({ monto, conSigno }) }
+  for (const m of t.matchAll(/\$\s*(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d{1,5}(?:[.,]\d{1,2})?)/g)) poner(Number(m[1].replace(/,(?=\d{3}\b)/g, '').replace(',', '.')), true)
+  for (const m of t.matchAll(/(?<![\d.,])(\d{1,5})(?:[.,]00)?\s*(?:pesos|mxn|m\.n\.)/gi)) poner(Number(m[1]), true)
+  if (!salida.length) {
+    for (const linea of t.split('\n')) {
+      if (/lote|cad\b|\bmg\b|\bml\b|\bg\b|pzas?|piezas|\bcm\b|\bkg\b|reg\.|c\.p\./i.test(linea)) continue
+      if (/\d{8,}/.test(linea.replace(/[\s-]/g, ''))) continue   // renglón con un código de barras
+      for (const m of linea.matchAll(/(?<![\d.,])(\d{2,5})(?:[.,]\d{1,2})?(?!\d)/g)) poner(Number(m[1]), false)
+    }
+  }
+  return salida.sort((a, b) => Number(b.conSigno) - Number(a.conSigno))
+}
+
 /**
  * Nombres sugeridos a partir de las líneas del OCR: [{ text, confidence (0-100), altura (px) }, …] en orden de lectura.
  * Gana el texto más grande y más seguro, que en un empaque casi siempre es la marca o el nombre del producto.
@@ -59,6 +88,6 @@ export async function leerFotoProducto(imagen, { alAvanzar } = {}) {
   try {
     const { data } = await worker.recognize(imagen)
     const lineas = (data.lines ?? []).map(l => ({ text: l.text, confidence: l.confidence, altura: (l.bbox?.y1 ?? 0) - (l.bbox?.y0 ?? 0) }))
-    return { nombres: nombresSugeridos(lineas), codigos: codigosDeTexto(data.text), texto: data.text ?? '' }
+    return { nombres: nombresSugeridos(lineas), codigos: codigosDeTexto(data.text), precios: preciosDeTexto(data.text), texto: data.text ?? '' }
   } finally { await worker.terminate().catch(() => {}) }
 }

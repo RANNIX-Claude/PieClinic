@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { acomodarMayusculas, codigosDeTexto, nombresSugeridos, ean13Valido } from './ocrProducto.js'
+import { acomodarMayusculas, codigosDeTexto, nombresSugeridos, ean13Valido, preciosDeTexto, generarCodigoInterno } from './ocrProducto.js'
 
 test('acomodarMayusculas baja el todo-mayúsculas y respeta el resto', () => {
   assert.equal(acomodarMayusculas('CREMA HIDRATANTE'), 'Crema hidratante')
@@ -31,4 +31,19 @@ test('nombresSugeridos prefiere el texto grande y seguro e ignora el ruido', () 
 test('nombresSugeridos sin texto legible devuelve vacío', () => {
   assert.deepEqual(nombresSugeridos([{ text: '..', confidence: 30, altura: 20 }]), [])
   assert.deepEqual(nombresSugeridos(undefined), [])
+})
+
+test('preciosDeTexto lee el precio con signo de pesos y no confunde lotes ni códigos', () => {
+  assert.deepEqual(preciosDeTexto('CREMA PODAL\n$ 185\nLote 2345\n7501031311309').map(p => p.monto), [185])
+  assert.equal(preciosDeTexto('$1250.50')[0].monto, 1250.5)
+  assert.equal(preciosDeTexto('Precio $1,250')[0].monto, 1250)
+  assert.deepEqual(preciosDeTexto('Lote 2345\n7501031311309'), [])
+  assert.equal(preciosDeTexto('Tobillera\n185')[0].monto, 185)
+  assert.equal(preciosDeTexto('350 pesos')[0].monto, 350)
+})
+test('generarCodigoInterno da un EAN-13 válido que empieza con 2', () => {
+  for (const semilla of [1, 123456789, Date.now()]) {
+    const c = generarCodigoInterno(semilla, () => 0.5)
+    assert.match(c, /^2\d{12}$/); assert.equal(ean13Valido(c), true)
+  }
 })

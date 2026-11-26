@@ -13,7 +13,7 @@ import { rpc, leer } from '../../../lib/api'
 import { moneda } from '../../../lib/formato'
 import { urlFirmada, BUCKETS, rutaStorage } from '../../../lib/urlFirmada'
 import { supabase } from '../../../lib/supabase'
-import { leerFotoProducto } from '../../../lib/ocrProducto'
+import { leerFotoProducto, generarCodigoInterno } from '../../../lib/ocrProducto'
 import PageHeader from '../../../components/ui/PageHeader'
 import EmptyState from '../../../components/ui/EmptyState'
 import LoadingSpinner from '../../../components/ui/LoadingSpinner'
@@ -109,6 +109,18 @@ export default function ConteoInicial() {
     const totalConteo = (k.data ?? []).reduce((a, x) => a + num(x.cantidad), 0)
     setHoja({ codigo: c, producto: r.data, nombre: r.data.nombre, cantidad: String(existente != null ? existente : 1), precio: precioAct != null ? String(Number(precioAct)) : '', precioAct: precioAct != null ? Number(precioAct) : null, existente, totalConteo, metodo })
   }
+  // Producto que no trae código de barras (o que no estaba en el catálogo): se le genera un código interno (EAN-13 que empieza con 2) y queda
+  // dado de alta aquí mismo como provisional, con su código listo para imprimir en Inventario → Códigos de productos.
+  const sinCodigo = async () => {
+    if (!zonaId || !zonaAbierta) { sonido('error'); toast.error('Elige una zona abierta con «Cambiar».'); return }
+    for (let i = 0; i < 6; i++) {
+      const c = generarCodigoInterno(Date.now() + i * 7919)
+      const r = await rpc('producto_por_codigo', { p_codigo: c })
+      if (r.error) { sonido('error'); toast.error(msgError(r.error)); return }
+      if (!r.data) { setHoja({ codigo: c, producto: null, nombre: '', cantidad: '1', precio: '', precioAct: null, existente: null, metodo: 'manual', generado: true }); return }
+    }
+    toast.error('No se pudo generar un código libre. Intenta de nuevo.')
+  }
   const enviar = e => { e.preventDefault(); const c = codigo; setCodigo(''); leerCodigo(c, 'escaner') }
   const cerrarHoja = () => { setHoja(null); setTimeout(enfocar, 80) }
 
@@ -154,7 +166,7 @@ export default function ConteoInicial() {
         }
       }
       sonido('ok'); vibrar('ok'); refrescar()
-      setUltimoGuardado({ nombre, cantidad: cant, precio: precioFinal })
+      setUltimoGuardado({ nombre, cantidad: cant, precio: precioFinal, codigo: !h.producto ? h.codigo : null, generado: !!h.generado })
       setHoja(null)   // la cámara (si está encendida) vuelve a abrirse sola para el siguiente producto
     } finally { setGuardando(false) }
   }
@@ -241,6 +253,9 @@ export default function ConteoInicial() {
                   {camara ? <><CameraOff size={22} style={{ verticalAlign: -4 }} /> Apagar cámara</> : <><Camera size={22} style={{ verticalAlign: -4 }} /> Escanear</>}
                 </button>
                 {camara && !hoja && <Camara onCodigo={c => leerCodigo(c, 'camara')} onError={m => { toast.error(m); setCamara(false) }} />}
+                <button type="button" className="btn o" style={{ width: '100%', minHeight: 48, marginTop: 10 }} disabled={!zonaAbierta} onClick={sinCodigo} data-testid="producto-sin-codigo">
+                  <ScanLine size={16} style={{ verticalAlign: -3 }} /> Producto sin código de barras (generar uno)
+                </button>
                 <form onSubmit={enviar} style={{ marginTop: 10 }}>
                   <input ref={campo} value={codigo} onChange={e => setCodigo(e.target.value)} autoComplete="off" autoCapitalize="off" spellCheck={false} inputMode="text"
                     placeholder={zonaAbierta ? 'Escáner Bluetooth o escribe el código y Enter' : 'Elige una zona abierta'} disabled={!zonaAbierta} aria-label="Código de barras" style={{ width: '100%', minHeight: 52, fontSize: 17 }} />
@@ -248,6 +263,7 @@ export default function ConteoInicial() {
                 {ultimoGuardado && (
                   <div role="status" style={{ marginTop: 10, padding: 10, borderRadius: 10, background: '#e3f3dc', border: '2px solid #3b6d11', color: '#173404' }} data-testid="ultimo-guardado">
                     <CheckCircle2 size={16} style={{ verticalAlign: -3 }} /> <b>{ultimoGuardado.nombre}</b> guardado: {qty(ultimoGuardado.cantidad)} piezas{ultimoGuardado.precio != null ? ` · ${moneda(ultimoGuardado.precio)}` : ' · SIN PRECIO'}
+                    {ultimoGuardado.generado && <div style={{ fontSize: 13, marginTop: 4 }}>Código interno <b>{ultimoGuardado.codigo}</b>: ya se puede imprimir en Inventario → Códigos de productos.</div>}
                   </div>)}
               </div>
             </>
@@ -349,6 +365,8 @@ function HojaCaptura({ hoja, setHoja, zona, puedePrecio, guardando, guardar, cer
       setHoja(h => ({ ...h, foto: { blob, url: URL.createObjectURL(blob) } })); setSug(null); setLeyendo(0)
       const r = await leerFotoProducto(c, { alAvanzar: setLeyendo })
       setSug(r)
+      const p0 = r.precios?.[0]
+      if (p0 && puedePrecio) setHoja(h => (h.precio === '' || h.precioAuto ? { ...h, precio: String(p0.monto), precioAuto: true } : h))   // el precio escrito en la etiqueta se pone solo
       if (r.nombres[0]) setHoja(h => (!h.nombre.trim() || h.nombreAuto ? { ...h, nombre: r.nombres[0], nombreAuto: true } : h))   // el nombre leído de la caja se pone solo; si la persona ya escribió el suyo, no se pisa
     } catch { setSug({ nombres: [], codigos: [] }); toast.error('No se pudo leer la foto. Escribe el nombre a mano.') }
     finally { setLeyendo(null) }
@@ -375,12 +393,20 @@ function HojaCaptura({ hoja, setHoja, zona, puedePrecio, guardando, guardar, cer
             </button>
             {hoja.foto && <img src={hoja.foto.url} alt="Foto del producto" style={{ width: '100%', maxHeight: 190, objectFit: 'contain', borderRadius: 10, background: '#111' }} />}
             {leyendo != null && <div style={{ fontSize: 13.5, color: 'var(--muted)' }}>Leyendo el texto de la foto… {leyendo}% (la primera vez descarga el lector, puede tardar)</div>}
-            {sug && (sug.nombres.length > 0 || sug.codigos.length > 0)
+            {sug && (sug.nombres.length > 0 || sug.codigos.length > 0 || (sug.precios ?? []).length > 0)
               ? <div style={{ display: 'grid', gap: 6 }} data-testid="sugerencias">
                   {sug.nombres.length > 0 && <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>Otras lecturas de la caja (toca una si el nombre no quedó bien):</div>}
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {sug.nombres.map(n => <button key={n} type="button" className="btn o" style={{ minHeight: 44, textAlign: 'left' }} onClick={() => setHoja(h => ({ ...h, nombre: n, nombreAuto: true }))}>{n}</button>)}
                   </div>
+                  {(sug.precios ?? []).length > 0 && (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>Precio visto en la etiqueta:</span>
+                      {sug.precios.slice(0, 3).map(p => puedePrecio
+                        ? <button key={p.monto} type="button" className="btn o" style={{ minHeight: 44 }} onClick={() => setHoja(h => ({ ...h, precio: String(p.monto), precioAuto: true }))}>{moneda(p.monto)} · usar</button>
+                        : <b key={p.monto}>{moneda(p.monto)}</b>)}
+                      {!puedePrecio && <span style={{ fontSize: 12, color: 'var(--muted)' }}>(el precio lo captura Administración)</span>}
+                    </div>)}
                   {sug.codigos.filter(c => c !== hoja.codigo).slice(0, 2).map(c => <button key={c} type="button" className="btn o" style={{ minHeight: 44, textAlign: 'left' }} onClick={() => setHoja(h => ({ ...h, codigo: c }))}>Código visto en la foto: {c} · usar este</button>)}
                 </div>
               : sug && <div style={{ fontSize: 13, color: 'var(--muted)' }}>No se pudo leer texto claro en la foto: escribe el nombre a mano o toma otra foto más cerca y con buena luz.</div>}
@@ -389,6 +415,7 @@ function HojaCaptura({ hoja, setHoja, zona, puedePrecio, guardando, guardar, cer
         {nuevo && (
           <label style={{ display: 'grid', gap: 6, fontWeight: 600 }}>Nombre del producto
             <input value={hoja.nombre} onChange={e => setHoja(h => ({ ...h, nombre: e.target.value, nombreAuto: false }))} placeholder="Ej. Tobillera neopreno chica" autoComplete="off" style={{ minHeight: 56, fontSize: 20 }} />
+            {hoja.generado && <span style={{ fontSize: 12.5, fontWeight: 600 }}>Este producto no traía código: se le generó el código interno {hoja.codigo} para imprimirlo después.</span>}
             {hoja.nombreAuto && <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent)' }}>✓ Nombre leído de la caja. Corrígelo si hace falta.</span>}
             <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--muted)' }}>Código no registrado: queda como provisional hasta que Administración le asigne categoría.</span>
           </label>)}
@@ -409,7 +436,8 @@ function HojaCaptura({ hoja, setHoja, zona, puedePrecio, guardando, guardar, cer
 
         {puedePrecio
           ? <label style={{ display: 'grid', gap: 6, fontWeight: 600 }}>{nuevo ? 'Precio de venta (con IVA) *' : 'Nuevo precio de venta (con IVA)'}
-              <input type="number" inputMode="decimal" min="0" step="0.01" value={hoja.precio} onChange={e => setHoja(h => ({ ...h, precio: e.target.value }))} placeholder="$ 0.00" aria-label="Precio de venta" style={grande} />
+              <input type="number" inputMode="decimal" min="0" step="0.01" value={hoja.precio} onChange={e => setHoja(h => ({ ...h, precio: e.target.value, precioAuto: false }))} placeholder="$ 0.00" aria-label="Precio de venta" style={grande} />
+              {hoja.precioAuto && <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent)' }}>✓ Precio leído de la etiqueta. Corrígelo si hace falta.</span>}
               {!nuevo && <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--muted)' }}>{hoja.precioAct != null ? 'Déjalo igual para conservar el precio; si lo cambias se pide confirmación y queda en el histórico.' : 'Este producto no tiene precio de venta todavía: captúralo aquí.'}</span>}
             </label>
           : <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>El precio de venta solo lo cambia Administración.</div>}

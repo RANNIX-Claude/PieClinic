@@ -31,7 +31,7 @@ function Qr({ valor }) {
 }
 
 export default function CodigosProductos() {
-  const q = useLectura('codigos-productos', 'prp_productos', { sedeCol: false, filtros: { estado: 'activo' }, orden: [{ columna: 'categoria' }, { columna: 'nombre' }], limite: 2000,
+  const q = useLectura('codigos-productos', 'prp_productos', { sedeCol: false, filtros: { estado: ['activo', 'provisional'] }, orden: [{ columna: 'categoria' }, { columna: 'nombre' }], limite: 2000,
     columnas: 'id,sku,codigo_barras,nombre,categoria,marca,presentacion,precio_lista' })
   const [texto, setTexto] = useState('')
   const [soloConCodigo, setSoloConCodigo] = useState(true)
