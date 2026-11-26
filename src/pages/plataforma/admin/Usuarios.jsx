@@ -70,6 +70,14 @@ export default function Usuarios() {
     const f = await accion('cambiar_funciones', { usuario_id: p.id, funciones: form.funciones ?? [] }, 'Funciones actualizadas')
     if (d || s || f) setModal(null)
   }
+  async function cambiarClave(p) {
+    const clave = form.clave ?? ''
+    if (clave.length < 6) return toast.error('La contraseña debe tener al menos 6 caracteres')
+    if (clave !== form.clave2) return toast.error('Las dos contraseñas no coinciden')
+    if (!(await confirmar({ titulo: 'Cambiar contraseña', mensaje: `Se cambiará la contraseña de ${p.nombre} (${p.email}). Pásasela por un medio seguro.`, textoConfirmar: 'Cambiar contraseña' }))) return
+    const d = await accion('restablecer_clave', { usuario_id: p.id, clave }, 'Contraseña cambiada')
+    if (d) setForm(f => ({ ...f, clave: '', clave2: '' }))
+  }
   async function alternar(p) {
     const des = p.activo
     if (!(await confirmar({ titulo: des ? 'Desactivar usuario' : 'Activar usuario', mensaje: des ? `${p.nombre} dejará de poder entrar. Su historial se conserva.` : `${p.nombre} podrá volver a entrar.`, peligro: des, textoConfirmar: des ? 'Desactivar' : 'Activar' }))) return
@@ -197,6 +205,13 @@ export default function Usuarios() {
             </label>
           ))}
           <span className="hint">Además de su rol. Quien cobra se firma con su PIN personal.</span>
+        </div>
+        <div className="field" style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+          <label>Cambiar contraseña</label>
+          <input type="password" autoComplete="new-password" placeholder="Nueva contraseña (mínimo 6)" value={form.clave ?? ''} onChange={e => setForm({ ...form, clave: e.target.value })} style={{ marginBottom: 8 }} />
+          <input type="password" autoComplete="new-password" placeholder="Repite la nueva contraseña" value={form.clave2 ?? ''} onChange={e => setForm({ ...form, clave2: e.target.value })} style={{ marginBottom: 8 }} />
+          <button type="button" className="btn o" disabled={ocupado || !(form.clave ?? '')} onClick={() => cambiarClave(modal.editar)}>Cambiar contraseña</button>
+          <span className="hint">Sirve para cuentas con correo que no recibe mensajes (como las de prueba). No se muestra ni se guarda en la bitácora.</span>
         </div>
         <div style={{ fontSize: 12, color: 'var(--muted)' }}>El cambio de rol y de sedes queda en la bitácora. Un administrador no puede quitarse a sí mismo el rol.</div>
       </Modal>

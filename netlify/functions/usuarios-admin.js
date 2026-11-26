@@ -60,6 +60,16 @@ export default async req => {
     const r = await rest(admin, 'GET', `/rest/v1/perfiles?organizacion_id=eq.${org}&rol=eq.administrador&activo=eq.true&id=neq.${u.id}&select=id`)
     return Array.isArray(r.data) ? r.data.length : 0
   }
+  // Restablecer la contraseña de un usuario de la clínica (cuentas con correo ficticio, que no pueden recibir el correo de recuperación).
+  // Solo el Administrador de la clínica; la contraseña nueva nunca se guarda en la bitácora.
+  if (b.accion === 'restablecer_clave') {
+    const clave = typeof b.clave === 'string' ? b.clave : ''
+    if (clave.length < 6 || clave.length > 72) return json(400, { error: 'La contraseña debe tener entre 6 y 72 caracteres' })
+    const r = await fetch(`${url}/auth/v1/admin/users/${u.id}`, { method: 'PUT', headers: { apikey: service, Authorization: `Bearer ${service}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ password: clave }) })
+    if (!r.ok) { const t = await r.text(); let m = t; try { m = JSON.parse(t).msg || JSON.parse(t).message || t } catch { /* texto plano */ } return json(400, { error: `No se pudo cambiar la contraseña: ${m}` }) }
+    await rpc(quien.ctx, 'registrar_bitacora', { p_accion: 'actualizar', p_entidad: 'perfiles', p_entidad_id: u.id, p_detalle: { via: 'usuarios-admin', accion: 'restablecer_clave' }, p_sede: null })
+    return json(200, { data: { ok: true } })
+  }
   let cambios
   if (b.accion === 'cambiar_rol') { if (!ROLES.includes(b.rol)) return json(400, { error: 'Rol inválido' }); cambios = { rol: b.rol }; if (b.rol !== 'administrador' && eliminaAdmin(true) && !(await otrosAdmins())) return json(409, { error: 'La clínica debe conservar al menos un Administrador activo' }) }
   else if (b.accion === 'cambiar_sedes') { if (!(await sedesValidas(b.sedes))) return json(400, { error: 'Alguna sede no pertenece a la clínica' }); cambios = { sedes: b.sedes ?? [] } }
