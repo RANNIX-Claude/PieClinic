@@ -13,6 +13,7 @@ import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import { totalesVenta, repartirDescuentoGlobal, pctEfectivo, requierePin, cambio, calcularLinea } from '../../../lib/comercial/ventas'
 import { param } from '../../../lib/comercial/anticipo'
 import { redondear, suma } from '../../../lib/comercial/dinero'
+import { alternarMetodo, quitarPago, fijarMonto, completarPago, fijarRecibido as fijarRecibidoPuro, recibirExacto, ajustarAuto, validarPagos } from '../../../lib/comercial/pagosCaja'
 import { COBRO_TERMINAL_AVISO } from '../../../lib/adaptadores/clip'
 import PacienteBuscador from './PacienteBuscador'
 import PinModal from './PinModal'
@@ -51,6 +52,7 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
   const [global, setGlobal] = useState({ tipo: 'pct', valor: '', motivo: '', motivo_id: '', aut: null })
   const [anticiposSel, setAnticiposSel] = useState([])
   const [pagos, setPagos] = useState([])
+  const cobrandoRef = useRef(false)
   const [requiereFactura, setRequiereFactura] = useState(false)
   const [busca, setBusca] = useState('')
   const [pin, setPin] = useState(null)           // { tipo:'linea'|'global', clave?, pct }
@@ -176,19 +178,8 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
   const tot = totalesVenta(lineasConGlobal, { anticipo: sumaAnticipos, pagos: pagosNoAnticipo })
   const anticipoExcede = sumaAnticipos > tot.total
   const pctGlobalEfectivo = tot.subtotal > 0 ? (tot.descuento_total / tot.subtotal) * 100 : 0
-  // El pago que se puso solo (botón Efectivo/Tarjeta…) sigue al total: si luego se agregan o quitan conceptos, su monto se ajusta.
-  // En cuanto el cajero teclea el monto, o hay un pago repartido, ya no se toca.
-  useEffect(() => {
-    setPagos(ps => {
-      const autos = ps.filter(p => p.auto)
-      if (autos.length !== 1) return ps
-      const otros = suma(ps.filter(p => !p.auto).map(p => Number(p.monto) || 0))
-      const nuevo = Math.max(0, redondear(tot.a_cobrar - otros))
-      const a = autos[0]
-      if (Number(a.monto) === nuevo) return ps
-      return ps.map(p => (p.clave !== a.clave ? p : { ...p, monto: nuevo, recibido: p.recibido !== '' && Number(p.recibido) === Number(p.monto) ? String(nuevo) : p.recibido }))
-    })
-  }, [tot.a_cobrar])
+  // El pago automático sigue al total cuando cambian los conceptos (lógica y pruebas en lib/comercial/pagosCaja.js).
+  useEffect(() => { setPagos(ps => ajustarAuto(ps, tot.a_cobrar)) }, [tot.a_cobrar])
 
   const pinNecesarioLinea = l => {
     const c = calcularLinea(l)
@@ -197,12 +188,11 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
   const pinNecesarioGlobal = Number(global.valor) > 0 && requierePin({ pct: pctGlobalEfectivo, maxPct: maxPctEf, esAdmin }) && !global.aut
 
   // ── pagos ────────────────────────────────────────────────────────────────────────────────────────
-  const agregarPago = metodo => setPagos(ps => [...ps, { clave: nuevaClave(), metodo, auto: !ps.length, monto: Math.max(0, tot.saldo), referencia: '', recibido: '', ultimos4: '', codigoGift: '', gift: null }])
   const setP = (clave, c) => setPagos(ps => ps.map(p => (p.clave === clave ? { ...p, ...c } : p)))
   const buscarGift = async p => {
     const { data } = await leer('prp_gift_cards', { sedeCol: false, filtros: { codigo: p.codigoGift.trim().toUpperCase(), estado: 'activa' }, limite: 1 })
     if (!data[0]) return toast.error('Gift card no encontrada o inactiva')
-    setP(p.clave, { auto: false, gift: data[0], monto: Math.min(Number(p.monto) || tot.saldo, Number(data[0].saldo)) })
+    setPagos(ps => fijarMonto(ps.map(x => (x.clave === p.clave ? { ...x, gift: data[0] } : x)), p.clave, Math.min(Number(p.monto) || Math.max(0, tot.saldo), Number(data[0].saldo)), tot.a_cobrar))
   }
 
   // ── guardar / cobrar ─────────────────────────────────────────────────────────────────────────────
@@ -226,15 +216,7 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
     if (anticipoExcede) return 'El anticipo seleccionado excede el total del ticket'
     if (cobrar) {
       if (!turno) return 'Abre tu turno de caja para cobrar'
-      if (tot.saldo > 0) return `Los pagos no cubren el total (faltan ${moneda(tot.saldo)})`
-      if (tot.saldo < 0) return `Los pagos suman ${moneda(-tot.saldo)} de más: quita un método de pago o baja su monto`
-      for (const p of pagos) {
-        if (!(p.monto > 0)) return 'Hay un pago sin monto'
-        if (p.metodo === 'efectivo' && p.recibido !== '' && Number(p.recibido) < p.monto) return 'El efectivo recibido es menor al monto'
-        if (p.metodo === 'cortesia' && !String(p.referencia).trim()) return 'La cortesía exige motivo'
-        if (p.metodo === 'gift_card' && (!p.gift || p.monto > Number(p.gift.saldo))) return 'Revisa la gift card (código y saldo)'
-        if (p.metodo === 'clip' && !String(p.referencia).trim()) return 'Captura el ID de pago de Clip'
-      }
+      const errPago = validarPagos(pagos, tot.a_cobrar, { moneda, etiqueta: m => METODOS.find(x => x[0] === m)?.[1] ?? m }); if (errPago) return errPago
     }
     return null
   }
@@ -312,6 +294,8 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
     if (bloqueo) return toast.error(bloqueo)
     if (!navigator.onLine) return cobrarOffline(imprimir)
     const e = validar(true); if (e) return toast.error(e)
+    if (cobrandoRef.current) return   // doble clic: un solo cobro a la vez
+    cobrandoRef.current = true
     setOcupado(true)
     try {
       const id = await guardarTicket('por_cobrar')
@@ -322,7 +306,12 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
       ]
       // pagos ya registrados de un intento anterior no se pueden borrar: solo se insertan los que faltan
       const previos = await leer('pagos', { sedeCol: false, filtros: { venta_id: id } })
-      if (!previos.data.length && filasPago.length) { const rp = await insertar('pagos', filasPago); if (rp.error) throw new Error(textoError(rp.error)) }
+      if (previos.data.length) {
+        // un intento anterior ya dejó pagos que no se pueden borrar: si lo de pantalla es distinto, no se cobra con otros pagos sin avisar
+        const clave = x => `${x.metodo}:${Number(x.monto).toFixed(2)}`
+        const a = previos.data.map(clave).sort().join('|'), b = filasPago.map(clave).sort().join('|')
+        if (a !== b) throw new Error('Este ticket ya tiene pagos guardados de un intento anterior y son distintos a los de la pantalla. Déjalo como estaba o cancélalo desde «Tickets del día».')
+      } else if (filasPago.length) { const rp = await insertar('pagos', filasPago); if (rp.error) throw new Error(textoError(rp.error)) }
       const rc = await rpc('cobrar_venta', { p_venta: id })
       if (rc.error) throw new Error(textoError(rc.error))
       const v = await leerUno('prp_ventas', { id })
@@ -331,6 +320,7 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
       onListo?.()
       if (imprimir) imprimirTicketDe(id, { org: organizacion, sede: sedeActiva })
     } catch (err) { toast.error(textoError(err)) }
+    cobrandoRef.current = false
     setOcupado(false)
   }
   function limpiar() {
@@ -341,15 +331,8 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
   // ── pantalla de cajero: atajos de teclado (F2…F9) y ayudas ───────────────────────────────────────
   const efectivo = pagos.find(p => p.metodo === 'efectivo')
   // Pulsar un método ya elegido lo quita (así se corrige un método elegido por error).
-  const pagarCon = metodo => { if (pagos.some(p => p.metodo === metodo)) setPagos(ps => ps.filter(p => p.metodo !== metodo)); else agregarPago(metodo) }
-  // Si lo que entrega el cliente en efectivo es MENOS que el monto del efectivo, ese es el pago en efectivo y el resto se cobra con otro método
-  // (p. ej. total 1,100: recibe 500 en efectivo y 600 con tarjeta). Si entrega de más, el monto no cambia y se da cambio.
-  const fijarRecibido = (p, v) => {
-    const n = Number(v)
-    if (p.metodo === 'efectivo' && v !== '' && n > 0 && n < Number(p.monto)) setP(p.clave, { recibido: String(v), monto: n, auto: false })
-    else setP(p.clave, { recibido: String(v) })
-  }
-  const recibir = n => efectivo && (n === 'exacto' ? setP(efectivo.clave, { recibido: String(efectivo.monto) }) : fijarRecibido(efectivo, n))
+  const pagarCon = metodo => setPagos(ps => alternarMetodo(ps, metodo, tot.a_cobrar, nuevaClave()))
+  const recibir = n => efectivo && setPagos(ps => (n === 'exacto' ? recibirExacto(ps, efectivo.clave) : fijarRecibidoPuro(ps, efectivo.clave, n, tot.a_cobrar)))
   const cambiarLinea = (clave, delta) => setLineas(ls => ls.map(l => (l.clave === clave ? { ...l, cantidad: Math.max(1, (Number(l.cantidad) || 1) + delta) } : l)))
   const alternarDesc = clave => setAbiertas(a => { const n = new Set(a); n.has(clave) ? n.delete(clave) : n.add(clave); return n })
   const enfocarBusqueda = f => { setFiltro(f); setPanel(null); setTimeout(() => buscaRef.current?.focus(), 0) }
@@ -547,9 +530,9 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
             <div key={p.clave} className="cj-pago-fila">
               <div className="cj-pago-cab">
                 <b>{METODOS.find(m => m[0] === p.metodo)?.[1]}</b>
-                <input type="number" min="0" step="0.01" value={p.monto} onChange={e => setP(p.clave, { monto: Number(e.target.value), auto: false })} aria-label="Monto" />
-                <button type="button" className="btn o" style={{ padding: '2px 8px', fontSize: 11.5 }} onClick={() => setP(p.clave, { monto: Math.max(0, redondear(p.monto + tot.saldo)), auto: false })}>Completar</button>
-                <button type="button" className="cj-ico" onClick={() => setPagos(ps => ps.filter(x => x.clave !== p.clave))} aria-label="Quitar pago"><X size={15} /></button>
+                <input type="number" min="0" step="0.01" value={p.monto} onChange={e => setPagos(ps => fijarMonto(ps, p.clave, e.target.value, tot.a_cobrar))} aria-label="Monto" />
+                <button type="button" className="btn o" style={{ padding: '2px 8px', fontSize: 11.5 }} onClick={() => setPagos(ps => completarPago(ps, p.clave, tot.a_cobrar))}>Completar</button>
+                <button type="button" className="cj-ico" onClick={() => setPagos(ps => quitarPago(ps, p.clave, tot.a_cobrar))} aria-label="Quitar pago"><X size={15} /></button>
               </div>
               {p.metodo === 'efectivo' && (
                 <div>
@@ -557,7 +540,7 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
                     <button type="button" onClick={() => recibir('exacto')}>Exacto</button>
                     {[100, 200, 500, 1000].map(n => <button type="button" key={n} onClick={() => recibir(n)}>${n}</button>)}
                   </div>
-                  <label className="cj-recibido">Recibido <input type="number" min="0" step="0.01" autoFocus value={p.recibido} onChange={e => setP(p.clave, { recibido: e.target.value })} onBlur={e => fijarRecibido(p, e.target.value)} /></label>
+                  <label className="cj-recibido">Recibido <input type="number" min="0" step="0.01" autoFocus value={p.recibido} onChange={e => setP(p.clave, { recibido: e.target.value })} onBlur={e => setPagos(ps => fijarRecibidoPuro(ps, p.clave, e.target.value, tot.a_cobrar))} /></label>
                   {p.recibido !== '' && Number(p.recibido) >= p.monto && <div className="cj-cambio">Cambio <b>{moneda(cambio(p.recibido, p.monto))}</b></div>}
                   {p.recibido !== '' && Number(p.recibido) < p.monto && <div className="text-red">Falta {moneda(p.monto - Number(p.recibido))}</div>}
                 </div>
