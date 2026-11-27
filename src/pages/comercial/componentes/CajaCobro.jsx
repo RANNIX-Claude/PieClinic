@@ -540,7 +540,7 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
                     <button type="button" onClick={() => recibir('exacto')}>Exacto</button>
                     {[100, 200, 500, 1000].map(n => <button type="button" key={n} onClick={() => recibir(n)}>${n}</button>)}
                   </div>
-                  <label className="cj-recibido">Recibido <input type="number" min="0" step="0.01" autoFocus value={p.recibido} onChange={e => setP(p.clave, { recibido: e.target.value })} onBlur={e => setPagos(ps => fijarRecibidoPuro(ps, p.clave, e.target.value, tot.a_cobrar))} /></label>
+                  <label className="cj-recibido">Recibido <input type="number" min="0" step="0.01" autoFocus value={p.recibido} onChange={e => setP(p.clave, { recibido: e.target.value })} onBlur={e => setPagos(ps => fijarRecibidoPuro(ps, p.clave, e.target.value, tot.a_cobrar))} onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur() }} /></label>
                   {p.recibido !== '' && Number(p.recibido) >= p.monto && <div className="cj-cambio">Cambio <b>{moneda(cambio(p.recibido, p.monto))}</b></div>}
                   {p.recibido !== '' && Number(p.recibido) < p.monto && <div className="text-red">Falta {moneda(p.monto - Number(p.recibido))}</div>}
                 </div>
@@ -561,7 +561,6 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
           <Printer size={26} /> COBRAR E IMPRIMIR · {moneda(tot.a_cobrar)} <span>(F9)</span>
         </button>
         <div className="cj-sec">
-          <button className="btn o" disabled={ocupado || !turno || !!bloqueo} onClick={() => cobrar(false)}>Cobrar sin ticket</button>
           <button className="btn red" disabled={ocupado} onClick={() => setConfirmarLimpiar(true)}>Cancelar venta</button>
         </div>
         {!turno && <div className="text-red" style={{ fontSize: 13 }}>Abre tu turno de caja para cobrar.</div>}

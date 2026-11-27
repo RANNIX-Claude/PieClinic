@@ -30,8 +30,7 @@ const REGLAS = [
     const fijos = s.pagos.filter(p => !p.auto).reduce((a, p) => a + Number(p.monto), 0)
     return saldoPagos(s.pagos, s.total) === 0 || fijos > s.total
   }],
-  ['R5 el efectivo recibido nunca es menor al monto del efectivo (salvo tecleo manual del monto)', (s, seguro) => {
-    if (!seguro) return true
+  ['R5 el efectivo recibido nunca es menor al monto del efectivo (con cualquier gesto, también tecleando el monto)', (s) => {
     const e = por(s.pagos, 'efectivo'); return !e || e.recibido === '' || Number(e.recibido) >= Number(e.monto)
   }],
   ['R6 con gestos seguros y algún pago, nada queda sin cubrir ni de más (salvo fijos que ya se pasan)', (s, seguro) => {
@@ -145,4 +144,14 @@ test('F: pasarse del total avisa «de más»; quedarse corto avisa «faltan»', 
   assert.match(validarPagos(p, 1100), /de más/)
   p = fijarMonto(p, 'e', 100, 1100); p = fijarMonto(p, 't', 100, 1100)
   assert.match(validarPagos(p, 1100), /faltan/)
+})
+
+test('H: si se cambia el monto del efectivo a mano, lo recibido lo sigue (no queda un cambio fantasma)', () => {
+  let p = agregarPago([], 'clip', 650, 'c'); p = agregarPago(p, 'efectivo', 650, 'e')
+  p = fijarMonto(p, 'e', 200, 650); p = fijarRecibido(p, 'e', 200, 650)   // efectivo 200 recibido 200
+  p = fijarMonto(p, 'e', 150, 650)                                          // el cajero corrige el monto a 150
+  assert.equal(por(p, 'efectivo').recibido, '150')
+  assert.equal(por(p, 'clip').monto, 500)
+  assert.equal(saldoPagos(p, 650), 0)
+  const e = por(p, 'efectivo'); assert.equal(Number(e.recibido) - Number(e.monto), 0)  // cambio 0, no $50
 })

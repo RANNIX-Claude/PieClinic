@@ -13,13 +13,11 @@ export const nuevaClavePago = () => `p${++_n}`
 /** total − pagos (positivo = falta; negativo = se pasó). */
 export const saldoPagos = (pagos, total) => redondear(num(total) - suma(pagos.map(montoDe)))
 
-// Si el efectivo «recibido» seguía al monto, lo sigue; si ya no alcanza para el nuevo monto, se vuelve a capturar.
+// Cuando cambia el monto del efectivo, lo «recibido» (si ya se había capturado) pasa a ser ese monto: ya no hay cambio que dar
+// hasta que el cajero vuelva a pulsar el billete que le entregan.
 function sincRecibido(p, nuevo) {
   if (p.metodo !== 'efectivo' || p.recibido === '' || p.recibido == null) return p.recibido
-  const r = num(p.recibido)
-  if (r === montoDe(p)) return String(nuevo)
-  if (r < nuevo) return ''
-  return p.recibido
+  return String(nuevo)
 }
 
 /** Hace que el pago automático cubra lo que falta (o quede en 0 si los demás ya cubren el total). */
@@ -56,7 +54,7 @@ export function alternarMetodo(pagos, metodo, total, clave) {
 /** Teclear el monto de un pago: queda fijo y el automático (si lo hay) absorbe la diferencia. */
 export function fijarMonto(pagos, clave, valor, total) {
   const m = Math.max(0, redondear(num(valor)))
-  return ajustarAuto(pagos.map(p => (p.clave === clave ? { ...p, monto: m, auto: false } : p)), total)
+  return ajustarAuto(pagos.map(p => (p.clave === clave ? { ...p, monto: m, auto: false, recibido: sincRecibido(p, m) } : p)), total)
 }
 
 /** «Completar»: el pago se queda con lo que falta además de lo que ya tenía. */
