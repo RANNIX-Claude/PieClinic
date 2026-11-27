@@ -62,7 +62,7 @@ export default function CajaCobro({ turno, onListo, onTickets }) {
   const servQ = useLeerOffline('cat-servicios', 'prp_servicios', { sedeCol: false, filtros: { estado: 'activo' }, orden: { columna: 'nombre' }, limite: 500 })
   const prodQ = useLeerOffline('cat-productos', 'prp_productos', { sedeCol: false, filtros: { estado: ['activo', 'sin_existencia'], tipo: ['venta', 'por_encargo'] }, orden: { columna: 'nombre' }, limite: 5000 })
   const ofQ = useLeerOffline('cat-ofertas', 'prp_ofertas', { sedeCol: false, filtros: { estado_efectivo: 'activa' }, orden: { columna: 'nombre' }, limite: 300 })
-  const antQ = useLeer('anticipos-paciente', 'prp_anticipos', { sedeCol: false, filtros: { paciente_id: paciente?.id, estado: 'pagado' }, limite: 20 }, !!paciente?.id)
+  const antQ = useLeer('anticipos-paciente', 'prp_anticipos', { sedeCol: false, filtros: { paciente_id: paciente?.id, estado: 'pagado', aplicable_en_caja: true }, limite: 20 }, !!paciente?.id)
   const planQ = useLeer('planes-paciente', 'prp_planes_adquiridos', { sedeCol: false, filtros: { paciente_id: paciente?.id, estado: 'vigente' }, limite: 20 }, !!paciente?.id)
 
   // ── precarga desde la cita (?cita=) o ticket abierto (?venta=) ───────────────────────────────────

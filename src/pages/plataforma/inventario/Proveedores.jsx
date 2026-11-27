@@ -86,7 +86,7 @@ export function ModalProveedor({ proveedor, onClose, onCreado, onGuardar }) {
   const { correr, ocupado } = useAccion()
   const [f, setF] = useState({
     clave: '', nombre: '', razon_social: '', rfc: '', categoria: 'insumos', es_laboratorio: false, activo: true, telefono: '', email: '', contacto: '',
-    condiciones_pago: 'contado', dias_credito: 0, dias_entrega: '', notas: '', ...(proveedor ? Object.fromEntries(Object.entries(proveedor).map(([k, v]) => [k, v ?? (typeof v === 'boolean' ? v : '')])) : {}), ...(proveedor ? { condiciones_pago: condicionPago(proveedor.condiciones_pago) } : {}),
+    condiciones_pago: 'contado', dias_credito: 0, dias_entrega: '', notas: '', whatsapp_grupo: '', whatsapp_contacto: '', anticipo_pct: '', pedidos_tipos: [], ...(proveedor ? Object.fromEntries(Object.entries(proveedor).map(([k, v]) => [k, v ?? (typeof v === 'boolean' ? v : '')])) : {}), ...(proveedor ? { condiciones_pago: condicionPago(proveedor.condiciones_pago) } : {}),
   })
   const set = (k, v) => setF(x => ({ ...x, [k]: v }))
   const rfc = f.rfc.trim().toUpperCase()
@@ -95,6 +95,7 @@ export function ModalProveedor({ proveedor, onClose, onCreado, onGuardar }) {
     const datos = {
       clave: f.clave.trim().toUpperCase(), nombre: f.nombre.trim(), razon_social: f.razon_social || null, rfc: rfc || null, categoria: f.categoria, es_laboratorio: !!f.es_laboratorio, activo: !!f.activo,
       telefono: f.telefono || null, email: f.email || null, contacto: f.contacto || null, condiciones_pago: f.condiciones_pago || 'contado', dias_credito: Number(f.dias_credito) || 0, dias_entrega: f.dias_entrega || null, notas: f.notas || null,
+      whatsapp_grupo: f.whatsapp_grupo || null, whatsapp_contacto: f.whatsapp_contacto || null, anticipo_pct: f.anticipo_pct === '' || f.anticipo_pct == null ? null : Number(f.anticipo_pct), pedidos_tipos: f.pedidos_tipos ?? [],
     }
     if (proveedor) { const ok = await correr(() => onGuardar(datos), 'Proveedor actualizado'); if (ok) onClose() } else {
       const r = await correr(() => insertar('proveedores', datos), 'Proveedor creado'); if (r) onCreado?.(r[0]?.id)
@@ -116,6 +117,12 @@ export function ModalProveedor({ proveedor, onClose, onCreado, onGuardar }) {
         <FormField label="Condiciones de pago" as="select" value={f.condiciones_pago} onChange={e => set('condiciones_pago', e.target.value)} options={CONDICIONES} />
         <FormField label="Días de crédito" type="number" min="0" value={f.dias_credito} onChange={e => set('dias_credito', e.target.value)} />
         <FormField label="Tiempo de entrega" value={f.dias_entrega} onChange={e => set('dias_entrega', e.target.value)} placeholder="2-3 días hábiles" />
+      </div>
+      <div className="grid2">
+        <FormField label="Grupo de WhatsApp para pedidos especiales" value={f.whatsapp_grupo} onChange={e => set('whatsapp_grupo', e.target.value)} placeholder="Nombre del grupo donde está el proveedor" hint="Ahí se copia la petición del pedido (simulado hoy)" />
+        <FormField label="Contacto de WhatsApp (teléfono)" value={f.whatsapp_contacto} onChange={e => set('whatsapp_contacto', e.target.value)} />
+        <FormField label="Anticipo % en pedidos especiales" type="number" min="0" max="100" value={f.anticipo_pct} onChange={e => set('anticipo_pct', e.target.value)} placeholder="vacío = el de la clínica (50)" />
+        <FormField label="Tipos de pedido que surte" hint="Vacío = cualquiera"><div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 13 }}>{[['zapato', 'Zapatos'], ['plantilla', 'Plantillas'], ['aditamento', 'Aditamentos'], ['otro', 'Otros']].map(([v, l]) => <label key={v}><input type="checkbox" checked={(f.pedidos_tipos ?? []).includes(v)} onChange={e => set('pedidos_tipos', e.target.checked ? [...(f.pedidos_tipos ?? []), v] : (f.pedidos_tipos ?? []).filter(x => x !== v))} /> {l}</label>)}</div></FormField>
       </div>
       <label style={{ fontSize: 13, display: 'flex', gap: 6, margin: '4px 0 8px' }}><input type="checkbox" checked={!!f.es_laboratorio} onChange={e => set('es_laboratorio', e.target.checked)} /> Es laboratorio externo de plantillas ortopédicas</label>
       <FormField label="Notas" as="textarea" value={f.notas} onChange={e => set('notas', e.target.value)} />

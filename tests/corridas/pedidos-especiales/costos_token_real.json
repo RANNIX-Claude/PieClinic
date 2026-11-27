@@ -1,0 +1,129 @@
+{
+  "recepcion": {
+    "lin": [
+      {
+        "descripcion": "Zapato ortopédico a la medida talla 26",
+        "precio_unitario": 2590,
+        "costo_unitario": null,
+        "costo_total": null
+      },
+      {
+        "descripcion": "Plantilla ortopédica a la medida",
+        "precio_unitario": 1000,
+        "costo_unitario": null,
+        "costo_total": null
+      },
+      {
+        "descripcion": "Zapato ortopédico a la medida talla 26",
+        "precio_unitario": 2590,
+        "costo_unitario": null,
+        "costo_total": null
+      },
+      {
+        "descripcion": "Plantilla ortopédica a la medida",
+        "precio_unitario": 1000,
+        "costo_unitario": null,
+        "costo_total": null
+      },
+      {
+        "descripcion": "Zapato ortopédico a la medida talla 26",
+        "precio_unitario": 2590,
+        "costo_unitario": null,
+        "costo_total": null
+      }
+    ],
+    "base": [],
+    "ped": [
+      {
+        "folio": "CHA-PED-000001",
+        "costo_estimado": null
+      },
+      {
+        "folio": "CHA-PED-000002",
+        "costo_estimado": null
+      },
+      {
+        "folio": "CHA-PED-000003",
+        "costo_estimado": null
+      },
+      {
+        "folio": "CHA-PED-000004",
+        "costo_estimado": null
+      },
+      {
+        "folio": "CHA-PED-000006",
+        "costo_estimado": null
+      }
+    ]
+  },
+  "administrador": {
+    "lin": [
+      {
+        "descripcion": "Zapato ortopédico a la medida talla 26",
+        "precio_unitario": 2590,
+        "costo_unitario": 1000,
+        "costo_total": 1000
+      },
+      {
+        "descripcion": "Plantilla ortopédica a la medida",
+        "precio_unitario": 1000,
+        "costo_unitario": 400,
+        "costo_total": 400
+      },
+      {
+        "descripcion": "Zapato ortopédico a la medida talla 26",
+        "precio_unitario": 2590,
+        "costo_unitario": null,
+        "costo_total": null
+      },
+      {
+        "descripcion": "Plantilla ortopédica a la medida",
+        "precio_unitario": 1000,
+        "costo_unitario": null,
+        "costo_total": null
+      },
+      {
+        "descripcion": "Zapato ortopédico a la medida talla 26",
+        "precio_unitario": 2590,
+        "costo_unitario": 1000,
+        "costo_total": 1000
+      }
+    ],
+    "base": [
+      {
+        "costo_unitario": 1000
+      },
+      {
+        "costo_unitario": 400
+      },
+      {
+        "costo_unitario": 1000
+      },
+      {
+        "costo_unitario": 400
+      }
+    ],
+    "ped": [
+      {
+        "folio": "CHA-PED-000001",
+        "costo_estimado": null
+      },
+      {
+        "folio": "CHA-PED-000002",
+        "costo_estimado": null
+      },
+      {
+        "folio": "CHA-PED-000003",
+        "costo_estimado": 1000
+      },
+      {
+        "folio": "CHA-PED-000004",
+        "costo_estimado": 400
+      },
+      {
+        "folio": "CHA-PED-000006",
+        "costo_estimado": 400
+      }
+    ]
+  }
+}

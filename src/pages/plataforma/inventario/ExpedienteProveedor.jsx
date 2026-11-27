@@ -22,6 +22,7 @@ import { useConfirmacion } from '../../../components/ui/ConfirmDialog'
 import { useLectura, useProductos, useProveedores, useAccion, msgError, CATEGORIAS_PROVEEDOR, SelectorProducto, num, qty } from './comun'
 import { ModalProveedor } from './Proveedores'
 import { ESTADO_OC } from './OrdenDetalle'
+import { colsPedido } from '../pedidos/comun'
 
 const TIPOS_DOC = { contrato: 'Contrato', constancia_fiscal: 'Constancia fiscal', cotizacion: 'Cotización', otro: 'Otro' }
 
@@ -38,6 +39,8 @@ export default function ExpedienteProveedor() {
   const p = mapa[id]
   const ocs = useLectura('prov-ocs', 'prp_ordenes_compra', { sedeId: null, filtros: { proveedor_id: id }, orden: { columna: 'fecha', asc: false } })
   const cxp = useLectura('prov-cxp', 'prp_cuentas_pagar', { sedeId: null, filtros: { proveedor_id: id }, orden: { columna: 'fecha_vencimiento' } })
+  const peds = useLectura('prov-pedidos', 'prp_pedidos_especiales', { sedeId: null, sedeCol: false, filtros: { proveedor_id: id }, orden: { columna: 'created_at', asc: false } })
+  const pagos = useLectura('prov-pagos', 'prp_pagos_proveedor', { sedeId: null, filtros: { proveedor_id: id }, orden: { columna: 'fecha', asc: false } })
   const pp = useLectura('prov-pp', 'proveedor_productos', { sedeCol: false, filtros: { proveedor_id: id } })
   const docs = useLectura('prov-docs', 'proveedor_documentos', { sedeCol: false, filtros: { proveedor_id: id }, orden: { columna: 'created_at', asc: false } }, esAdmin)
   const banco = useLectura('prov-banco', 'proveedores_bancarios', { sedeCol: false, filtros: { proveedor_id: id } }, esAdmin)
@@ -52,9 +55,10 @@ export default function ExpedienteProveedor() {
     const validas = ocs.filas.filter(o => o.estado !== 'cancelada')
     const ult12 = validas.filter(o => o.fecha >= lim)
     return { ordenes: ult12.length, total: ult12.reduce((s, o) => s + num(o.total), 0), ultima: validas[0]?.fecha,
+      pedidosAbiertos: peds.filas.filter(x => !['entregado', 'cancelado'].includes(x.estado)).length, pagado12: pagos.filas.filter(x => x.fecha >= lim).reduce((a, x) => a + num(x.monto), 0),
       saldo: cxp.filas.filter(c => !['pagada', 'cancelada'].includes(c.estado)).reduce((s, c) => s + num(c.saldo), 0),
       prox: cxp.filas.filter(c => !['pagada', 'cancelada'].includes(c.estado)).map(c => c.fecha_vencimiento).sort()[0] }
-  }, [ocs.filas, cxp.filas])
+  }, [ocs.filas, cxp.filas, peds.filas, pagos.filas])
 
   if (cargando) return <div className="pagina"><LoadingSpinner /></div>
   if (error || !p) return <div className="pagina"><EmptyState title={error ? 'No se pudo cargar' : 'Proveedor no encontrado'} description={error ? msgError(error) : 'No existe o no pertenece a esta clínica.'} action={<button className="btn o" onClick={() => nav('/proveedores')}>Volver a proveedores</button>} /></div>
@@ -83,7 +87,8 @@ export default function ExpedienteProveedor() {
         </>} />
       <Tabs value={tab} onChange={t => setSp({ tab: t })} items={[
         { id: 'resumen', label: 'Resumen' }, { id: 'datos', label: 'Datos generales' }, { id: 'compras', label: 'Compras', badge: ocs.filas.length || null },
-        { id: 'cxp', label: 'Cuentas por pagar' }, { id: 'productos', label: 'Productos que surte', badge: pp.filas.length || null },
+        { id: 'cxp', label: 'Cuentas por pagar' }, { id: 'pedidos', label: 'Pedidos especiales', badge: k.pedidosAbiertos || null },
+        { id: 'facturas', label: 'Facturas recibidas' }, { id: 'pagos', label: 'Pagos realizados', badge: pagos.filas.length || null }, { id: 'productos', label: 'Productos que surte', badge: pp.filas.length || null },
         { id: 'documentos', label: 'Documentos', oculto: !esAdmin }, { id: 'nombres', label: 'Nombres vinculados', oculto: !esAdmin },
       ]} />
       {tab === 'resumen' && (
@@ -91,6 +96,8 @@ export default function ExpedienteProveedor() {
           <KPICard title="Órdenes (12 meses)" value={k.ordenes} icon={ShoppingCart} loading={ocs.cargando} />
           <KPICard title="Total comprado (12 meses)" value={moneda(k.total)} icon={Receipt} color="var(--green)" loading={ocs.cargando} />
           <KPICard title="Saldo por pagar" value={moneda(k.saldo)} icon={Wallet} color="var(--gold)" subtitle={k.prox ? `vence ${fecha(k.prox)}` : undefined} loading={cxp.cargando} />
+          <KPICard title="Pagado (12 meses)" value={moneda(k.pagado12)} icon={Wallet} color="var(--green)" loading={pagos.cargando} />
+          <KPICard title="Pedidos especiales abiertos" value={k.pedidosAbiertos} icon={ShoppingCart} subtitle={`${peds.filas.length} en total`} loading={peds.cargando} />
           <KPICard title="Última compra" value={k.ultima ? fecha(k.ultima) : '—'} icon={CalendarClock} loading={ocs.cargando} />
         </div>)}
       {tab === 'datos' && (
@@ -99,6 +106,7 @@ export default function ExpedienteProveedor() {
           <div className="grid2">
             {dato('Clave', p.clave)}{dato('Razón social', p.razon_social)}{dato('RFC', p.rfc)}{dato('Categoría', CATEGORIAS_PROVEEDOR[p.categoria])}
             {dato('Contacto', p.contacto)}{dato('Teléfono', telefono(p.telefono))}{dato('Correo', p.email)}{dato('Condiciones de pago', `${p.condiciones_pago}${p.dias_credito ? ` · ${p.dias_credito} días` : ''}`)}
+            {dato('Grupo de WhatsApp (pedidos)', p.whatsapp_grupo ?? p.whatsapp_contacto)}{dato('Anticipo en pedidos especiales', p.anticipo_pct == null ? 'el de la clínica (50 % por omisión)' : `${p.anticipo_pct} %`)}
             {dato('Tiempo de entrega', p.dias_entrega)}{dato('Estatus', <StatusBadge estado={p.activo ? 'activo' : 'inactivo'} label={p.estatus} />)}{dato('Laboratorio externo', p.es_laboratorio ? 'Sí' : 'No')}
           </div>
           {p.notas && <div style={{ fontSize: 13, marginTop: 6 }}>{p.notas}</div>}
@@ -116,6 +124,24 @@ export default function ExpedienteProveedor() {
           { key: 'importe', label: 'Importe', align: 'right', render: c => moneda(c.importe) }, { key: 'pagado', label: 'Pagado', align: 'right', render: c => moneda(c.pagado) },
           { key: 'saldo', label: 'Saldo', align: 'right', render: c => <b>{moneda(c.saldo)}</b> }, { key: 'estado', label: 'Estado', filtro: true, render: c => <StatusBadge estado={c.estado} /> },
         ]} vacio={{ title: 'Sin cuentas por pagar', description: 'Nacen al registrar la factura en una recepción. El pago se hace en Finanzas → Cuentas.' }} />}
+      {tab === 'pedidos' && <DataTable cargando={peds.cargando} error={msgError(peds.error)} filas={peds.filas} exportarNombre={`pedidos_${p.clave}`} onFila={x => nav(`/pedidos/${x.id}`)}
+        columnas={colsPedido({ verCostos: true, conProveedor: false })}
+        vacio={{ title: 'Sin pedidos especiales', description: 'Los pedidos de zapatos, plantillas y aditamentos a este proveedor aparecen aquí con su etapa, orden de compra y cuenta por pagar.' }} />}
+      {tab === 'facturas' && <DataTable cargando={cxp.cargando} error={msgError(cxp.error)} filas={cxp.filas.filter(c => c.estado !== 'cancelada')} exportarNombre={`facturas_${p.clave}`}
+        columnas={[
+          { key: 'folio_factura', label: 'Factura', render: c => (c.folio_factura ? <b>{c.folio_factura}</b> : <span className="bd a">Pendiente de factura</span>), valor: c => c.folio_factura ?? 'pendiente' },
+          { key: 'concepto', label: 'Concepto' }, { key: 'fecha_emision', label: 'Emisión', render: c => fecha(c.fecha_emision) }, { key: 'fecha_vencimiento', label: 'Vence', render: c => fecha(c.fecha_vencimiento) },
+          { key: 'importe', label: 'Importe', align: 'right', render: c => moneda(c.importe), valor: c => num(c.importe) }, { key: 'iva', label: 'IVA', align: 'right', render: c => moneda(c.iva), valor: c => num(c.iva) },
+          { key: 'cfdi_uuid', label: 'UUID CFDI', render: c => (c.cfdi_uuid ? <small>{c.cfdi_uuid}</small> : '—') },
+          { key: 'archivo_url', label: 'Archivo', sortable: false, exportar: false, render: c => (c.archivo_url ? <a href={c.archivo_url} target="_blank" rel="noopener noreferrer">Abrir</a> : '—') },
+          { key: 'estado', label: 'Estado', filtro: true, render: c => <StatusBadge estado={c.estado} /> },
+        ]} vacio={{ title: 'Sin facturas recibidas', description: 'La factura se asienta al recibir la mercancía; al recibir un pedido sin factura la cuenta por pagar queda «pendiente de factura».' }} />}
+      {tab === 'pagos' && <DataTable cargando={pagos.cargando} error={msgError(pagos.error)} filas={pagos.filas} exportarNombre={`pagos_${p.clave}`}
+        columnas={[
+          { key: 'fecha', label: 'Fecha', render: x => fecha(x.fecha) }, { key: 'folio_factura', label: 'Factura', render: x => x.folio_factura ?? '—' },
+          { key: 'monto', label: 'Monto', align: 'right', render: x => <b>{moneda(x.monto)}</b>, valor: x => num(x.monto) }, { key: 'forma_pago', label: 'Forma de pago', filtro: true },
+          { key: 'referencia', label: 'Referencia', render: x => x.referencia ?? '—' }, { key: 'conciliado', label: 'Conciliado', render: x => (x.conciliado ? 'Sí' : 'No') },
+        ]} vacio={{ title: 'Sin pagos realizados', description: 'Los pagos a este proveedor se registran en Finanzas → Cuentas por pagar.' }} />}
       {tab === 'productos' && <>
         {esAdmin && <div style={{ marginBottom: 8 }}><button className="btn" onClick={() => setVincProd(true)}>+ Vincular producto</button></div>}
         <DataTable cargando={pp.cargando} error={msgError(pp.error)} filas={pp.filas} exportarNombre={`productos_${p.clave}`} onFila={f => nav(`/inventario/producto/${f.producto_id}`)}

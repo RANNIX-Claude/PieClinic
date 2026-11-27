@@ -13,6 +13,7 @@ import { leer, rpc } from '../../lib/api'
 import toast from 'react-hot-toast'
 import { fecha, fechaHora, moneda, telefono } from '../../lib/formato'
 import { Seccion, useVista, mensajeError, usePaciente, Volver } from '../clinico/componentes/comunes'
+import { EstadoPedido, Semaforo } from '../plataforma/pedidos/comun'
 
 const useDebounce = (v, ms = 350) => { const [x, setX] = useState(v); useEffect(() => { const t = setTimeout(() => setX(v), ms); return () => clearTimeout(t) }, [v, ms]); return x }
 const COBRADAS = ['cobrada', 'por_facturar', 'facturada']
@@ -65,6 +66,7 @@ function Historia({ id }) {
   const lineas = useVista('cli-lineas-' + id, 'prp_venta_lineas', { sedeCol: false, filtros: { paciente_id: id }, orden: { columna: 'created_at', asc: false }, limite: 2000 })
   const citas = useVista('cli-citas-' + id, 'prp_agenda', { sedeCol: false, filtros: { paciente_id: id }, orden: { columna: 'inicio', asc: false }, limite: 500 })
   const planes = useVista('cli-planes-' + id, 'prp_planes_adquiridos', { sedeCol: false, filtros: { paciente_id: id }, limite: 200 })
+  const pedidos = useVista('cli-pedidos-' + id, 'prp_pedidos_especiales', { sedeCol: false, filtros: { paciente_id: id }, orden: { columna: 'created_at', asc: false }, limite: 200 })
   const antic = useVista('cli-antic-' + id, 'prp_anticipos', { sedeCol: false, filtros: { paciente_id: id }, limite: 200 })
   const ids = (ventas.data?.filas ?? []).map(v => v.id)
   const facturas = useVista('cli-fact-' + id, 'prp_facturas', { sedeCol: false, filtros: { venta_id: ids } }, { enabled: ids.length > 0 })
@@ -91,6 +93,7 @@ function Historia({ id }) {
     { id: 'productos', label: 'Qué ha comprado' },
     { id: 'servicios', label: 'Citas y servicios', badge: resumen.citas },
     { id: 'planes', label: 'Planes y anticipos' },
+    { id: 'pedidos', label: 'Pedidos', badge: (pedidos.data?.filas ?? []).filter(p => !['entregado', 'cancelado'].includes(p.estado)).length || null },
     { id: 'facturas', label: 'Facturas' },
   ]
   const err = q => (q.error ? mensajeError(q.error) : null)
@@ -168,6 +171,16 @@ function Historia({ id }) {
               vacio={{ title: 'Sin anticipos', description: 'No tiene anticipos.' }} />
           </Seccion>
         </>
+      )}
+
+      {tab === 'pedidos' && (
+        <Seccion titulo="Pedidos especiales (zapatos, plantillas y aditamentos)">
+          <DataTable buscador={false} sinPaginacion cargando={pedidos.isLoading} error={err(pedidos)} filas={pedidos.data?.filas ?? []} onFila={p => nav('/pedidos/' + p.id)}
+            columnas={[{ key: 'folio', label: 'Pedido', render: p => <b>{p.folio}</b> }, { key: 'producto', label: 'Producto' }, { key: 'proveedor_nombre', label: 'Proveedor' }, { key: 'estado', label: 'Etapa', render: p => <EstadoPedido estado={p.estado} /> },
+              { key: 'total', label: 'Total', align: 'right', render: p => moneda(p.total) }, { key: 'anticipo_monto', label: 'Anticipo', align: 'right', render: p => moneda(p.anticipo_monto) }, { key: 'saldo', label: 'Saldo', align: 'right', render: p => moneda(p.saldo) },
+              { key: 'fecha_prometida', label: 'Prometida', render: p => fecha(p.fecha_acordada ?? p.fecha_prometida) }, { key: 'semaforo', label: 'Retraso', render: p => <Semaforo valor={p.semaforo} dias={p.dias_retraso} /> }]}
+            vacio={{ title: 'Sin pedidos', description: 'No tiene pedidos especiales. Se crean en Pedidos → Nuevo pedido.' }} />
+        </Seccion>
       )}
 
       {tab === 'facturas' && (
