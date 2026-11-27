@@ -14,6 +14,7 @@ import { suma } from '../../../lib/comercial/dinero'
 import { imprimirTicketDe } from './ticketDatos'
 import { useLeer, AvisoError, textoError, rangoDias } from './comun'
 import CajaCancelacion from './CajaCancelacion'
+import CajaTicketDetalle from './CajaTicketDetalle'
 import { cancelacionRequiere, cancelacionesPendientes, parametrosCaja, PARAMETROS_CAJA_OMISION } from '../../../lib/comercial/cajaControl'
 
 export default function CajaTickets({ turno, onCambio, onRetomar }) {
@@ -22,6 +23,7 @@ export default function CajaTickets({ turno, onCambio, onRetomar }) {
   const puedeCancelar = usePermiso('ventas.cancelar')
   const [dia, setDia] = useState(hoyISO())
   const [cancelar, setCancelar] = useState(null)
+  const [detalle, setDetalle] = useState(null)                       // ticket cuyo detalle se consulta para validarlo
   const [ocupado, setOcupado] = useState(false)
   const [params, setParams] = useState(PARAMETROS_CAJA_OMISION)   // controles de Caja (Etapa 1): cancelación con bloqueo, motivos y autorizadores
   const [validar, setValidar] = useState(null)                     // ticket cuya cancelación se valida con pieza, foto y clave
@@ -75,6 +77,7 @@ export default function CajaTickets({ turno, onCambio, onRetomar }) {
     { key: 'estado', label: 'Estado', render: v => <StatusBadge estado={v.estado} />, filtro: true },
     { key: 'acc', label: 'Acciones', sortable: false, exportar: false, render: v => (
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        <button className="btn o" onClick={() => setDetalle(v)}>Detalle</button>
         {['por_cobrar', 'cuenta_abierta'].includes(v.estado) && <button className="btn" onClick={() => onRetomar(v.id)}>Retomar</button>}
         {['cobrada', 'por_facturar', 'facturada'].includes(v.estado) && <button className="btn o" onClick={() => copia(v)}>Reimprimir (copia)</button>}
         {puedeCancelar && v.estado !== 'cancelada' && <button className="btn red" onClick={() => iniciarCancelacion(v)}>Cancelar</button>}
@@ -102,6 +105,7 @@ export default function CajaTickets({ turno, onCambio, onRetomar }) {
       <ConfirmDialog open={!!cancelar} titulo={`Cancelar ticket ${cancelar?.folio ?? ''}`} peligro pedirMotivo ocupado={ocupado} textoConfirmar="Cancelar ticket"
         mensaje="El ticket no se borra: queda cancelado con su motivo, se revierten inventario y comisiones y los anticipos vuelven a estar disponibles. Si tiene CFDI vigente, cancélalo o acredítalo primero. Tras cerrar el turno solo Administración puede cancelar."
         onConfirm={confirmarCancelar} onCancel={() => setCancelar(null)} />
+      <CajaTicketDetalle venta={detalle} onClose={() => setDetalle(null)} />
       {validar && <CajaCancelacion venta={validar} params={params} onClose={() => setValidar(null)} onResuelta={refrescar} />}
     </div>
   )
