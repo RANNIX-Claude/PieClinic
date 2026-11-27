@@ -6,7 +6,7 @@ import { Lock, Unlock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useApp } from '../../context/AppContext'
 import { usePermiso } from '../../lib/permisos'
-import { insertar } from '../../lib/api'
+import { insertar, leer } from '../../lib/api'
 import { fechaHora, moneda } from '../../lib/formato'
 import Tabs from '../../components/ui/Tabs'
 import FormField from '../../components/ui/FormField'
@@ -45,6 +45,22 @@ export default function Caja() {
     return () => { vivo = false; clearInterval(t) }
   }, [sedeActivaId, turno?.id])
 
+  // Corte de conteo inicial: mientras la sucursal tiene un conteo inicial abierto con corte, el servidor rechaza ventas (trigger de movimientos_inventario).
+  // Se avisa desde que se abre la caja, no al cobrar. Si no se puede leer el conteo, no bloquea: el candado de verdad es del servidor.
+  const [enConteo, setEnConteo] = useState(false)
+  useEffect(() => {
+    if (!sedeActivaId || !navigator.onLine) { setEnConteo(false); return }
+    let vivo = true
+    const revisar = async () => {
+      const r = await leer('conteos_fisicos', { sedeCol: false, filtros: { sede_id: sedeActivaId, tipo: 'inicial', estado: ['borrador', 'capturado'] }, columnas: 'id,corte_en', limite: 20 })
+      if (vivo && !r.error) setEnConteo(r.data.some(c => c.corte_en))
+    }
+    revisar(); const t = setInterval(revisar, 30000)
+    return () => { vivo = false; clearInterval(t) }
+  }, [sedeActivaId])
+  const avisoConteo = enConteo ? 'No se puede generar un nuevo ticket: esta sucursal está en conteo inicial de inventario.' : null
+  const bloqueoTotal = avisoConteo ?? bloqueo
+
   const abrir = async () => {
     if (!(Number(apertura.fondo) >= 0)) return toast.error('Fondo inicial inválido')
     setOcupado(true)
@@ -69,6 +85,7 @@ export default function Caja() {
         <>
           <AvisoError error={turnoQ.error} titulo="No se pudo leer el turno de caja" />
           {bloqueo && <div className="card" role="alert" style={{ borderLeft: '4px solid var(--red)', marginBottom: 10, fontWeight: 600 }}>{bloqueo} No se pueden registrar ventas hasta que quien entra acepte la entrega del turno.</div>}
+          {avisoConteo && <div className="card" role="alert" style={{ borderLeft: '4px solid var(--red)', marginBottom: 10, fontWeight: 600 }}>{avisoConteo} No se registran ventas ni traspasos hasta que un administrador o supervisor apruebe o cancele el conteo (Inventario › Conteo inicial).</div>}
           {!turno && !turnoQ.cargando && (
             <div className="card" style={{ maxWidth: 560, marginBottom: 10 }}>
               <h3 style={{ marginBottom: 8 }}><Lock size={16} style={{ verticalAlign: -3 }} /> Abrir turno de caja</h3>
@@ -82,7 +99,7 @@ export default function Caja() {
             </div>
           )}
           <div style={{ marginTop: 10 }}>
-            {tab === 'cobro' && <CajaCobro turno={turno} bloqueo={bloqueo} onListo={refrescar} onTickets={() => cambiarTab('tickets')} />}
+            {tab === 'cobro' && <CajaCobro turno={turno} bloqueo={bloqueoTotal}onListo={refrescar} onTickets={() => cambiarTab('tickets')} />}
             {tab === 'tickets' && <CajaTickets turno={turno} onCambio={refrescar} onRetomar={id => { const n = new URLSearchParams(sp); n.set('venta', id); n.set('tab', 'cobro'); setSp(n); setTab('cobro') }} />}
             {tab === 'pedidos' && <CajaPedidos turno={turno} />}
             {tab === 'corte' && <CajaCorte turno={turno} onCambio={refrescar} />}
