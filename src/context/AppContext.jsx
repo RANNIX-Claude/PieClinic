@@ -3,7 +3,7 @@ import { supabase, SUPABASE_CONFIGURADO, MENSAJE_SIN_CONEXION } from '../lib/sup
 import { fijarContextoApi } from '../lib/api'
 import { fijarZonaHoraria } from '../lib/formato'
 import { registrarBitacora } from '../lib/bitacora'
-import { fijarSuperadmin } from '../lib/permisos'
+import { fijarSuperadmin, fijarResponsable } from '../lib/permisos'
 import { borrarSnapshots } from '../lib/offline/almacen'
 
 export const AppContext = createContext(null)
@@ -45,6 +45,8 @@ export function AppProvider({ children }) {
   const [sedes, setSedes] = useState([])              // sedes a las que el usuario tiene acceso
   const [esRannix, setEsRannix] = useState(false)
   const [liberacion, setLiberacion] = useState({ estricta: false, claves: [] }) // liberación de funciones por RANNIX (074); sin ella todo se muestra
+  // Contexto de sucursal (migración 310): de qué sucursal soy responsable y si hoy tengo cobertura (los propietarios me mandaron a otra sucursal)
+  const [contextoSucursal, setContextoSucursal] = useState({ responsable_de: null, cobertura_sede: null, cobertura_motivo: null })
   const [errorPerfil, setErrorPerfil] = useState(null)
   const [loading, setLoading] = useState(true)
   const [sedeId, setSedeId] = useState(() => ls.get(LS_SEDE) || null)   // null = todas mis sedes
@@ -69,7 +71,7 @@ export function AppProvider({ children }) {
     return () => window.removeEventListener('resize', fn)
   }, [])
 
-  const limpiar = () => { fijarSuperadmin(false); setPerfil(null); setOrganizacion(null); setSedes([]); setEsRannix(false); setErrorPerfil(null); setLiberacion({ estricta: false, claves: [] }) }
+  const limpiar = () => { fijarSuperadmin(false); fijarResponsable(false); setContextoSucursal({ responsable_de: null, cobertura_sede: null, cobertura_motivo: null }); setPerfil(null); setOrganizacion(null); setSedes([]); setEsRannix(false); setErrorPerfil(null); setLiberacion({ estricta: false, claves: [] }) }
 
   // Perfil + organización + sedes. Si no hay perfil activo pero la persona está en rannix_staff, entra como superadmin.
   const cargarPerfil = useCallback(async (u) => {
@@ -79,7 +81,9 @@ export function AppProvider({ children }) {
       // Sin conexión: se arranca con la copia del último acceso de ESTA persona (la caja debe seguir operando sin internet).
       const copia = leerCopiaArranque(u.id)
       if (copia && (!navigator.onLine || /failed to fetch|network|load failed/i.test(error.message ?? ''))) {
-        fijarSuperadmin(copia.superadmin === true); setEsRannix(copia.superadmin === true); setLiberacion(copia.liberacion); setPerfil(copia.perfil); setOrganizacion(copia.organizacion); setSedes(copia.sedes)
+        fijarSuperadmin(copia.superadmin === true); setEsRannix(copia.superadmin === true); setLiberacion(copia.liberacion)
+        if (copia.contexto) { setContextoSucursal(copia.contexto); fijarResponsable(copia.perfil?.rol === 'podologo' && !!copia.contexto.responsable_de) }
+ setPerfil(copia.perfil); setOrganizacion(copia.organizacion); setSedes(copia.sedes)
         return
       }
       setErrorPerfil(error.message); setPerfil(null); return
@@ -105,9 +109,13 @@ export function AppProvider({ children }) {
       supabase.from('sedes').select('*').eq('organizacion_id', p.organizacion_id).eq('activa', true).order('nombre'),
     ])
     setOrganizacion(org ?? null)
-    const accesibles = (ss ?? []).filter(s => !p.sedes?.length || p.sedes.includes(s.id)) // sedes vacío = todas
+    // Cobertura de hoy: la persona opera SOLO en la sucursal que le asignaron los propietarios (el RLS lo impone igual). El propietario nunca se restringe.
+    const { data: ctxS } = p.rol === 'administrador' ? { data: null } : await supabase.rpc('mi_contexto_sucursal')
+    const ctx = { responsable_de: ctxS?.responsable_de ?? null, cobertura_sede: ctxS?.cobertura_sede ?? null, cobertura_motivo: ctxS?.cobertura_motivo ?? null }
+    setContextoSucursal(ctx); fijarResponsable(p.rol === 'podologo' && !!ctx.responsable_de)
+    const accesibles = (ss ?? []).filter(s => (ctx.cobertura_sede ? s.id === ctx.cobertura_sede : !p.sedes?.length || p.sedes.includes(s.id))) // sedes vacío = todas
     setSedes(accesibles)
-    guardarCopiaArranque(u.id, { perfil: p, organizacion: org ?? null, sedes: accesibles, superadmin: soyRannix === true, liberacion: !errLib && lib && typeof lib === 'object' ? { estricta: lib.estricta === true, claves: Array.isArray(lib.claves) ? lib.claves : [] } : { estricta: false, claves: [] } })
+    guardarCopiaArranque(u.id, { perfil: p, organizacion: org ?? null, sedes: accesibles, contexto: ctx, superadmin: soyRannix === true, liberacion: !errLib && lib && typeof lib === 'object' ? { estricta: lib.estricta === true, claves: Array.isArray(lib.claves) ? lib.claves : [] } : { estricta: false, claves: [] } })
     supabase.from('perfiles').update({ ultimo_acceso: new Date().toISOString() }).eq('id', u.id).then(() => {})
   }, [])
 
@@ -166,13 +174,14 @@ export function AppProvider({ children }) {
 
   const valor = useMemo(() => ({
     user, perfil, rol, organizacion, sedes, esRannix, errorPerfil, loading, liberacion,
+    contextoSucursal, esResponsable: !!contextoSucursal.responsable_de, coberturaHoy: contextoSucursal.cobertura_sede ? { sedeId: contextoSucursal.cobertura_sede, motivo: contextoSucursal.cobertura_motivo } : null,
     sedeActiva, sedeActivaId, setSedeActiva,
     estadoClinica, soloLectura, sinConexion: !SUPABASE_CONFIGURADO, mensajeSinConexion: MENSAJE_SIN_CONEXION,
     tema, setTema, isMobile, sidebarOpen, setSidebarOpen,
     iniciarSesion, iniciarSesionGoogle, recuperarContrasena, cambiarContrasena, cerrarSesion,
     recargarPerfil: () => (user ? cargarPerfil(user) : Promise.resolve()),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [user, perfil, organizacion, sedes, esRannix, errorPerfil, loading, liberacion, sedeActivaId, tema, isMobile, sidebarOpen, soloLectura])
+  }), [user, perfil, organizacion, sedes, esRannix, errorPerfil, loading, liberacion, contextoSucursal, sedeActivaId, tema, isMobile, sidebarOpen, soloLectura])
 
   return <AppContext.Provider value={valor}>{children}</AppContext.Provider>
 }

@@ -3,16 +3,18 @@ import { useEffect, useState } from 'react'
 import Modal from '../../../../components/ui/Modal'
 import FormField from '../../../../components/ui/FormField'
 import Tabs from '../../../../components/ui/Tabs'
+import FotoUploader from '../../../../components/ui/FotoUploader'
+import { BUCKETS } from '../../../../lib/urlFirmada'
 import { useApp } from '../../../../context/AppContext'
 import { insertar, actualizar } from '../../../../lib/api'
-import { useEscribir, PUESTOS, ESQUEMAS, PERIODICIDADES } from '../comun'
+import { useEscribir, PUESTOS, ESQUEMAS, PERIODICIDADES, Foto } from '../comun'
 
 const VACIO = {
   numero_empleado: '', nombre: '', apellido_pat: '', apellido_mat: '', puesto: 'recepcion', esquema_contratacion: 'nomina', estado: 'activo',
   sede_id: '', sedes: [], fecha_ingreso: '', fecha_baja: '', motivo_baja: '', rfc: '', curp: '', nss: '', fecha_nacimiento: '', email: '', telefono: '',
   telefono_fijo: '', domicilio: {}, contacto_emergencia: {}, estado_civil: '', escolaridad: '', nacionalidad: 'Mexicana', lugar_nacimiento: '',
   banco: '', clabe: '', periodicidad_pago: 'quincenal', salario_periodo: 0, bono_periodo: 0, tipo_jornada: '', supervisor: '', centro_trabajo: '',
-  cedula: '', notas: '',
+  cedula: '', notas: '', foto_path: '',
 }
 const COLS = Object.keys(VACIO)
 
@@ -53,7 +55,7 @@ export default function ModalEmpleado({ abierto, empleado, onClose, siguienteNum
     setErrs(e)
     if (Object.keys(e).length) { setTab('general'); return }
     const fila = { ...f }
-    for (const k of ['fecha_ingreso', 'fecha_baja', 'fecha_nacimiento', 'motivo_baja', 'rfc', 'curp', 'nss', 'email', 'telefono', 'telefono_fijo', 'estado_civil', 'escolaridad', 'nacionalidad', 'lugar_nacimiento', 'banco', 'clabe', 'tipo_jornada', 'supervisor', 'centro_trabajo', 'cedula', 'notas']) fila[k] = fila[k] === '' ? null : fila[k]
+    for (const k of ['fecha_ingreso', 'fecha_baja', 'fecha_nacimiento', 'motivo_baja', 'rfc', 'curp', 'nss', 'email', 'telefono', 'telefono_fijo', 'estado_civil', 'escolaridad', 'nacionalidad', 'lugar_nacimiento', 'banco', 'clabe', 'tipo_jornada', 'supervisor', 'centro_trabajo', 'cedula', 'notas', 'foto_path']) fila[k] = fila[k] === '' ? null : fila[k]
     for (const k of ['rfc', 'curp']) if (fila[k]) fila[k] = fila[k].toUpperCase()
     fila.salario_periodo = Number(fila.salario_periodo) || 0
     fila.bono_periodo = Number(fila.bono_periodo) || 0
@@ -70,6 +72,12 @@ export default function ModalEmpleado({ abierto, empleado, onClose, siguienteNum
       <Tabs value={tab} onChange={setTab} items={[{ id: 'general', label: 'General' }, { id: 'personal', label: 'Datos personales' }, { id: 'pago', label: 'Contrato y pago' }]} />
       {tab === 'general' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
+          <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 14 }}>
+            <Foto nombre={[f.nombre, f.apellido_pat].filter(Boolean).join(' ') || 'Nuevo'} ruta={f.foto_path} size={84} />
+            <div><FotoUploader bucket={BUCKETS.equipo} carpeta="fotos" etiqueta={f.foto_path ? 'Cambiar fotografía' : 'Subir fotografía'} maxPx={800}
+              onSubida={({ ruta }) => set('foto_path', ruta)} />
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>JPG o PNG; se guarda al pulsar «Guardar». Solo la ve el personal de la clínica.</div></div>
+          </div>
           {input('numero_empleado', 'Número de empleado *')}
           {input('nombre', 'Nombre(s) *')}
           {input('apellido_pat', 'Apellido paterno')}

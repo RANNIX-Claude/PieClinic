@@ -166,3 +166,18 @@ Acceso anónimo por clínica (el portal vive en `piefirme.rannix.com`; la direcc
 ## 7. Preguntas que condicionan esta matriz
 
 P-130 · P-002 · P-135 · P-131 · P-129 · P-128 · P-121 · P-102 · P-125 · P-051 · P-119.
+
+## Responsable de sucursal y cobertura de personal (migración 310, nov-2026)
+Decisiones del dueño. Marcadas «decidido por defecto, revisable» las extras del responsable que el dueño aún no listó.
+
+| Tema | Regla |
+|---|---|
+| Responsable de sucursal | Uno por sucursal (`sedes.responsable_id`), y debe ser **podólogo** activo. Sigue dando servicio como podólogo y suma opciones **solo en su sucursal**. No es administrador. Lo fijan los propietarios (RPC `asignar_responsable_sucursal`). |
+| Extras del responsable (decidido por defecto, revisable) | Menú «Mi sucursal»: personal del día (quién llega a cubrir, quién sale), firma de entrada, tickets y caja de su sede. **Solo lectura.** No ve sueldos, CLABE, RFC/CURP/NSS ni finanzas (RPC `personal_de_mi_sucursal()` sin datos de pago; la tabla `empleados` sigue cerrada; políticas `*_sel_responsable`). |
+| Podólogo normal | No tiene «Mi sucursal» ni ve al personal de su sede. |
+| Cobertura por día | Solo los propietarios mandan a alguien a otra sucursal por un día (`asignar_personal_dia`, módulo `/rh/asignacion`). No se asigna a fechas pasadas. |
+| Acceso ese día | Con cobertura hoy, `puede_sede()` devuelve verdadero **solo para la sucursal asignada**: tickets, agenda, caja y lecturas valen únicamente ahí; en la habitual no. El propietario nunca se restringe. La persona no puede cambiar ni quitarse la cobertura. |
+| Una sola sucursal por día | `unique (empleado_id, fecha)` en asignaciones; las checadas nuevas se rechazan si ese día ya firmó en otra sede o si la cobertura es de otra; una cobertura con checadas del día ya no se quita. |
+| Tickets de quien cubre | Solo en la sucursal asignada y solo después de **firmar su entrada ahí** (`venta_cobertura_bi`). |
+| Pruebas | `node scripts/test-cobertura-local.mjs` (PGlite, 19 comprobaciones). |
+Límite conocido: algunas funciones antiguas (conteos y servicios de auditoría) leen `perfiles.sedes` directamente y no ven la cobertura del día; el RLS de las tablas sí.

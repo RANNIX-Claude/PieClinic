@@ -5,6 +5,9 @@ import { rolesCon } from '../../../lib/permisos'
 export default [
   { path: '/rh', element: lazy(() => import('./RH.jsx')), roles: rolesCon('rh.ver'), titulo: 'RH y nómina', cap: 'rh.ver' },
   { path: '/rh/empleado/:id', element: lazy(() => import('./ExpedienteEmpleado.jsx')), roles: rolesCon('rh.ver'), titulo: 'Expediente de empleado', cap: 'rh.ver' },
+  { path: '/rh/asignacion', element: lazy(() => import('./AsignacionPersonal.jsx')), roles: rolesCon('personal.asignar'), titulo: 'Asignación de personal', cap: 'personal.asignar' },
+  { path: '/rh/rotacion', element: lazy(() => import('./RotacionPersonal.jsx')), roles: rolesCon('personal.asignar'), titulo: 'Rotación de personal', cap: 'personal.asignar' },
+  { path: '/mi-sucursal', element: lazy(() => import('./MiSucursal.jsx')), roles: ['podologo'], titulo: 'Mi sucursal', cap: 'sucursal.ver' },
   { path: '/mis-recibos', element: lazy(() => import('./MisRecibos.jsx')), roles: rolesCon('rh.propio'), titulo: 'Mis recibos', cap: 'rh.propio' },
   { path: '/comisiones', element: lazy(() => import('./Comisiones.jsx')), roles: [...new Set([...rolesCon('comisiones.ver_todas'), ...rolesCon('comisiones.ver_propias')])], titulo: 'Comisiones' },
   { path: '/mantenimiento', element: lazy(() => import('./Mantenimiento.jsx')), roles: rolesCon('mantenimiento.solicitar'), titulo: 'Mantenimiento', cap: 'mantenimiento.solicitar' },

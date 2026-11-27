@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useApp } from '../../../context/AppContext'
 import { leer, esVistaInexistente } from '../../../lib/api'
 import { bitacoraExportar } from '../../../lib/bitacora'
+import { urlFirmada, BUCKETS } from '../../../lib/urlFirmada'
 import LoadingSpinner from '../../../components/ui/LoadingSpinner'
 import EmptyState from '../../../components/ui/EmptyState'
 
@@ -90,6 +91,8 @@ export async function descargarExcel(archivo, hojas, entidad = archivo) {
 export const enmascararClabe = (clabe, verCompleta) => (!clabe ? '—' : verCompleta ? clabe : `···${String(clabe).slice(-4)}`)
 
 export const hoy = () => new Date().toISOString().slice(0, 10)
+/** Fecha de hoy (AAAA-MM-DD) en la zona horaria de la clínica: la asignación y la firma de entrada se rigen por el día LOCAL. */
+export const hoyZona = zona => new Date().toLocaleDateString('en-CA', { timeZone: zona || 'America/Mexico_City' })
 export const nombreMes = (iso) => new Date(`${iso}T00:00:00Z`).toLocaleDateString('es-MX', { month: 'long', year: 'numeric', timeZone: 'UTC' })
 
 export const nSede = (sedes, id) => sedes.find(s => s.id === id)?.nombre ?? '—'
@@ -104,4 +107,26 @@ export function AvisoSoloLectura() {
   const { soloLectura } = useApp()
   if (!soloLectura) return null
   return <div className="card" style={{ background: 'var(--bd-r-bg)', color: 'var(--bd-r-fg)', fontSize: 13, marginBottom: 12 }}>La clínica está en modo solo lectura: se puede consultar y exportar, no modificar.</div>
+}
+
+// ── Expediente del empleado: documentos (compartidos por el catálogo, el mosaico y el expediente) ──
+export const TIPOS_DOC = [['contrato', 'Contrato'], ['ine', 'INE'], ['curp', 'CURP'], ['rfc', 'RFC / constancia fiscal'], ['nss', 'NSS'], ['comprobante_domicilio', 'Comprobante de domicilio'], ['titulo_cedula', 'Título y cédula'], ['acta_nacimiento', 'Acta de nacimiento'], ['carta_recomendacion', 'Carta de recomendación'], ['incapacidad', 'Incapacidad'], ['otro', 'Otro']]
+export const OBLIGATORIOS = ['contrato', 'ine', 'curp', 'rfc', 'nss', 'comprobante_domicilio']
+export const nombreDoc = t => TIPOS_DOC.find(x => x[0] === t)?.[1] ?? t
+
+// ── Foto del personal (bucket privado pf-equipo; URL firmada de vida corta, en caché) ──
+export function useFotoUrl(ruta) {
+  const q = useQuery({ queryKey: ['eq-foto', ruta], enabled: !!ruta, staleTime: 8 * 60 * 1000, queryFn: () => urlFirmada(BUCKETS.equipo, ruta, 900) })
+  return q.data ?? null
+}
+const PALETA = ['#7B5EA7', '#057642', '#B24020', '#0F766E', '#6B21A8', '#0A66C2']
+export const iniciales = nombre => (nombre || '?').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
+/** Fotografía redonda del empleado; sin foto, sus iniciales. */
+export function Foto({ nombre, ruta, size = 56, borde = '3px solid white' }) {
+  const url = useFotoUrl(ruta)
+  const col = PALETA[(nombre || ' ').charCodeAt(0) % PALETA.length]
+  const base = { width: size, height: size, borderRadius: '50%', border: borde, flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,.18)' }
+  return url
+    ? <img src={url} alt={nombre} style={{ ...base, objectFit: 'cover' }} />
+    : <div aria-label={nombre} style={{ ...base, background: col + '22', color: col, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: Math.round(size * 0.34) }}>{iniciales(nombre)}</div>
 }

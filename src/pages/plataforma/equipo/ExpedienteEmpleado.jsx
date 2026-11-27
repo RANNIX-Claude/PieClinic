@@ -18,13 +18,12 @@ import { supabase } from '../../../lib/supabase'
 import { urlFirmada, rutaStorage, BUCKETS } from '../../../lib/urlFirmada'
 import { bitacoraVer } from '../../../lib/bitacora'
 import { moneda, fecha, telefono, hora } from '../../../lib/formato'
-import { useVista, Estado, useEscribir, Dato, AvisoSoloLectura, etiquetaPuesto, enmascararClabe, textoError, DIAS, hoy } from './comun'
+import { useVista, Estado, useEscribir, Dato, AvisoSoloLectura, etiquetaPuesto, enmascararClabe, textoError, DIAS, hoy, TIPOS_DOC, OBLIGATORIOS, Foto } from './comun'
 import { Medidor } from './rh/TabEmpleados'
 import ModalEmpleado from './rh/ModalEmpleado'
 import TabVacaciones from './rh/TabVacaciones'
+import { RotacionEmpleado } from './RotacionPersonal'
 
-const TIPOS_DOC = [['contrato', 'Contrato'], ['ine', 'INE'], ['curp', 'CURP'], ['rfc', 'RFC / constancia fiscal'], ['nss', 'NSS'], ['comprobante_domicilio', 'Comprobante de domicilio'], ['titulo_cedula', 'Título y cédula'], ['acta_nacimiento', 'Acta de nacimiento'], ['carta_recomendacion', 'Carta de recomendación'], ['incapacidad', 'Incapacidad'], ['otro', 'Otro']]
-const OBLIGATORIOS = ['contrato', 'ine', 'curp', 'rfc', 'nss', 'comprobante_domicilio']
 
 function Documentos({ empleadoId }) {
   const puede = usePermiso('rh.editar')
@@ -101,11 +100,16 @@ export default function ExpedienteEmpleado() {
       <Estado q={q} esVacio={d => !d.length} vacio={{ title: 'Empleado no encontrado', description: 'No existe o no tienes acceso a su sede.' }}>
         {e && <>
           <div className="grid-kpis">
+            <div className="card" style={{ padding: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <Foto nombre={e.nombre_completo} ruta={e.foto_path} size={76} />
+              <div><div style={{ fontWeight: 700 }}>{e.nombre_completo}</div><div style={{ fontSize: 12, color: 'var(--muted)' }}>{etiquetaPuesto(e.puesto)} · {e.sede_nombre}</div>
+                {e.responsable_de_sede_id && <span className="bd v" style={{ marginTop: 4, display: 'inline-block' }}>Responsable de sucursal</span>}</div>
+            </div>
             <KPICard title="Estado" value={<StatusBadge estado={e.estado} />} subtitle={e.fecha_baja ? `Baja ${fecha(e.fecha_baja)}: ${e.motivo_baja ?? ''}` : e.antiguedad_anios != null ? `${e.antiguedad_anios} año(s) de antigüedad` : 'Sin fecha de ingreso'} />
             <KPICard title="Salario del periodo" value={moneda(e.salario_periodo)} subtitle={`${e.periodicidad_pago} · bono ${moneda(e.bono_periodo)}`} color="var(--green)" />
             <div className="card" style={{ padding: 12 }}><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', marginBottom: 6 }}>Expediente completo</div><Medidor datos={x?.datos_presentes} total={x?.datos_total} docs={x?.documentos_presentes} docsTotal={x?.documentos_total} /></div>
           </div>
-          <Tabs value={tab} onChange={setTab} items={[{ id: 'datos', label: 'Datos personales' }, { id: 'contrato', label: 'Contrato y sueldo' }, { id: 'documentos', label: 'Documentos' }, { id: 'asistencia', label: 'Asistencia' }, { id: 'vacaciones', label: 'Vacaciones' }, { id: 'incidencias', label: 'Incidencias' }, { id: 'recibos', label: 'Recibos' }]} />
+          <Tabs value={tab} onChange={setTab} items={[{ id: 'datos', label: 'Datos personales' }, { id: 'contrato', label: 'Contrato y sueldo' }, { id: 'documentos', label: 'Documentos' }, { id: 'asistencia', label: 'Asistencia' }, { id: 'rotacion', label: 'Rotación' }, { id: 'vacaciones', label: 'Vacaciones' }, { id: 'incidencias', label: 'Incidencias' }, { id: 'recibos', label: 'Recibos' }]} />
           {tab === 'datos' && <div className="grid2">
             <div className="card"><h3>Identificación</h3><Dato k="RFC" v={e.rfc} /><Dato k="CURP" v={e.curp} /><Dato k="NSS" v={e.nss} /><Dato k="Fecha de nacimiento" v={fecha(e.fecha_nacimiento)} /><Dato k="Lugar de nacimiento" v={e.lugar_nacimiento} /><Dato k="Nacionalidad" v={e.nacionalidad} /><Dato k="Estado civil" v={e.estado_civil} /><Dato k="Escolaridad" v={e.escolaridad} />{e.cedula && <Dato k="Cédula profesional" v={e.cedula} />}</div>
             <div className="card"><h3>Contacto</h3><Dato k="Correo" v={e.email} /><Dato k="Celular" v={telefono(e.telefono)} /><Dato k="Teléfono fijo" v={telefono(e.telefono_fijo)} />
@@ -127,6 +131,7 @@ export default function ExpedienteEmpleado() {
           {tab === 'documentos' && <Documentos empleadoId={e.id} />}
           {tab === 'asistencia' && <Estado q={qAs}><DataTable exportarNombre="asistencia_empleado" filas={qAs.data ?? []} vacio={{ title: 'Sin asistencia', description: 'Sin registros en los últimos 60 días.' }}
             columnas={[{ key: 'fecha', label: 'Fecha', render: a => fecha(a.fecha) }, { key: 'estado', label: 'Estado', filtro: true, render: a => <StatusBadge estado={a.estado} /> }, { key: 'hora_entrada', label: 'Entrada', render: a => hora(a.hora_entrada) }, { key: 'hora_salida', label: 'Salida', render: a => hora(a.hora_salida) }, { key: 'horas', label: 'Horas', align: 'right' }, { key: 'minutos_retardo', label: 'Min. retardo', align: 'right' }]} /></Estado>}
+          {tab === 'rotacion' && <RotacionEmpleado empleadoId={e.id} />}
           {tab === 'vacaciones' && <TabVacaciones empleadoId={e.id} />}
           {tab === 'incidencias' && <Estado q={qIn}><DataTable exportarNombre="incidencias_empleado" filas={qIn.data ?? []} vacio={{ title: 'Sin incidencias', description: 'Este empleado no tiene incidencias.' }}
             columnas={[{ key: 'fecha', label: 'Fecha', render: i => fecha(i.fecha) }, { key: 'tipo', label: 'Tipo', filtro: true }, { key: 'dias', label: 'Días', align: 'right' }, { key: 'descuenta', label: 'Descuenta', render: i => (i.descuenta ? 'Sí' : 'No') }, { key: 'monto', label: 'Monto', align: 'right', render: i => (i.monto == null ? '—' : moneda(i.monto)) }, { key: 'estado', label: 'Estado', render: i => <StatusBadge estado={i.estado} /> }]} /></Estado>}

@@ -15,7 +15,7 @@ export const ROLES_CLINICA = ['administrador', 'podologo', 'recepcion']
 // Cuarto rol (migración 073): supervisor de sucursales. Se agrega SIN tocar las matrices de arriba: sus capacidades y rutas viven aquí.
 export const ROLES_ASIGNABLES = [...ROLES_CLINICA, 'supervisor']
 // Funciones que se habilitan a un usuario además de su rol (perfiles.funciones). Cobrar exige además firmar con el PIN personal.
-export const FUNCIONES = { caja: 'Caja (cobrar)', recepcion_mercancia: 'Recepción de mercancía', podologia: 'Servicio de podología' }
+export const FUNCIONES = { caja: 'Caja (cobrar)', recepcion_mercancia: 'Recepción de mercancía', podologia: 'Servicio de podología', encargado: 'Encargado de sucursal' }
 // El supervisor ve (solo lectura) lo de sus sedes y autoriza descuentos y devoluciones dentro del tope que fijan los dueños.
 // No cambia precios, catálogo ni configuración. La autoridad real es el RLS (073).
 export const CAPS_SUPERVISOR = new Set([
@@ -120,7 +120,17 @@ export const CAPACIDADES = {
   'auditoria.configurar':      cap([A], true),               // dueño y soporte RANNIX
   // Panel RANNIX (solo metadatos de uso y cobro; nunca datos de salud)
   'rannix.panel':             cap([X], true),
+  // Sucursales y cobertura de personal (migración 310)
+  'personal.asignar':         cap([A], true),               // propietarios: mandar personal a otra sucursal por un día y fijar al responsable de cada una
+  'sucursal.ver':             cap([]),                      // «Mi sucursal»: solo el podólogo que es responsable de una sucursal (ver CAPS_RESPONSABLE)
 }
+
+// Podólogo responsable de sucursal: sigue siendo podólogo (todo lo de su rol) y suma estas opciones, SOLO en su sucursal.
+// No es administrador: no ve sueldos, CLABE, finanzas ni configuración. La autoridad real es el RLS (310: es_responsable()).
+export const CAPS_RESPONSABLE = new Set(['sucursal.ver'])
+let responsableSucursal = false
+export const fijarResponsable = v => { responsableSucursal = !!v }
+export const esResponsableSucursal = () => responsableSucursal
 
 // Superadministrador = persona de rannix_staff que además tiene perfil de administrador en la clínica (cuenta a@g.com en QA).
 // Opera la clínica como administrador (el RLS la ve así) y suma el panel RANNIX. AppContext lo fija al cargar el perfil.
@@ -133,6 +143,7 @@ export function puede(rol, capacidad, { soloLectura = false } = {}) {
   const c = CAPACIDADES[capacidad]
   if (!c || !rol) return false
   if (c.escritura && soloLectura) return false
+  if (CAPS_RESPONSABLE.has(capacidad)) return rol === 'podologo' && responsableSucursal
   if (capacidad.startsWith('auditoria.')) {   // matriz propia del módulo (incluye al supervisor y a la cuenta de soporte)
     const cap = capacidad.slice('auditoria.'.length)
     return cap === 'ver' ? rolAuditoria(rol, superadmin) != null : puedeAuditoria(rol, cap, superadmin)

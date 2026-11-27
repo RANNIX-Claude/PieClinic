@@ -6,8 +6,8 @@ import { resolverIcono } from '../../lib/iconos'
 
 /** Menú de un rol, generado desde src/menu/*.js. Compartido por Sidebar (escritorio) y MobileShell (cajón «Más»). */
 export function useMenu() {
-  const { rol, liberacion } = useApp()
-  return useMemo(() => menuParaRol(rol, liberacion), [rol, liberacion])
+  const { rol, liberacion, esResponsable } = useApp()
+  return useMemo(() => menuParaRol(rol, liberacion), [rol, liberacion, esResponsable])
 }
 
 export function EnlaceMenu({ item, colapsado, onNavegar }) {
