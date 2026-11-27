@@ -13,6 +13,7 @@ import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import { totalesVenta, repartirDescuentoGlobal, pctEfectivo, requierePin, cambio, calcularLinea } from '../../../lib/comercial/ventas'
 import { param } from '../../../lib/comercial/anticipo'
 import { redondear, suma } from '../../../lib/comercial/dinero'
+import SubirComprobante from '../../finanzas/componentes/SubirComprobante'
 import { alternarMetodo, quitarPago, fijarMonto, completarPago, fijarRecibido as fijarRecibidoPuro, recibirExacto, ajustarAuto, validarPagos } from '../../../lib/comercial/pagosCaja'
 import { COBRO_TERMINAL_AVISO } from '../../../lib/adaptadores/clip'
 import PacienteBuscador from './PacienteBuscador'
@@ -302,7 +303,8 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
       const filasPago = [
         ...anticiposElegidos.map(a => ({ venta_id: id, metodo: 'anticipo', monto: Number(a.monto), anticipo_id: a.id })),
         ...pagos.map(p => ({ venta_id: id, metodo: p.metodo, monto: p.monto, referencia: p.referencia || null, ultimos4: /^\d{4}$/.test(p.ultimos4) ? p.ultimos4 : null,
-          efectivo_recibido: p.metodo === 'efectivo' && p.recibido !== '' ? Number(p.recibido) : null, cambio: p.metodo === 'efectivo' && p.recibido !== '' ? cambio(p.recibido, p.monto) : null, gift_card_id: p.gift?.id ?? null })),
+          efectivo_recibido: p.metodo === 'efectivo' && p.recibido !== '' ? Number(p.recibido) : null, cambio: p.metodo === 'efectivo' && p.recibido !== '' ? cambio(p.recibido, p.monto) : null, gift_card_id: p.gift?.id ?? null,
+          ...(p.comprobante ? { comprobante_path: p.comprobante } : {}) })),
       ]
       // pagos ya registrados de un intento anterior no se pueden borrar: solo se insertan los que faltan
       const previos = await leer('pagos', { sedeCol: false, filtros: { venta_id: id } })
@@ -546,6 +548,7 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
                 </div>
               )}
               {p.metodo === 'tarjeta' && <div style={{ display: 'flex', gap: 6, marginTop: 4 }}><input placeholder="Autorización (obligatoria)" value={p.referencia} onChange={e => setP(p.clave, { referencia: e.target.value })} /><input placeholder="Últimos 4" maxLength={4} style={{ width: 90 }} value={p.ultimos4} onChange={e => setP(p.clave, { ultimos4: e.target.value.replace(/\D/g, '') })} /></div>}
+              {p.metodo === 'tarjeta' && <div style={{ marginTop: 6 }}><SubirComprobante carpeta="caja-tarjeta" valor={p.comprobante} capture="environment" etiqueta="Foto del voucher" onSubida={({ ruta }) => setP(p.clave, { comprobante: ruta })} /></div>}
               {p.metodo === 'transferencia' && <input style={{ marginTop: 4, width: '100%' }} placeholder="Clave de rastreo (obligatoria)" value={p.referencia} onChange={e => setP(p.clave, { referencia: e.target.value })} />}
               {p.metodo === 'clip' && <div style={{ marginTop: 4 }}><input style={{ width: '100%' }} placeholder="ID de pago Clip (de la terminal o la liga)" value={p.referencia} onChange={e => setP(p.clave, { referencia: e.target.value })} /><div className="text-muted" style={{ fontSize: 11.5 }}>{COBRO_TERMINAL_AVISO}</div></div>}
               {p.metodo === 'gift_card' && <div style={{ display: 'flex', gap: 6, marginTop: 4, alignItems: 'center' }}><input placeholder="Código (GC-…)" value={p.codigoGift} onChange={e => setP(p.clave, { codigoGift: e.target.value, gift: null })} /><button type="button" className="btn o" onClick={() => buscarGift(p)}>Buscar</button>{p.gift && <span className="bd v">Saldo {moneda(p.gift.saldo)}</span>}</div>}
