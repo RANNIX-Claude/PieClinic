@@ -388,7 +388,7 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
         {/* Cliente siempre a la vista desde el inicio (obligatorio para cobrar): se elige aquí o se marca «Cliente general». */}
         <div className="card" style={{ padding: '8px 12px', marginBottom: 10, borderLeft: !paciente && !clienteGeneral ? '4px solid var(--red)' : undefined }}>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Paso 1 · Elige al cliente <span className="text-muted" style={{ fontWeight: 400 }}>(obligatorio para cobrar)</span></div>
-          <PacienteBuscador valor={paciente} inputRef={clienteRef} autoFocus destacado listarAlEnfocar onElegir={p => { setPaciente(p); if (p) { setClienteGeneral(false); setTimeout(() => buscaRef.current?.focus(), 50) } }} />
+          <PacienteBuscador valor={paciente} inputRef={clienteRef} autoFocus destacado listarAlEnfocar onGeneral={() => { setClienteGeneral(true); setPaciente(null); setTimeout(() => buscaRef.current?.focus(), 50) }} onElegir={p => { setPaciente(p); if (p) { setClienteGeneral(false); setTimeout(() => buscaRef.current?.focus(), 50) } }} />
           {!paciente && <label style={{ fontSize: 14, display: 'block', marginTop: 6 }}><input type="checkbox" checked={clienteGeneral} onChange={e => { setClienteGeneral(e.target.checked); if (e.target.checked) setTimeout(() => buscaRef.current?.focus(), 50) }} /> Cliente general (no quiere dar su nombre)</label>}
         </div>
         <div style={{ fontSize: 13, fontWeight: 600, margin: '2px 0 4px' }}>Paso 2 · Elige el servicio o producto</div>

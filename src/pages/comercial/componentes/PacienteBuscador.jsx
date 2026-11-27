@@ -6,7 +6,9 @@ import { useApp } from '../../../context/AppContext'
 import { leerSnapshot } from '../../../lib/offline/almacen'
 import { telefono } from '../../../lib/formato'
 
-export default function PacienteBuscador({ valor, onElegir, placeholder = 'Buscar cliente por nombre, teléfono o expediente…', deshabilitado, inputRef, autoFocus, destacado, listarAlEnfocar }) {
+const campo = { width: '100%', padding: '8px 10px', fontSize: 14, border: '1.5px solid var(--accent)', borderRadius: 8, background: '#fff' }   // campos del alta rápida con su contorno bien marcado
+
+export default function PacienteBuscador({ valor, onElegir, placeholder = 'Buscar cliente por nombre, teléfono o expediente…', deshabilitado, inputRef, autoFocus, destacado, listarAlEnfocar, onGeneral }) {
   const { sedeActivaId } = useApp()
   const [nuevo, setNuevo] = useState(null) // { nombre, apellido, tel } mientras se da de alta un cliente
   const [guardando, setGuardando] = useState(false)
@@ -57,6 +59,7 @@ export default function PacienteBuscador({ valor, onElegir, placeholder = 'Busca
         style={{ width: '100%', ...(destacado ? { fontSize: 17, padding: '11px 14px', border: '2px solid var(--accent)', borderRadius: 12 } : {}) }} />
       {(texto.trim().length >= 2 || listando) && (
         <div className="card" style={{ position: 'absolute', zIndex: 30, left: 0, right: 0, top: '100%', marginTop: 2, padding: 4, maxHeight: 260, overflow: 'auto' }}>
+          {onGeneral && <button type="button" className="btn" style={{ margin: 4, width: 'calc(100% - 8px)' }} onClick={() => { onGeneral(); setAbierto(false); setTexto('') }}>Cliente general (no quiere dar su nombre)</button>}
           {listando && !buscando && res.length > 0 && <div className="text-muted" style={{ padding: '4px 10px', fontSize: 11.5 }}>Clientes en orden alfabético — escribe para filtrar</div>}
           {buscando && <div className="text-muted" style={{ padding: 8, fontSize: 12.5 }}>Buscando…</div>}
           {error && <div className="text-red" style={{ padding: 8, fontSize: 12.5 }}>{error}</div>}
@@ -64,9 +67,9 @@ export default function PacienteBuscador({ valor, onElegir, placeholder = 'Busca
           {navigator.onLine && !nuevo && <button type="button" className="btn o" style={{ margin: 4 }} onClick={() => { const [n, ...r] = texto.trim().split(/\s+/); setNuevo({ nombre: n ?? '', apellido: r.join(' '), tel: '' }) }}>+ Nuevo cliente (nombre y teléfono)</button>}
           {nuevo && (
             <div style={{ padding: 8, display: 'grid', gap: 6 }}>
-              <input aria-label="Nombre del cliente" placeholder="Nombre" value={nuevo.nombre} onChange={e => setNuevo(n => ({ ...n, nombre: e.target.value }))} />
-              <input aria-label="Apellido del cliente" placeholder="Apellido" value={nuevo.apellido} onChange={e => setNuevo(n => ({ ...n, apellido: e.target.value }))} />
-              <input aria-label="Teléfono del cliente" placeholder="Teléfono celular" value={nuevo.tel} onChange={e => setNuevo(n => ({ ...n, tel: e.target.value }))} />
+              <input aria-label="Nombre del cliente" style={campo} placeholder="Nombre" value={nuevo.nombre} onChange={e => setNuevo(n => ({ ...n, nombre: e.target.value }))} />
+              <input aria-label="Apellido del cliente" style={campo} placeholder="Apellido" value={nuevo.apellido} onChange={e => setNuevo(n => ({ ...n, apellido: e.target.value }))} />
+              <input aria-label="Teléfono del cliente" style={campo} placeholder="Teléfono celular" value={nuevo.tel} onChange={e => setNuevo(n => ({ ...n, tel: e.target.value }))} />
               <button type="button" className="btn" disabled={!nuevo.nombre.trim() || guardando} onClick={crearCliente}>{guardando ? 'Guardando…' : 'Guardar cliente y usarlo'}</button>
               <span className="text-muted" style={{ fontSize: 11.5 }}>Es solo cliente: no tiene expediente. Si después se atiende en podología, se le da de alta como paciente y conserva su historial.</span>
             </div>)}
