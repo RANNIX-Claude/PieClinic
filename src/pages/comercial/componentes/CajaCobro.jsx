@@ -339,7 +339,8 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
 
   // ── pantalla de cajero: atajos de teclado (F2…F9) y ayudas ───────────────────────────────────────
   const efectivo = pagos.find(p => p.metodo === 'efectivo')
-  const pagarCon = metodo => { if (!pagos.some(p => p.metodo === metodo)) agregarPago(metodo) }
+  // Pulsar un método ya elegido lo quita (así se corrige un método elegido por error).
+  const pagarCon = metodo => { if (pagos.some(p => p.metodo === metodo)) setPagos(ps => ps.filter(p => p.metodo !== metodo)); else agregarPago(metodo) }
   const recibir = n => efectivo && setP(efectivo.clave, { recibido: n === 'exacto' ? String(efectivo.monto) : String(n) })
   const cambiarLinea = (clave, delta) => setLineas(ls => ls.map(l => (l.clave === clave ? { ...l, cantidad: Math.max(1, (Number(l.cantidad) || 1) + delta) } : l)))
   const alternarDesc = clave => setAbiertas(a => { const n = new Set(a); n.has(clave) ? n.delete(clave) : n.add(clave); return n })
