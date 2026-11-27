@@ -339,6 +339,9 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
   const recibir = n => efectivo && setPagos(ps => (n === 'exacto' ? recibirExacto(ps, efectivo.clave) : fijarRecibidoPuro(ps, efectivo.clave, n, tot.a_cobrar)))
   const cambiarLinea = (clave, delta) => setLineas(ls => ls.map(l => (l.clave === clave ? { ...l, cantidad: Math.max(1, (Number(l.cantidad) || 1) + delta) } : l)))
   const alternarDesc = clave => setAbiertas(a => { const n = new Set(a); n.has(clave) ? n.delete(clave) : n.add(clave); return n })
+  // Servicio / Producto / Paquete abren una ventana con el catálogo de ese tipo y su propio buscador (se puede agregar varios sin cerrarla).
+  const [qCat, setQCat] = useState('')
+  const abrirCatalogo = t => { setQCat(''); setPanel(p => (p === t ? null : t)) }
   const enfocarBusqueda = f => { setFiltro(f); setPanel(null); setTimeout(() => buscaRef.current?.focus(), 0) }
   const favoritos = useMemo(() => servQ.filas.filter(s => s.tipo_precio === 'fijo').slice(0, 8), [servQ.filas])
   const resFiltrados = filtro ? resultados.filter(r => (filtro === 'oferta' ? r.t === 'oferta' : r.t === filtro)) : resultados
@@ -347,8 +350,8 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
   teclas.current = e => {
     if (hecho) { if (e.key === 'Enter') { e.preventDefault(); limpiar() } return }
     const mapa = {
-      F2: () => enfocarBusqueda('servicio'), F3: () => enfocarBusqueda('producto'), F4: () => setPanel(p => (p === 'citas' ? null : 'citas')),
-      F5: () => enfocarBusqueda('oferta'), F6: () => cuentaAbierta(), F7: () => pagarCon('efectivo'), F8: () => pagarCon('tarjeta'), F9: () => cobrar(true),
+      F2: () => abrirCatalogo('servicio'), F3: () => abrirCatalogo('producto'), F4: () => setPanel(p => (p === 'citas' ? null : 'citas')),
+      F5: () => abrirCatalogo('oferta'), F6: () => cuentaAbierta(), F7: () => pagarCon('efectivo'), F8: () => pagarCon('tarjeta'), F9: () => cobrar(true),
     }
     if (mapa[e.key]) { e.preventDefault(); mapa[e.key]() }
   }
@@ -377,7 +380,6 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
     )
   }
 
-  const FILTROS = [['', 'Todo'], ['servicio', 'Servicios (F2)'], ['producto', 'Productos (F3)'], ['oferta', 'Paquetes y planes (F5)']]
   const METODO_ICONO = { efectivo: Banknote, tarjeta: CreditCard, transferencia: Landmark, gift_card: Gift }
   const hayPagoRapido = ['efectivo', 'tarjeta', 'transferencia']
 
@@ -404,14 +406,13 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
           )}
         </div>
         {busca.trim().length >= 2 && resFiltrados.length === 0 && <div className="text-muted" style={{ marginTop: 4 }}>Sin resultados{filtro ? ' en este filtro' : ''}.</div>}
-        <div className="cj-filtros">{FILTROS.map(([v, t]) => <button key={v} type="button" className={`cj-chip ${filtro === v ? 'on' : ''}`} onClick={() => enfocarBusqueda(v)}>{t}</button>)}</div>
         <AvisoError error={servQ.error ?? prodQ.error} titulo="No se pudo cargar el catálogo" />
 
         <div className="cj-atajos">
           <button type="button" className={`cj-tile ${panel === 'citas' ? 'on' : ''}`} onClick={() => setPanel(p => (p === 'citas' ? null : 'citas'))}><CalendarCheck size={30} /><b>Cita por cobrar</b><span>F4 · {porCobrar.filas.length} pendientes</span></button>
-          <button type="button" className="cj-tile" onClick={() => enfocarBusqueda('servicio')}><Stethoscope size={30} /><b>Servicio</b><span>F2</span></button>
-          <button type="button" className="cj-tile" onClick={() => enfocarBusqueda('producto')}><Package size={30} /><b>Producto</b><span>F3</span></button>
-          <button type="button" className="cj-tile" onClick={() => enfocarBusqueda('oferta')}><Layers size={30} /><b>Paquete / plan</b><span>F5</span></button>
+          <button type="button" className={`cj-tile ${panel === 'servicio' ? 'on' : ''}`} onClick={() => abrirCatalogo('servicio')}><Stethoscope size={30} /><b>Servicio</b><span>F2</span></button>
+          <button type="button" className={`cj-tile ${panel === 'producto' ? 'on' : ''}`} onClick={() => abrirCatalogo('producto')}><Package size={30} /><b>Producto</b><span>F3</span></button>
+          <button type="button" className={`cj-tile ${panel === 'oferta' ? 'on' : ''}`} onClick={() => abrirCatalogo('oferta')}><Layers size={30} /><b>Paquete / plan</b><span>F5</span></button>
           <button type="button" className="cj-tile" disabled={ocupado} onClick={cuentaAbierta}><Save size={30} /><b>Cuenta abierta</b><span>F6 · cobrar después</span></button>
           <button type="button" className={`cj-tile ${panel === 'mas' ? 'on' : ''}`} onClick={() => setPanel(p => (p === 'mas' ? null : 'mas'))}><Percent size={30} /><b>Atención · factura · descuento</b><span>más opciones</span></button>
         </div>
@@ -425,6 +426,23 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
               <span><b>{c.paciente_nombre}</b> · {c.servicio_nombre}</span><span>{moneda(c.precio_servicio)}</span></button>)}
           </div>
         )}
+        {['servicio', 'producto', 'oferta'].includes(panel) && (() => {
+          const q = qCat.trim().toLowerCase()
+          const m = (...xs) => !q || xs.some(x => String(x ?? '').toLowerCase().includes(q))
+          const lista = (panel === 'servicio' ? servQ.filas.filter(s => m(s.nombre, s.codigo, s.folio, ...(s.alias ?? []))).map(s => ({ t: 'servicio', id: s.id, nombre: s.nombre, extra: s.folio ?? s.codigo, item: s }))
+            : panel === 'producto' ? prodQ.filas.filter(p => m(p.nombre, p.sku, p.codigo_barras, p.folio, p.clave_alterna)).map(p => ({ t: 'producto', id: p.id, nombre: p.nombre, extra: p.sku, item: p }))
+            : ofQ.filas.filter(o => o.tipo !== 'promocion' && m(o.nombre, o.codigo)).map(o => ({ t: 'oferta', id: o.id, nombre: o.nombre, extra: `${o.tipo.replace('_', ' ')} · ${o.codigo}`, item: o })))
+            .sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es'))
+          return (
+            <div className="card cj-panel">
+              <h3>{panel === 'servicio' ? 'Servicios' : panel === 'producto' ? 'Productos' : 'Paquetes y planes'} <span className="text-muted" style={{ fontWeight: 400, fontSize: 12 }}>· toca uno para agregarlo; puedes agregar varios</span></h3>
+              <input autoFocus value={qCat} onChange={e => setQCat(e.target.value)} placeholder="Filtrar por nombre o código…" style={{ width: '100%', padding: '8px 10px', border: '1.5px solid var(--accent)', borderRadius: 8, marginBottom: 6 }} />
+              <div style={{ maxHeight: 280, overflow: 'auto' }}>
+                {lista.length === 0 && <div className="text-muted">Sin resultados.</div>}
+                {lista.slice(0, 200).map(r => <button type="button" key={r.t + r.id} className="cj-fila-btn" onClick={() => agregar(r)}><span>{r.nombre}</span><span className="text-muted">{r.extra}</span></button>)}
+              </div>
+            </div>)
+        })()}
         {panel === 'mas' && (
           <div className="card cj-panel">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12 }}>
@@ -436,7 +454,7 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
               </div>
               <div style={{ minWidth: 0 }}>
                 <h3 style={{ marginBottom: 6 }}>Descuento global</h3>
-                <div className="grid3">
+                <div className="grid3 cj-desc-grid">
                   <FormField label="Tipo" as="select" value={global.tipo} onChange={e => setGlobal(g => ({ ...g, tipo: e.target.value, aut: null }))} options={[{ value: 'pct', label: '%' }, { value: 'monto', label: '$ monto' }]} />
                   <FormField label="Valor" type="number" min="0" value={global.valor} onChange={e => setGlobal(g => ({ ...g, valor: e.target.value, aut: null }))} />
                   {params.descuento_motivo_cerrado

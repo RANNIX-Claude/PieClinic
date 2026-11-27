@@ -555,3 +555,5 @@ tr.clickable:hover td { background: var(--row-hover); cursor: pointer; }
 
 /* pasos numerados de la caja */
 .cj-paso { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; margin-right: 4px; }
+.cj-desc-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr); }
+.cj-desc-grid select, .cj-desc-grid input { width: 100%; min-width: 0; box-sizing: border-box; }
