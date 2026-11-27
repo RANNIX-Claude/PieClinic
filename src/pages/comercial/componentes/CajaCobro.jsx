@@ -342,7 +342,14 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
   const efectivo = pagos.find(p => p.metodo === 'efectivo')
   // Pulsar un método ya elegido lo quita (así se corrige un método elegido por error).
   const pagarCon = metodo => { if (pagos.some(p => p.metodo === metodo)) setPagos(ps => ps.filter(p => p.metodo !== metodo)); else agregarPago(metodo) }
-  const recibir = n => efectivo && setP(efectivo.clave, { recibido: n === 'exacto' ? String(efectivo.monto) : String(n) })
+  // Si lo que entrega el cliente en efectivo es MENOS que el monto del efectivo, ese es el pago en efectivo y el resto se cobra con otro método
+  // (p. ej. total 1,100: recibe 500 en efectivo y 600 con tarjeta). Si entrega de más, el monto no cambia y se da cambio.
+  const fijarRecibido = (p, v) => {
+    const n = Number(v)
+    if (p.metodo === 'efectivo' && v !== '' && n > 0 && n < Number(p.monto)) setP(p.clave, { recibido: String(v), monto: n, auto: false })
+    else setP(p.clave, { recibido: String(v) })
+  }
+  const recibir = n => efectivo && (n === 'exacto' ? setP(efectivo.clave, { recibido: String(efectivo.monto) }) : fijarRecibido(efectivo, n))
   const cambiarLinea = (clave, delta) => setLineas(ls => ls.map(l => (l.clave === clave ? { ...l, cantidad: Math.max(1, (Number(l.cantidad) || 1) + delta) } : l)))
   const alternarDesc = clave => setAbiertas(a => { const n = new Set(a); n.has(clave) ? n.delete(clave) : n.add(clave); return n })
   const enfocarBusqueda = f => { setFiltro(f); setPanel(null); setTimeout(() => buscaRef.current?.focus(), 0) }
@@ -550,7 +557,7 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
                     <button type="button" onClick={() => recibir('exacto')}>Exacto</button>
                     {[100, 200, 500, 1000].map(n => <button type="button" key={n} onClick={() => recibir(n)}>${n}</button>)}
                   </div>
-                  <label className="cj-recibido">Recibido <input type="number" min="0" step="0.01" autoFocus value={p.recibido} onChange={e => setP(p.clave, { recibido: e.target.value })} /></label>
+                  <label className="cj-recibido">Recibido <input type="number" min="0" step="0.01" autoFocus value={p.recibido} onChange={e => setP(p.clave, { recibido: e.target.value })} onBlur={e => fijarRecibido(p, e.target.value)} /></label>
                   {p.recibido !== '' && Number(p.recibido) >= p.monto && <div className="cj-cambio">Cambio <b>{moneda(cambio(p.recibido, p.monto))}</b></div>}
                   {p.recibido !== '' && Number(p.recibido) < p.monto && <div className="text-red">Falta {moneda(p.monto - Number(p.recibido))}</div>}
                 </div>
