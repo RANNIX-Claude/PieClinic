@@ -283,7 +283,7 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
       const html = ticketHtml({ org: organizacion, sede: sedeActiva, copia: 'PROVISIONAL: se validará al sincronizar', logo, qr: null,
         venta: { folio, created_at: creado, cajero_nombre: `${perfil?.nombre ?? ''} ${perfil?.apellidos ?? ''}`.trim(), paciente_nombre: paciente?.nombre_completo ?? null, subtotal: tot.subtotal, descuento_total: tot.descuento_total, iva_total: tot.iva_total, total: tot.a_cobrar },
         lineas: lineas.map(l => { const c = calcularLinea(l); return { descripcion: l.descripcion, cantidad: l.cantidad, precio_unitario: l.precio_unitario, importe_bruto: c.importe + c.descuento, descuento: c.descuento } }),
-        pagos: pagos.map(p => ({ metodo: p.metodo, monto: p.monto, ultimos4: p.ultimos4 || null, efectivo_recibido: efRec(p), cambio: cambioDe(p) })) })
+        pagos: pagos.map(p => ({ metodo: p.metodo, monto: p.monto, referencia: p.referencia || null, ultimos4: p.ultimos4 || null, efectivo_recibido: efRec(p), cambio: cambioDe(p) })) })
       setHecho({ ventaId: null, folio, total: tot.a_cobrar, offline: true, html })
       toast.success(`Ticket ${folio} guardado sin conexión`)
       if (imprimir) imprimirHtml(html)
@@ -545,8 +545,8 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
                   {p.recibido !== '' && Number(p.recibido) < p.monto && <div className="text-red">Falta {moneda(p.monto - Number(p.recibido))}</div>}
                 </div>
               )}
-              {p.metodo === 'tarjeta' && <div style={{ display: 'flex', gap: 6, marginTop: 4 }}><input placeholder="Autorización" value={p.referencia} onChange={e => setP(p.clave, { referencia: e.target.value })} /><input placeholder="Últimos 4" maxLength={4} style={{ width: 90 }} value={p.ultimos4} onChange={e => setP(p.clave, { ultimos4: e.target.value.replace(/\D/g, '') })} /></div>}
-              {p.metodo === 'transferencia' && <input style={{ marginTop: 4, width: '100%' }} placeholder="Clave de rastreo" value={p.referencia} onChange={e => setP(p.clave, { referencia: e.target.value })} />}
+              {p.metodo === 'tarjeta' && <div style={{ display: 'flex', gap: 6, marginTop: 4 }}><input placeholder="Autorización (obligatoria)" value={p.referencia} onChange={e => setP(p.clave, { referencia: e.target.value })} /><input placeholder="Últimos 4" maxLength={4} style={{ width: 90 }} value={p.ultimos4} onChange={e => setP(p.clave, { ultimos4: e.target.value.replace(/\D/g, '') })} /></div>}
+              {p.metodo === 'transferencia' && <input style={{ marginTop: 4, width: '100%' }} placeholder="Clave de rastreo (obligatoria)" value={p.referencia} onChange={e => setP(p.clave, { referencia: e.target.value })} />}
               {p.metodo === 'clip' && <div style={{ marginTop: 4 }}><input style={{ width: '100%' }} placeholder="ID de pago Clip (de la terminal o la liga)" value={p.referencia} onChange={e => setP(p.clave, { referencia: e.target.value })} /><div className="text-muted" style={{ fontSize: 11.5 }}>{COBRO_TERMINAL_AVISO}</div></div>}
               {p.metodo === 'gift_card' && <div style={{ display: 'flex', gap: 6, marginTop: 4, alignItems: 'center' }}><input placeholder="Código (GC-…)" value={p.codigoGift} onChange={e => setP(p.clave, { codigoGift: e.target.value, gift: null })} /><button type="button" className="btn o" onClick={() => buscarGift(p)}>Buscar</button>{p.gift && <span className="bd v">Saldo {moneda(p.gift.saldo)}</span>}</div>}
               {p.metodo === 'cortesia' && <input style={{ marginTop: 4, width: '100%' }} placeholder="Motivo de la cortesía (y quién autoriza)" value={p.referencia} onChange={e => setP(p.clave, { referencia: e.target.value })} />}

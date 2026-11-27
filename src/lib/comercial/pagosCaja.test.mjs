@@ -115,6 +115,18 @@ test('C: Tarjeta primero y luego Efectivo con recibido $100 → tarjeta 250, efe
   p = fijarRecibido(p, 'e', 100, 350)
   assert.equal(por(p, 'tarjeta').monto, 250)
   assert.equal(por(p, 'efectivo').monto, 100)
+  assert.match(validarPagos(p, 350), /autorización/)          // la tarjeta exige su autorización
+  p = p.map(x => (x.metodo === 'tarjeta' ? { ...x, referencia: 'A1234' } : x))
+  assert.equal(validarPagos(p, 350), null)
+})
+test('G: tarjeta y transferencia exigen su referencia; con ella pasan', () => {
+  let p = agregarPago([], 'tarjeta', 350, 't'); p = agregarPago(p, 'transferencia', 350, 's'); p = fijarMonto(p, 's', 100, 350)
+  assert.match(validarPagos(p, 350), /autorización de la tarjeta/)
+  p = p.map(x => (x.metodo === 'tarjeta' ? { ...x, referencia: '  ' } : x))
+  assert.match(validarPagos(p, 350), /autorización de la tarjeta/)   // solo espacios no cuenta
+  p = p.map(x => (x.metodo === 'tarjeta' ? { ...x, referencia: 'A1234' } : x))
+  assert.match(validarPagos(p, 350), /clave de rastreo/)
+  p = p.map(x => (x.metodo === 'transferencia' ? { ...x, referencia: 'RAST-998877' } : x))
   assert.equal(validarPagos(p, 350), null)
 })
 test('D: elegir un método por error y quitarlo con el mismo botón', () => {

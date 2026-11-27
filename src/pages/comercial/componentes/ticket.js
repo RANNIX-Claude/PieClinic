@@ -12,6 +12,10 @@ const CSS = `@page{size:80mm auto;margin:2mm}*{box-sizing:border-box}body{font:1
 .tot{font-size:16px;font-weight:700;margin:3px 0}.det{font-size:10.5px;padding-left:10px}.qr{display:block;margin:6px auto 2px;width:30mm;height:30mm;image-rendering:pixelated}.tok{font-size:9px;word-break:break-all}`
 
 /** HTML del ticket. `copia` = 'COPIA 1' en reimpresiones (P-060). `logo` = URL absoluta del logo; `qr` = imagen (data URL) del QR del ticket. */
+/** Referencia del pago bajo su renglón: autorización de la tarjeta y clave de rastreo de la transferencia (también Clip, gift card, cortesía). */
+const ETQ_REF = { tarjeta: 'Autorización', transferencia: 'Rastreo', clip: 'ID Clip', gift_card: 'Código', cortesia: 'Motivo' }
+const refPago = p => (p.referencia && ETQ_REF[p.metodo] ? `<div class="det">${ETQ_REF[p.metodo]}: ${esc(p.referencia)}</div>` : '')
+
 export function ticketHtml({ org, sede, venta, lineas, pagos, copia, logo, qr }) {
   const total = Number(venta.total)
   const pagoLinea = p => fila(`${ETQ_METODO[p.metodo] ?? p.metodo}${p.ultimos4 ? ` ****${p.ultimos4}` : ''}`, (p.metodo === 'anticipo' ? '-' : '') + moneda(p.metodo === 'efectivo' && p.efectivo_recibido ? p.efectivo_recibido : p.monto))
@@ -39,7 +43,7 @@ export function ticketHtml({ org, sede, venta, lineas, pagos, copia, logo, qr })
     fila('IVA incluido', moneda(venta.iva_total)),
     `<div class="f tot"><span>TOTAL</span><span>${moneda(total)}</span></div>`,
     '<hr>',
-    ...pagos.map(pagoLinea),
+    ...pagos.map(p => pagoLinea(p) + refPago(p)),
     ...pagos.filter(p => Number(p.cambio) > 0).map(p => fila('Cambio', moneda(p.cambio), true)),
     '<hr>',
     qr ? `<img class="qr" src="${esc(qr)}" alt="QR del ticket">` : '',

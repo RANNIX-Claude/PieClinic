@@ -110,6 +110,8 @@ export function validarPagos(pagos, total, { moneda = n => `$${Number(n).toFixed
   for (const p of pagos) {
     if (!(montoDe(p) > 0)) return `${etiqueta(p.metodo)} no tiene monto: captura cuánto se paga con ese método o quítalo`
     if (p.metodo === 'efectivo' && p.recibido !== '' && p.recibido != null && num(p.recibido) < montoDe(p)) return 'El efectivo recibido es menor al monto del efectivo'
+    if (p.metodo === 'tarjeta' && !String(p.referencia ?? '').trim()) return 'Captura la autorización de la tarjeta'
+    if (p.metodo === 'transferencia' && !String(p.referencia ?? '').trim()) return 'Captura la clave de rastreo de la transferencia'
     if (p.metodo === 'cortesia' && !String(p.referencia ?? '').trim()) return 'La cortesía exige motivo'
     if (p.metodo === 'gift_card' && (!p.gift || montoDe(p) > num(p.gift.saldo))) return 'Revisa la gift card (código y saldo)'
     if (p.metodo === 'clip' && !String(p.referencia ?? '').trim()) return 'Captura el ID de pago de Clip'
