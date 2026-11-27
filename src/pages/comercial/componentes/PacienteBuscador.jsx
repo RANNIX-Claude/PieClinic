@@ -6,7 +6,7 @@ import { useApp } from '../../../context/AppContext'
 import { leerSnapshot } from '../../../lib/offline/almacen'
 import { telefono } from '../../../lib/formato'
 
-export default function PacienteBuscador({ valor, onElegir, placeholder = 'Buscar cliente por nombre, teléfono o expediente…', deshabilitado }) {
+export default function PacienteBuscador({ valor, onElegir, placeholder = 'Buscar cliente por nombre, teléfono o expediente…', deshabilitado, inputRef, autoFocus, destacado, listarAlEnfocar }) {
   const { sedeActivaId } = useApp()
   const [nuevo, setNuevo] = useState(null) // { nombre, apellido, tel } mientras se da de alta un cliente
   const [guardando, setGuardando] = useState(false)
@@ -22,24 +22,26 @@ export default function PacienteBuscador({ valor, onElegir, placeholder = 'Busca
   const [res, setRes] = useState([])
   const [buscando, setBuscando] = useState(false)
   const [error, setError] = useState(null)
+  const [abierto, setAbierto] = useState(false)   // lista ordenada al enfocar el campo (solo si listarAlEnfocar)
+  const listando = !!listarAlEnfocar && abierto && texto.trim().length < 2
 
   useEffect(() => {
-    if (texto.trim().length < 2) { setRes([]); return }
+    if (texto.trim().length < 2 && !listando) { setRes([]); return }
     const id = setTimeout(async () => {
       setBuscando(true)
       if (!navigator.onLine) {   // sin internet: se busca en la copia de pacientes (solo datos mínimos) guardada al abrir la caja
         const copia = (await leerSnapshot('pacientes-min')) ?? []
         const t = texto.trim().toLowerCase()
         setBuscando(false); setError(null)
-        setRes(copia.filter(p => `${p.nombre_completo ?? ''} ${p.telefono_celular ?? ''} ${p.numero_expediente ?? ''}`.toLowerCase().includes(t)).slice(0, 8))
+        setRes(copia.filter(p => `${p.nombre_completo ?? ''} ${p.telefono_celular ?? ''} ${p.numero_expediente ?? ''}`.toLowerCase().includes(t)).sort((a, b) => String(a.nombre_completo ?? '').localeCompare(String(b.nombre_completo ?? ''), 'es')).slice(0, listando ? 30 : 8))
         return
       }
-      const r = await leer('prp_pacientes', { sedeCol: false, buscar: { columnas: ['nombre', 'apellido_paterno', 'apellido_materno', 'telefono_celular', 'numero_expediente'], texto }, limite: 8,
+      const r = await leer('prp_pacientes', { sedeCol: false, ...(listando ? {} : { buscar: { columnas: ['nombre', 'apellido_paterno', 'apellido_materno', 'telefono_celular', 'numero_expediente'], texto } }), orden: [{ columna: 'nombre', asc: true }, { columna: 'apellido_paterno', asc: true }], limite: listando ? 30 : 8,
         columnas: 'id,nombre,apellido_paterno,apellido_materno,nombre_completo,telefono_celular,numero_expediente,fecha_nacimiento,es_menor,tiene_datos_fiscales,tipo_registro' })
       setBuscando(false); setError(r.error?.message ?? null); setRes(r.data)
     }, 300)
     return () => clearTimeout(id)
-  }, [texto])
+  }, [texto, listando])
 
   if (valor) {
     return (
@@ -50,10 +52,12 @@ export default function PacienteBuscador({ valor, onElegir, placeholder = 'Busca
     )
   }
   return (
-    <div style={{ position: 'relative' }}>
-      <input value={texto} onChange={e => setTexto(e.target.value)} placeholder={placeholder} disabled={deshabilitado} style={{ width: '100%' }} />
-      {texto.trim().length >= 2 && (
+    <div style={{ position: 'relative' }} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setAbierto(false) }}>
+      <input ref={inputRef} autoFocus={autoFocus} value={texto} onChange={e => setTexto(e.target.value)} onFocus={() => setAbierto(true)} onKeyDown={e => { if (e.key === 'Escape') setAbierto(false) }} placeholder={placeholder} disabled={deshabilitado}
+        style={{ width: '100%', ...(destacado ? { fontSize: 17, padding: '11px 14px', border: '2px solid var(--accent)', borderRadius: 12 } : {}) }} />
+      {(texto.trim().length >= 2 || listando) && (
         <div className="card" style={{ position: 'absolute', zIndex: 30, left: 0, right: 0, top: '100%', marginTop: 2, padding: 4, maxHeight: 260, overflow: 'auto' }}>
+          {listando && !buscando && res.length > 0 && <div className="text-muted" style={{ padding: '4px 10px', fontSize: 11.5 }}>Clientes en orden alfabético — escribe para filtrar</div>}
           {buscando && <div className="text-muted" style={{ padding: 8, fontSize: 12.5 }}>Buscando…</div>}
           {error && <div className="text-red" style={{ padding: 8, fontSize: 12.5 }}>{error}</div>}
           {!buscando && !error && res.length === 0 && <div className="text-muted" style={{ padding: 8, fontSize: 12.5 }}>Sin coincidencias.</div>}

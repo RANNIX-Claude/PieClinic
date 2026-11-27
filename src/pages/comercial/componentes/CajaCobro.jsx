@@ -64,6 +64,7 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
   const [panel, setPanel] = useState(null)       // 'citas' | 'mas' | null
   const [abiertas, setAbiertas] = useState(() => new Set())  // líneas con el detalle de precio/descuento abierto
   const buscaRef = useRef(null)
+  const clienteRef = useRef(null)   // paso 1: el cursor empieza aquí en cada ticket nuevo
   useEffect(() => {
     if (!sedeActivaId) return
     const clave = `caja-parametros-${sedeActivaId}`
@@ -326,6 +327,7 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
     setOcupado(false)
   }
   function limpiar() {
+    setTimeout(() => clienteRef.current?.focus(), 50)
     setVentaId(null); setCita(null); setPaciente(null); setClienteGeneral(false); setLineas([]); setPagos([]); setAnticiposSel([]); setGlobal({ tipo: 'pct', valor: '', motivo: '', motivo_id: '', aut: null }); setRequiereFactura(false); setHecho(null); setPodologoId('')
     const n = new URLSearchParams(sp); n.delete('cita'); n.delete('venta'); setSp(n, { replace: true })
   }
@@ -385,13 +387,14 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
       <div className="cj-izq">
         {/* Cliente siempre a la vista desde el inicio (obligatorio para cobrar): se elige aquí o se marca «Cliente general». */}
         <div className="card" style={{ padding: '8px 12px', marginBottom: 10, borderLeft: !paciente && !clienteGeneral ? '4px solid var(--red)' : undefined }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Cliente <span className="text-muted" style={{ fontWeight: 400 }}>(obligatorio para cobrar)</span></div>
-          <PacienteBuscador valor={paciente} onElegir={p => { setPaciente(p); if (p) setClienteGeneral(false) }} />
-          {!paciente && <label style={{ fontSize: 14, display: 'block', marginTop: 6 }}><input type="checkbox" checked={clienteGeneral} onChange={e => setClienteGeneral(e.target.checked)} /> Cliente general (no quiere dar su nombre)</label>}
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Paso 1 · Elige al cliente <span className="text-muted" style={{ fontWeight: 400 }}>(obligatorio para cobrar)</span></div>
+          <PacienteBuscador valor={paciente} inputRef={clienteRef} autoFocus destacado listarAlEnfocar onElegir={p => { setPaciente(p); if (p) { setClienteGeneral(false); setTimeout(() => buscaRef.current?.focus(), 50) } }} />
+          {!paciente && <label style={{ fontSize: 14, display: 'block', marginTop: 6 }}><input type="checkbox" checked={clienteGeneral} onChange={e => { setClienteGeneral(e.target.checked); if (e.target.checked) setTimeout(() => buscaRef.current?.focus(), 50) }} /> Cliente general (no quiere dar su nombre)</label>}
         </div>
+        <div style={{ fontSize: 13, fontWeight: 600, margin: '2px 0 4px' }}>Paso 2 · Elige el servicio o producto</div>
         <div className="cj-buscar">
           <Search size={22} className="cj-buscar-ico" />
-          <input ref={buscaRef} autoFocus className="cj-buscar-in" placeholder="Busca o escanea: servicio, producto, paquete, código de barras…" value={busca}
+          <input ref={buscaRef} className="cj-buscar-in" placeholder="Busca o escanea: servicio, producto, paquete, código de barras…" value={busca}
             onChange={e => setBusca(e.target.value)} onKeyDown={e => { leerCodigo(e); if (e.key === 'Escape') { setBusca(''); setFiltro('') } }} />
           {resFiltrados.length > 0 && (
             <div className="cj-res">
@@ -410,7 +413,7 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
           <button type="button" className="cj-tile" onClick={() => enfocarBusqueda('producto')}><Package size={30} /><b>Producto</b><span>F3</span></button>
           <button type="button" className="cj-tile" onClick={() => enfocarBusqueda('oferta')}><Layers size={30} /><b>Paquete / plan</b><span>F5</span></button>
           <button type="button" className="cj-tile" disabled={ocupado} onClick={cuentaAbierta}><Save size={30} /><b>Cuenta abierta</b><span>F6 · cobrar después</span></button>
-          <button type="button" className={`cj-tile ${panel === 'mas' ? 'on' : ''}`} onClick={() => setPanel(p => (p === 'mas' ? null : 'mas'))}><Percent size={30} /><b>Paciente · factura · descuento</b><span>más opciones</span></button>
+          <button type="button" className={`cj-tile ${panel === 'mas' ? 'on' : ''}`} onClick={() => setPanel(p => (p === 'mas' ? null : 'mas'))}><Percent size={30} /><b>Atención · factura · descuento</b><span>más opciones</span></button>
         </div>
 
         {panel === 'citas' && (
@@ -519,7 +522,7 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
         </div>
 
         <div className="cj-pago">
-          <div className="cj-sub" style={{ marginTop: 0 }}>¿Cómo paga?</div>
+          <div className="cj-sub" style={{ marginTop: 0 }}>Paso 3 · ¿Cómo paga?</div>
           <div className="cj-metodos">
             {hayPagoRapido.map((m, i) => { const I = METODO_ICONO[m]; const act = pagos.some(p => p.metodo === m); return (
               <button key={m} type="button" className={`cj-metodo ${act ? 'on' : ''}`} onClick={() => pagarCon(m)}><I size={26} /><b>{METODOS.find(x => x[0] === m)[1].split(' (')[0]}</b>{i < 2 && <span>F{7 + i}</span>}</button>) })}
@@ -560,6 +563,7 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
           </div>
         </div>
 
+        <div style={{ fontSize: 13, fontWeight: 600, margin: '2px 0 4px' }}>Paso 4 · Cobrar</div>
         <button type="button" className="cj-cobrar" disabled={ocupado || !turno || !!bloqueo} onClick={() => cobrar(true)} title={bloqueo || (!turno ? 'Abre tu turno de caja' : '')}>
           <Printer size={26} /> COBRAR E IMPRIMIR · {moneda(tot.a_cobrar)} <span>(F9)</span>
         </button>

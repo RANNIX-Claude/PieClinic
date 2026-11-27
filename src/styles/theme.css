@@ -552,3 +552,6 @@ tr.clickable:hover td { background: var(--row-hover); cursor: pointer; }
 .cj-cobrar { position: sticky; bottom: 0; }
 .cj-tile { min-height: 70px; } .cj-tile svg { width: 24px; height: 24px; }
 .cj-lineas { max-height: 190px; } .cj-total { font-size: 30px; }
+
+/* pasos numerados de la caja */
+.cj-paso { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; margin-right: 4px; }
