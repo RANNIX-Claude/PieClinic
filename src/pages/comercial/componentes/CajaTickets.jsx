@@ -1,6 +1,5 @@
 // Pestaña «Tickets del día»: lista, reimpresión marcada «copia», cancelación con motivo, retomar cuentas abiertas y facturar.
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { useApp } from '../../../context/AppContext'
@@ -19,10 +18,8 @@ import { cancelacionRequiere, cancelacionesPendientes, parametrosCaja, PARAMETRO
 
 export default function CajaTickets({ turno, onCambio, onRetomar }) {
   const { organizacion, sedeActiva, sedeActivaId } = useApp()
-  const nav = useNavigate()
   const qc = useQueryClient()
   const puedeCancelar = usePermiso('ventas.cancelar')
-  const puedeFacturar = usePermiso('facturas.timbrar')
   const [dia, setDia] = useState(hoyISO())
   const [cancelar, setCancelar] = useState(null)
   const [ocupado, setOcupado] = useState(false)
@@ -80,7 +77,6 @@ export default function CajaTickets({ turno, onCambio, onRetomar }) {
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
         {['por_cobrar', 'cuenta_abierta'].includes(v.estado) && <button className="btn" onClick={() => onRetomar(v.id)}>Retomar</button>}
         {['cobrada', 'por_facturar', 'facturada'].includes(v.estado) && <button className="btn o" onClick={() => copia(v)}>Reimprimir (copia)</button>}
-        {['cobrada', 'por_facturar'].includes(v.estado) && puedeFacturar && <button className="btn o" onClick={() => nav(`/facturacion?venta=${v.id}`)}>Facturar</button>}
         {puedeCancelar && v.estado !== 'cancelada' && <button className="btn red" onClick={() => iniciarCancelacion(v)}>Cancelar</button>}
         {v.estado === 'cancelada' && <span className="text-muted" style={{ fontSize: 12 }}>{v.motivo_cancelacion}</span>}
       </div>) },
