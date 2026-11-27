@@ -209,7 +209,7 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
     if (lineas.some(pinNecesarioLinea) || pinNecesarioGlobal) return params.descuento_motivo_cerrado ? `Los descuentos de más de ${maxPctEf} % requieren la clave de un supervisor` : `Descuentos de más de ${maxPct} % requieren PIN de Administrador`
     if (['plan', 'membresia'].some(t => lineas.some(l => l.tipo === t)) && !paciente) return 'Los planes y membresías se venden a un paciente'
     if (requiereFactura && !paciente) return 'Para facturar elige al paciente'
-    if (!paciente && !clienteGeneral) return 'Elige al cliente o marca «Cliente general» si no quiere dar su nombre'
+    if (!paciente && !clienteGeneral) { setPanel('mas'); return 'Falta el cliente: elígelo o marca «Cliente general» (se abrió el panel «Paciente · factura · descuento»)' }
     if (anticipoExcede) return 'El anticipo seleccionado excede el total del ticket'
     if (cobrar) {
       if (!turno) return 'Abre tu turno de caja para cobrar'
@@ -411,8 +411,8 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
         )}
         {panel === 'mas' && (
           <div className="card cj-panel">
-            <div className="grid2" style={{ gap: 12 }}>
-              <div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12 }}>
+              <div style={{ minWidth: 0 }}>
                 <h3 style={{ marginBottom: 6 }}>Cliente <span className="text-muted" style={{ fontSize: 12, fontWeight: 400 }}>(obligatorio)</span></h3>
                 <PacienteBuscador valor={paciente} onElegir={p => { setPaciente(p); if (p) setClienteGeneral(false) }} />
                 {!paciente && <label style={{ fontSize: 14, display: 'block', margin: '6px 0' }}><input type="checkbox" checked={clienteGeneral} onChange={e => setClienteGeneral(e.target.checked)} /> Cliente general (no quiere dar su nombre)</label>}
@@ -420,7 +420,7 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
                 <label style={{ fontSize: 14 }}><input type="checkbox" checked={requiereFactura} onChange={e => setRequiereFactura(e.target.checked)} /> ¿Requiere factura?{paciente?.tiene_datos_fiscales ? ' (datos fiscales ✓)' : ''}</label>
                 {cita && <div style={{ fontSize: 12.5, marginTop: 6 }}>Cita <b>{cita.folio}</b> · {cita.sede_nombre}</div>}
               </div>
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <h3 style={{ marginBottom: 6 }}>Descuento global</h3>
                 <div className="grid3">
                   <FormField label="Tipo" as="select" value={global.tipo} onChange={e => setGlobal(g => ({ ...g, tipo: e.target.value, aut: null }))} options={[{ value: 'pct', label: '%' }, { value: 'monto', label: '$ monto' }]} />
@@ -454,7 +454,7 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
       {/* ───────── columna derecha: ticket y cobro ───────── */}
       <div className="cj-der">
         <div className="cj-ticket">
-          <div className="cj-sub" style={{ marginTop: 0 }}>Ticket{paciente ? ` · ${paciente.nombre_completo ?? paciente.nombre ?? ''}` : ' · cliente general'}</div>
+          <div className="cj-sub" style={{ marginTop: 0 }}>Ticket{paciente ? ` · ${paciente.nombre_completo ?? paciente.nombre ?? ''}` : clienteGeneral ? ' · cliente general' : ' · sin cliente (elige uno en «Paciente · factura · descuento»)'}</div>
           <div className="cj-lineas">
             {lineas.length === 0 && <div className="cj-vacio">Agrega un servicio o producto para empezar</div>}
             {lineasConGlobal.map(l0 => {
