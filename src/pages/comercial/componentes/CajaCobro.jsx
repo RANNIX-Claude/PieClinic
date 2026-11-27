@@ -226,7 +226,8 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
     if (anticipoExcede) return 'El anticipo seleccionado excede el total del ticket'
     if (cobrar) {
       if (!turno) return 'Abre tu turno de caja para cobrar'
-      if (tot.saldo !== 0) return `Los pagos no cubren el total (saldo ${moneda(tot.saldo)})`
+      if (tot.saldo > 0) return `Los pagos no cubren el total (faltan ${moneda(tot.saldo)})`
+      if (tot.saldo < 0) return `Los pagos suman ${moneda(-tot.saldo)} de más: quita un método de pago o baja su monto`
       for (const p of pagos) {
         if (!(p.monto > 0)) return 'Hay un pago sin monto'
         if (p.metodo === 'efectivo' && p.recibido !== '' && Number(p.recibido) < p.monto) return 'El efectivo recibido es menor al monto'
