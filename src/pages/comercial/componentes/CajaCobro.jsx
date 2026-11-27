@@ -176,6 +176,19 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
   const tot = totalesVenta(lineasConGlobal, { anticipo: sumaAnticipos, pagos: pagosNoAnticipo })
   const anticipoExcede = sumaAnticipos > tot.total
   const pctGlobalEfectivo = tot.subtotal > 0 ? (tot.descuento_total / tot.subtotal) * 100 : 0
+  // El pago que se puso solo (botón Efectivo/Tarjeta…) sigue al total: si luego se agregan o quitan conceptos, su monto se ajusta.
+  // En cuanto el cajero teclea el monto, o hay un pago repartido, ya no se toca.
+  useEffect(() => {
+    setPagos(ps => {
+      const autos = ps.filter(p => p.auto)
+      if (autos.length !== 1) return ps
+      const otros = suma(ps.filter(p => !p.auto).map(p => Number(p.monto) || 0))
+      const nuevo = Math.max(0, redondear(tot.a_cobrar - otros))
+      const a = autos[0]
+      if (Number(a.monto) === nuevo) return ps
+      return ps.map(p => (p.clave !== a.clave ? p : { ...p, monto: nuevo, recibido: p.recibido !== '' && Number(p.recibido) === Number(p.monto) ? String(nuevo) : p.recibido }))
+    })
+  }, [tot.a_cobrar])
 
   const pinNecesarioLinea = l => {
     const c = calcularLinea(l)
@@ -184,12 +197,12 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
   const pinNecesarioGlobal = Number(global.valor) > 0 && requierePin({ pct: pctGlobalEfectivo, maxPct: maxPctEf, esAdmin }) && !global.aut
 
   // ── pagos ────────────────────────────────────────────────────────────────────────────────────────
-  const agregarPago = metodo => setPagos(ps => [...ps, { clave: nuevaClave(), metodo, monto: Math.max(0, tot.saldo), referencia: '', recibido: '', ultimos4: '', codigoGift: '', gift: null }])
+  const agregarPago = metodo => setPagos(ps => [...ps, { clave: nuevaClave(), metodo, auto: !ps.length, monto: Math.max(0, tot.saldo), referencia: '', recibido: '', ultimos4: '', codigoGift: '', gift: null }])
   const setP = (clave, c) => setPagos(ps => ps.map(p => (p.clave === clave ? { ...p, ...c } : p)))
   const buscarGift = async p => {
     const { data } = await leer('prp_gift_cards', { sedeCol: false, filtros: { codigo: p.codigoGift.trim().toUpperCase(), estado: 'activa' }, limite: 1 })
     if (!data[0]) return toast.error('Gift card no encontrada o inactiva')
-    setP(p.clave, { gift: data[0], monto: Math.min(Number(p.monto) || tot.saldo, Number(data[0].saldo)) })
+    setP(p.clave, { auto: false, gift: data[0], monto: Math.min(Number(p.monto) || tot.saldo, Number(data[0].saldo)) })
   }
 
   // ── guardar / cobrar ─────────────────────────────────────────────────────────────────────────────
@@ -521,8 +534,8 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
             <div key={p.clave} className="cj-pago-fila">
               <div className="cj-pago-cab">
                 <b>{METODOS.find(m => m[0] === p.metodo)?.[1]}</b>
-                <input type="number" min="0" step="0.01" value={p.monto} onChange={e => setP(p.clave, { monto: Number(e.target.value) })} aria-label="Monto" />
-                <button type="button" className="btn o" style={{ padding: '2px 8px', fontSize: 11.5 }} onClick={() => setP(p.clave, { monto: Math.max(0, redondear(p.monto + tot.saldo)) })}>Completar</button>
+                <input type="number" min="0" step="0.01" value={p.monto} onChange={e => setP(p.clave, { monto: Number(e.target.value), auto: false })} aria-label="Monto" />
+                <button type="button" className="btn o" style={{ padding: '2px 8px', fontSize: 11.5 }} onClick={() => setP(p.clave, { monto: Math.max(0, redondear(p.monto + tot.saldo)), auto: false })}>Completar</button>
                 <button type="button" className="cj-ico" onClick={() => setPagos(ps => ps.filter(x => x.clave !== p.clave))} aria-label="Quitar pago"><X size={15} /></button>
               </div>
               {p.metodo === 'efectivo' && (
