@@ -445,7 +445,7 @@ export default function CajaCobro({ turno, onListo, onTickets, bloqueo = null })
         })()}
         {panel === 'mas' && (
           <div className="card cj-panel">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 430px), 1fr))', gap: 12 }}>
               <div style={{ minWidth: 0 }}>
                 <h3 style={{ marginBottom: 6 }}>Atención y factura</h3>
                 <FormField label="Podólogo que atendió" as="select" value={podologoId} onChange={e => { const nuevo = e.target.value, previo = podologoId || perfil?.id; setLineas(ls => ls.map(l => (l.atendio_id === previo ? { ...l, atendio_id: nuevo || perfil?.id } : l))); setPodologoId(nuevo) }} placeholder="—" options={podQ.filas.map(p => ({ value: p.id, label: nombrePerfil(p) }))} />
